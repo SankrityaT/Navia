@@ -1,13 +1,11 @@
-// BACKEND: Chat endpoint with persona detection and function calling
-// TODO: Implement streaming responses
-// TODO: Store conversation history in Pinecone
-// TODO: Add rate limiting
+// BACKEND: Chat endpoint (Legacy - redirects to new multi-agent system)
+// NOTE: This route is kept for backwards compatibility
+// New implementation should use /api/query instead
 
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { groqChatCompletion } from '@/lib/groq/client';
-import { PERSONAS, PERSONA_DETECTOR_PROMPT, SYSTEM_PROMPT_BASE } from '@/lib/openai/personas';
-import { AVAILABLE_FUNCTIONS, executeBreakDownTask, executeGetReferences } from '@/lib/openai/functions';
+import { orchestrateQuery } from '@/lib/agents/orchestrator';
+import { storeChatMessage } from '@/lib/pinecone/chat-history';
 
 export async function POST(request: Request) {
   try {
@@ -16,54 +14,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { message, persona, userContext } = await request.json();
+    const { message, userContext } = await request.json();
 
-    // Step 1: Detect persona if not provided
-    let detectedPersona = persona;
-    if (!persona) {
-      const detectionResponse = await groqChatCompletion([
-        { role: 'system', content: PERSONA_DETECTOR_PROMPT },
-        { role: 'user', content: message },
-      ]);
-
-      try {
-        const detection = JSON.parse(detectionResponse.message.content || '{}');
-        detectedPersona = detection.confidence >= 0.6 ? detection.detected_persona : 'daily_tasks';
-      } catch {
-        detectedPersona = 'daily_tasks'; // Default if parsing fails
-      }
+    if (!message) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    // Step 2: Build context-aware system prompt
-    const selectedPersona = PERSONAS[detectedPersona as keyof typeof PERSONAS];
-    const systemPrompt = `${SYSTEM_PROMPT_BASE}
+    // Use new orchestrator system
+    const result = await orchestrateQuery(userId, message, userContext);
 
-${selectedPersona.systemPrompt}
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: 'Failed to process message',
+          message: 'I encountered an issue. Please try rephrasing your question.',
+        },
+        { status: 500 }
+      );
+    }
 
-USER CONTEXT:
-- User ID: ${userId}
-- EF Profile: ${userContext?.ef_profile?.join(', ') || 'Not provided'}
-- Current Goals: ${userContext?.current_goals?.join(', ') || 'Not provided'}
-- Energy Level: ${userContext?.energy_level || 'Unknown'}`;
+    // Get primary domain and response
+    const primaryDomain = result.metadata.domainsInvolved[0] || 'daily_task';
+    const responseText = result.combinedSummary || result.responses[0]?.summary || '';
 
-    // Step 3: Chat completion with Groq
-    // Note: Groq doesn't support function calling yet, so we detect function needs from response
-    const response = await groqChatCompletion([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: message },
-    ]);
+    // Store conversation
+    try {
+      await storeChatMessage(
+        userId,
+        message,
+        responseText,
+        {
+          category: primaryDomain,
+          persona: 'chat_orchestrator',
+          complexity: result.metadata.complexity,
+          hadBreakdown: result.metadata.usedBreakdown,
+        }
+      );
+    } catch (storageError) {
+      console.error('Failed to store chat:', storageError);
+    }
 
-    const choice = response;
-
-    // TODO: Implement function detection from Groq response text
-    // For now, Groq doesn't have native function calling
-    // Backend team can add keyword detection later (e.g., if response contains "I'll break this down")
-
+    // Return in legacy format for compatibility
     return NextResponse.json({
-      message: choice.message.content,
-      persona: detectedPersona,
-      personaIcon: selectedPersona.icon,
-      functionCall: null, // Will be implemented when function detection is added
+      message: responseText,
+      persona: primaryDomain,
+      personaIcon: primaryDomain === 'finance' ? '💰' : primaryDomain === 'career' ? '💼' : '✅',
+      breakdown: result.breakdown,
+      resources: result.allResources,
+      sources: result.allSources,
+      functionCall: null,
     });
 
   } catch (error) {

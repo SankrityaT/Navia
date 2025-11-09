@@ -5,7 +5,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { storeDailyEnergy } from '@/lib/pinecone/operations';
-import { generateEmbedding } from '@/lib/openai/client';
+import { generateEmbedding } from '@/lib/embeddings/client';
 
 export async function POST(request: Request) {
   try {

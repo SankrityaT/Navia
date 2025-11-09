@@ -16,6 +16,11 @@ interface Message {
   personaIcon?: string;
   timestamp: Date;
   functionCall?: any;
+  breakdown?: string[];
+  resources?: Array<{ title: string; url: string; description?: string; type?: string }>;
+  sources?: Array<{ title: string; url: string; excerpt?: string }>;
+  suggestBreakdown?: boolean;
+  originalQuery?: string; // Store the original query for context when "Yes" is clicked
 }
 
 interface ChatInterfaceProps {
@@ -50,13 +55,14 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (messageText?: string, forceBreakdown?: boolean) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: textToSend,
       timestamp: new Date(),
     };
 
@@ -65,30 +71,44 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
-          persona: null, // Auto-detect
+          query: textToSend,
           userContext,
+          forceBreakdown: forceBreakdown || false, // Explicit flag when "Yes" is clicked
         }),
       });
 
       const data = await response.json();
 
+      console.log('📨 Frontend received:', {
+        hasBreakdown: !!data.breakdown,
+        breakdownLength: data.breakdown?.length || 0,
+        needsBreakdown: data.metadata?.needsBreakdown,
+        willShowButtons: data.metadata?.needsBreakdown && (!data.breakdown || data.breakdown.length === 0),
+      });
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.message,
-        persona: data.persona,
-        personaIcon: data.personaIcon,
+        content: data.summary || data.message,
+        persona: data.domains?.[0] || data.persona,
+        personaIcon: getPersonaIcon(data.domains?.[0] || data.persona),
         timestamp: new Date(),
         functionCall: data.functionCall,
+        breakdown: data.breakdown,
+        resources: data.resources,
+        sources: data.sources,
+        suggestBreakdown: data.metadata?.needsBreakdown && (!data.breakdown || data.breakdown.length === 0),
+        originalQuery: textToSend,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-      setCurrentPersona(data.persona);
+      if (data.domains?.[0]) {
+        setCurrentPersona(data.domains[0]);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
@@ -101,6 +121,32 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleBreakdownResponse = async (accept: boolean, originalQuery: string) => {
+    if (accept) {
+      // Send the original query again with forceBreakdown flag
+      await handleSend(originalQuery + ' - create a plan', false);
+    } else {
+      // User declined, just acknowledge
+      const declineMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: "No problem! Let me know if you need anything else.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, declineMessage]);
+    }
+  };
+
+  const getPersonaIcon = (persona: string) => {
+    const icons: Record<string, string> = {
+      career: '💼',
+      finance: '💰',
+      daily_task: '✅',
+      daily_tasks: '✅',
+    };
+    return icons[persona] || '✅';
   };
 
   const getPersonaLabel = (persona: string) => {
@@ -148,6 +194,65 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                 </div>
               )}
               <p className="whitespace-pre-wrap">{message.content}</p>
+              
+              {/* Breakdown suggestion buttons */}
+              {message.role === 'assistant' && message.suggestBreakdown && !message.breakdown && (
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <p className="text-sm font-medium mb-3">Would you like me to break this down into step-by-step actions?</p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleBreakdownResponse(true, message.originalQuery || '')}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm"
+                    >
+                      ✅ Yes, create a plan
+                    </button>
+                    <button
+                      onClick={() => handleBreakdownResponse(false, message.originalQuery || '')}
+                      className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors text-sm"
+                    >
+                      No, thanks
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Breakdown steps */}
+              {message.breakdown && message.breakdown.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <span>📋</span>
+                    <span>Step-by-Step Plan:</span>
+                  </p>
+                  <ol className="space-y-2 ml-1">
+                    {message.breakdown.map((step, index) => (
+                      <li key={index} className="text-sm flex gap-3">
+                        <span className="font-bold text-blue-600 min-w-[24px]">{index + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              
+              {/* Resources */}
+              {message.resources && message.resources.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <p className="text-sm font-semibold mb-2">🔗 Recommended Resources:</p>
+                  <div className="space-y-2">
+                    {message.resources.slice(0, 3).map((resource, index) => (
+                      <a
+                        key={index}
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {resource.title}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               {/* Function call result */}
               {message.functionCall && (
@@ -198,7 +303,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
             disabled={isLoading}
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={isLoading || !input.trim()}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >

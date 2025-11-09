@@ -5,7 +5,7 @@
 
 import { getIndex } from './client';
 import { PeerProfile, PeerMatch } from '../types';
-import { generateEmbedding } from '../openai/client';
+import { generateEmbedding } from '../embeddings/client';
 
 // Store peer profile in Pinecone
 export async function storePeerProfile(profile: PeerProfile, embedding: number[]) {

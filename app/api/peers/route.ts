@@ -6,7 +6,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { findPeerMatches, storePeerProfile } from '@/lib/pinecone/peers';
-import { generateEmbedding } from '@/lib/openai/client';
+import { generateEmbedding } from '@/lib/embeddings/client';
 import { PeerProfile } from '@/lib/types';
 
 // GET: Find matching peers
