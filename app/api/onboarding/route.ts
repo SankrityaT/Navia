@@ -1,7 +1,5 @@
 // BACKEND: Save onboarding data to Clerk and Pinecone
-// TODO: Validate input data
-// TODO: Generate embeddings for profile data
-// TODO: Handle errors and return proper status codes
+// Handles neurotypes, EF challenges, goals, and graduation timeline
 
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
@@ -16,26 +14,52 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
-    const { name, graduation_date, university, ef_profile, current_goals } = data;
+    const { 
+      neurotypes, 
+      other_neurotype,
+      ef_challenges, 
+      current_goal,
+      job_field,
+      graduation_timeline 
+    } = data;
+
+    // Validate required fields
+    if (!neurotypes || !ef_challenges || !current_goal || !graduation_timeline) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
 
     // Update Clerk user metadata
     const client = await clerkClient();
     await client.users.updateUser(userId, {
       publicMetadata: {
-        name,
-        graduation_date,
-        university,
-        ef_profile,
-        current_goals,
+        neurotypes,
+        other_neurotype,
+        ef_challenges,
+        current_goal,
+        job_field,
+        graduation_timeline,
         onboarded: true,
+        onboarded_at: new Date().toISOString(),
       },
     });
 
     // TODO: Enable when Pinecone is set up
     // Create embedding for user profile
-    // const profileText = `User: ${name}, graduated from ${university} on ${graduation_date}. 
-    //     EF challenges: ${Object.entries(ef_profile).filter(([_, v]) => v).map(([k]) => k).join(', ')}.
-    //     Current goals: ${Object.entries(current_goals).filter(([_, v]) => v).map(([k]) => k).join(', ')}.`;
+    // const selectedNeurotypes = Object.entries(neurotypes)
+    //   .filter(([_, v]) => v)
+    //   .map(([k]) => k.replace(/_/g, ' '))
+    //   .join(', ');
+    
+    // const selectedEfChallenges = Object.entries(ef_challenges)
+    //   .filter(([_, v]) => v)
+    //   .map(([k]) => k.replace(/_/g, ' '))
+    //   .join(', ');
+    
+    // const profileText = `User profile: 
+    //   Neurotypes: ${selectedNeurotypes}${other_neurotype ? ` (${other_neurotype})` : ''}. 
+    //   Executive function challenges: ${selectedEfChallenges}. 
+    //   Current goal: ${current_goal.replace(/_/g, ' ')}${job_field ? ` in ${job_field}` : ''}. 
+    //   Graduation timeline: ${graduation_timeline}.`;
     
     // const embedding = await generateEmbedding(profileText);
 
@@ -43,11 +67,12 @@ export async function POST(request: Request) {
     // await storeUserProfile(
     //   userId,
     //   {
-    //     name,
-    //     graduation_date,
-    //     university,
-    //     ef_profile,
-    //     current_goals,
+    //     neurotypes,
+    //     other_neurotype,
+    //     ef_challenges,
+    //     current_goal,
+    //     job_field,
+    //     graduation_timeline,
     //   },
     //   embedding
     // );

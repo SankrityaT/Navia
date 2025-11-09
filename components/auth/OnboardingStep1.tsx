@@ -1,82 +1,52 @@
-// FRONTEND: Onboarding Step 1 - Basic Info
-// TODO: Add form validation
-// TODO: Store in Clerk user metadata
+// FRONTEND: Onboarding Step 1 - Welcome Screen
+// Informational intro with CTA to continue
 
 'use client';
 
-import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 
 interface Step1Props {
-  onNext: (data: { name: string; graduation_date: string; university: string }) => void;
+  onNext: () => void;
 }
 
 export default function OnboardingStep1({ onNext }: Step1Props) {
-  const [formData, setFormData] = useState({
-    name: '',
-    graduation_date: '',
-    university: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onNext(formData);
-  };
-
   return (
-    <div className="max-w-2xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-900 mb-2">Tell us about yourself</h2>
-      <p className="text-gray-600 mb-8">Help us personalize your experience</p>
+    <div className="max-w-2xl mx-auto text-center py-8 animate-fade-in-up">
+      {/* Emoji Header */}
+      <div className="text-7xl mb-8 animate-scale-in delay-200">
+        🚀
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Full Name
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter your name"
-          />
-        </div>
+      {/* Main Heading */}
+      <h1 
+        className="text-5xl md:text-6xl font-serif font-bold text-[var(--charcoal)] mb-6 leading-tight animate-fade-in-up delay-300"
+        style={{fontFamily: 'var(--font-fraunces)'}}
+      >
+        Welcome to Navia
+      </h1>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Graduation Date (or months post-grad)
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.graduation_date}
-            onChange={(e) => setFormData({ ...formData, graduation_date: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="e.g., May 2024 or 6 months post-grad"
-          />
-        </div>
+      {/* Body Text */}
+      <div className="space-y-4 text-lg md:text-xl text-[var(--charcoal)]/80 mb-12 leading-relaxed animate-fade-in-up delay-400">
+        <p className="font-medium">
+          You just graduated. That's huge.
+        </p>
+        <p>
+          Now comes the hard part: figuring out what's next.
+        </p>
+        <p className="pt-4">
+          We're here to help. Navia is your AI coach<br />
+          for finding a job, managing money, and staying sane.
+        </p>
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            University
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.university}
-            onChange={(e) => setFormData({ ...formData, university: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter your university"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors"
-        >
-          Continue
-        </button>
-      </form>
+      {/* CTA Button */}
+      <button
+        onClick={onNext}
+        className="group inline-flex items-center gap-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] px-12 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 hover:-translate-y-0.5 animate-scale-in delay-500"
+      >
+        Continue
+        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
+      </button>
     </div>
   );
 }
