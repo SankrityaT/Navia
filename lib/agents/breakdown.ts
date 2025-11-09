@@ -7,37 +7,80 @@ import { BreakdownRequest, BreakdownResponse } from './types';
 
 /**
  * Check if query EXPLICITLY requests a breakdown/plan
- * Only very explicit phrases should trigger automatic breakdown generation
- * Questions like "how to" should be answered normally, with the LLM suggesting a breakdown if needed
+ * VERY strict matching - only the clearest direct requests
+ * Everything else should let the LLM decide whether to suggest breakdown
  */
 export function explicitlyRequestsBreakdown(query: string): boolean {
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = query.toLowerCase().trim();
+  
+  // Only the most explicit requests - user DIRECTLY asking for a plan/breakdown/tasks
   const explicitPlanKeywords = [
+    // Plan variations
     'create a plan',
+    'create plan',
     'make a plan', 
+    'make plan',
     'build a plan',
+    'build plan',
     'give me a plan',
-    'give me plan', // "give me plan" (without "a")
-    'can you give me plan',
-    'can you give me a plan',
-    'i need a plan',
-    'i need plan',
+    'give me plan',
     'show me a plan',
     'show me plan',
     'provide a plan',
     'provide plan',
+    'i need a plan',
+    'i need plan',
+    
+    // Task variations (critical for "provide me tasks", "give me tasks", etc.)
+    'provide tasks',
+    'provide me tasks',
+    'give me tasks',
+    'give me the tasks',
+    'show me tasks',
+    'show me the tasks',
+    'list tasks',
+    'list the tasks',
+    'create tasks',
+    'make tasks',
+    'i need tasks',
+    
+    // Step variations
+    'give me a step by step',
+    'give me step by step',
+    'show me the steps',
+    'show me steps',
+    'give me the steps',
+    'give me steps',
+    'list the steps',
+    'list steps',
     'step by step',
     'step-by-step',
     'steps to',
     'steps for',
-    'break down',
+    
+    // Breakdown variations
     'break it down',
+    'break this down',
     'breakdown',
     'walk me through',
     'guide me through',
   ];
   
-  return explicitPlanKeywords.some(keyword => lowerQuery.includes(keyword));
+  // Check for explicit matches
+  const hasExplicitRequest = explicitPlanKeywords.some(keyword => lowerQuery.includes(keyword));
+  
+  // EXCEPTION: "how to", "how do I", "how can I" are questions, not plan requests
+  // Let LLM decide if these need breakdown
+  const isHowToQuestion = lowerQuery.startsWith('how to') || 
+                          lowerQuery.startsWith('how do i') || 
+                          lowerQuery.startsWith('how can i') ||
+                          lowerQuery.startsWith('how should i');
+  
+  if (isHowToQuestion && !lowerQuery.includes('step by step')) {
+    return false; // Let LLM answer the question and suggest breakdown if needed
+  }
+  
+  return hasExplicitRequest;
 }
 
 /**
@@ -151,6 +194,56 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
       tips: ['Take breaks between steps', 'You don\'t have to do it all at once'],
     };
   }
+}
+
+/**
+ * Check if query is a simple greeting or social interaction
+ * These should NEVER trigger breakdowns
+ */
+export function isSimpleGreetingOrSocial(query: string): boolean {
+  const lowerQuery = query.toLowerCase().trim();
+  
+  // Very short queries (likely greetings)
+  if (lowerQuery.length < 15 && !lowerQuery.includes('how')) {
+    return true;
+  }
+  
+  // Common greetings and social phrases
+  const greetings = [
+    'hi',
+    'hello',
+    'hey',
+    'good morning',
+    'good afternoon',
+    'good evening',
+    'what\'s up',
+    'whats up',
+    'sup',
+    'how are you',
+    'how\'re you',
+    'thanks',
+    'thank you',
+    'ok',
+    'okay',
+    'got it',
+    'i see',
+    'alright',
+    'cool',
+    'nice',
+    'bye',
+    'goodbye',
+    'see you',
+  ];
+  
+  // Check if query is EXACTLY or STARTS WITH a greeting
+  const isGreeting = greetings.some(greeting => 
+    lowerQuery === greeting || 
+    lowerQuery.startsWith(greeting + ' ') ||
+    lowerQuery.startsWith(greeting + '!') ||
+    lowerQuery.startsWith(greeting + '.')
+  );
+  
+  return isGreeting;
 }
 
 /**
