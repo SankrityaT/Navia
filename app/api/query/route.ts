@@ -4,7 +4,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { orchestrateQuery } from '@/lib/agents/orchestrator';
-import { storeChatMessage } from '@/lib/pinecone/chat-history';
+import { storeChatMessage, retrieveChatHistory, retrieveRelevantContext } from '@/lib/pinecone/chat-history';
 import { autoStoreTaskIfNeeded } from '@/lib/tasks/ai-task-storage';
 
 export async function POST(request: Request) {
@@ -24,8 +24,76 @@ export async function POST(request: Request) {
       );
     }
 
-    // Orchestrate the query through the multi-agent system
-    const result = await orchestrateQuery(userId, query, userContext);
+    // HYBRID RETRIEVAL WITH DOMAIN FILTERING: TOP 3 SEMANTIC + REST CHRONOLOGICAL
+    // Step 1: Quick intent detection to get primary domain for filtering
+    const { detectIntent } = await import('@/lib/agents/orchestrator');
+    const quickIntent = await detectIntent(query, undefined);
+    const primaryDomain = quickIntent.domains[0] || 'daily_task';
+    
+    console.log(`🎯 Primary domain for history retrieval: ${primaryDomain}`);
+    
+    // Step 2: Get top 3 semantically relevant messages FILTERED by domain
+    const semanticMatches = await retrieveRelevantContext(userId, query, primaryDomain, 3);
+    
+    // Step 3: Get ALL chat history for that domain (time-based, newest first)
+    const fullHistory = await retrieveChatHistory(userId, 1000, primaryDomain);
+    
+    // Step 4: Remove semantic matches from full history to avoid duplicates
+    const semanticTimestamps = new Set(semanticMatches.map(m => m.timestamp));
+    const chronologicalHistory = fullHistory.filter(chat => !semanticTimestamps.has(chat.timestamp));
+
+    // Step 4: Format conversation history - SEMANTIC FIRST, THEN CHRONOLOGICAL
+    // Keep track of semantic match count for formatting in agents
+    const semanticMatchMessageCount = semanticMatches.length * 2; // × 2 for user + assistant
+    
+    const conversationHistory = [
+      // TOP 3: Most semantically relevant (will be marked in agent formatting)
+      ...semanticMatches.map((chat) => [
+        { 
+          role: 'user' as const, 
+          content: chat.message,
+        },
+        { 
+          role: 'assistant' as const, 
+          content: chat.response,
+        },
+      ]).flat(),
+      
+      // REST: Chronological chat history (for general context)
+      ...chronologicalHistory.map((chat) => [
+        { 
+          role: 'user' as const, 
+          content: chat.message,
+        },
+        { 
+          role: 'assistant' as const, 
+          content: chat.response,
+        },
+      ]).flat(),
+    ];
+
+    // Build enhanced context with hybrid retrieval
+    const enhancedContext = {
+      ...userContext,
+      recentHistory: conversationHistory, // TOP 3 semantic + rest chronological (clean: only role + content)
+      fullHistoryCount: fullHistory.length,
+      semanticMatchCount: semanticMatches.length, // How many conversations are semantic matches
+      semanticMatchMessageCount, // How many messages (conversations × 2) are semantic matches
+      retrievalStrategy: 'hybrid_semantic_first', // For debugging
+    };
+
+    // Log retrieval strategy for debugging
+    console.log('🔍 Hybrid Retrieval Summary:', {
+      primaryDomain,
+      totalMessages: fullHistory.length,
+      semanticTop3: semanticMatches.length,
+      chronologicalRest: chronologicalHistory.length,
+      conversationHistoryLength: conversationHistory.length,
+      order: 'TOP 3 semantic (filtered) → rest chronological (filtered)',
+    });
+
+    // Orchestrate the query with full context
+    const result = await orchestrateQuery(userId, query, enhancedContext);
 
     if (!result.success) {
       return NextResponse.json(
@@ -39,8 +107,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Determine primary domain for chat history storage
-    const primaryDomain = result.metadata.domainsInvolved[0] || 'daily_task';
+    // Use the same primary domain for chat history storage
+    // (already determined at line 31 for history retrieval)
     const responseText = result.combinedSummary || result.responses[0]?.summary || '';
 
     // Store the conversation in Pinecone
@@ -54,8 +122,6 @@ export async function POST(request: Request) {
           persona: 'orchestrator',
           complexity: result.metadata.complexity,
           hadBreakdown: result.metadata.usedBreakdown,
-          multiAgent: result.metadata.multiAgent,
-          domainsInvolved: result.metadata.domainsInvolved.join(','),
         }
       );
     } catch (storageError) {
@@ -88,9 +154,9 @@ export async function POST(request: Request) {
       // Primary response
       summary: result.combinedSummary || result.responses[0]?.summary,
       
-      // Resources and sources
-      resources: result.allResources,
-      sources: result.allSources,
+      // Resources and sources (from orchestrator, already deduplicated)
+      resources: result.resources,
+      sources: result.sources,
       
       // Individual agent responses (for debugging or detailed view)
       agentResponses: result.responses.map((r) => ({
@@ -108,9 +174,13 @@ export async function POST(request: Request) {
       },
     };
     
-    // ONLY add breakdown field if it exists and has items
+    // ONLY add breakdown field if it exists and has items (from PRIMARY agent only)
     if (result.breakdown && result.breakdown.length > 0) {
       responseData.breakdown = result.breakdown;
+      // Also include tips if they exist
+      if (result.breakdownTips && result.breakdownTips.length > 0) {
+        responseData.breakdownTips = result.breakdownTips;
+      }
     }
     
     // Only add taskIds if they exist

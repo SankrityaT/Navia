@@ -1,7 +1,7 @@
 // Main Orchestrator
 // Routes queries to appropriate agents and coordinates multi-agent responses
 
-import { groqStructuredOutput } from '../groq/client';
+import { groqStructuredOutput, GROQ_MODELS } from '../groq/client';
 import { ORCHESTRATOR_INTENT_PROMPT } from './prompts';
 import {
   IntentDetection,
@@ -15,33 +15,77 @@ import {
 import { processFinanceQuery } from './finance';
 import { processCareerQuery } from './career';
 import { processDailyTaskQuery } from './daily-task';
-import { containsBreakdownKeywords } from './breakdown';
 import { retrieveChatHistory } from '../pinecone/chat-history';
 
 /**
  * Detect user intent and determine which agent(s) to route to
+ * LLM-driven intent detection with conversation context
  */
-export async function detectIntent(query: string): Promise<IntentDetection> {
+export async function detectIntent(
+  query: string, 
+  conversationHistory?: Array<{role: string, content: string}>
+): Promise<IntentDetection> {
   try {
-    const hasBreakdownKeywords = containsBreakdownKeywords(query);
+    // Build conversation context for intent detection
+    // CRITICAL: Include semantic matches (first few messages) + recent messages (last few)
+    const historyContext = conversationHistory && conversationHistory.length > 0
+      ? (() => {
+          // Semantic matches are at the BEGINNING of the array (by design from API route)
+          // We need to determine how many messages are semantic matches
+          // For routing, we want: all semantic matches + last 7 chronological
+          
+          // Estimate: typically 3 conversations × 2 messages = 6 semantic messages
+          // But we'll use a heuristic: first 10 messages OR messages until we've seen enough semantic context
+          const semanticMessages = conversationHistory.slice(0, 6); // Top 3 conversations (6 messages)
+          const chronologicalMessages = conversationHistory.slice(6); // Rest
+          const recentMessages = chronologicalMessages.slice(-7); // Last 7 from chronological
+          
+          // Combine: semantic first (for relevance) + recent (for context)
+          const contextForRouting = [...semanticMessages, ...recentMessages];
+          
+          console.log('🧭 Orchestrator routing context:', {
+            totalHistory: conversationHistory.length,
+            semanticMessages: semanticMessages.length,
+            recentMessages: recentMessages.length,
+            contextForRouting: contextForRouting.length,
+          });
+          
+          return `\n\nCONVERSATION CONTEXT FOR ROUTING (${contextForRouting.length} messages):\n${contextForRouting
+            .map((msg: any, index: number) => {
+              // First 6 are semantic matches
+              const isSemanticMatch = index < semanticMessages.length;
+              const marker = isSemanticMatch ? '⭐ [RELEVANT] ' : '';
+              return `${marker}${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
+            })
+            .join('\n')}\n\n⭐ = Most semantically relevant to current query\n`;
+        })()
+      : '';
 
     const prompt = `Analyze this user query and determine routing:
 
-Query: "${query}"
+CURRENT QUERY: "${query}"
+${historyContext}
+
+CRITICAL: Use the conversation context to understand follow-up questions!
+- If user asks "what projects?" after discussing LinkedIn → CAREER domain
+- If user asks "tell me more" → Use context to determine domain
+- If user asks "how do I do that?" → Refer to previous topic
+
+Intelligently decide:
+1. Which domain(s) this query belongs to (finance/career/daily_task)
+2. Whether the user would benefit from a breakdown/plan (don't over-do it!)
+3. The complexity level of the query
 
 Respond in JSON format following your schema.`;
 
     const response = await groqStructuredOutput([
-      { role: 'system', content: ORCHESTRATOR_INTENT_PROMPT + '\n\nYou must respond in valid JSON format.' },
+      { role: 'system', content: ORCHESTRATOR_INTENT_PROMPT + '\n\nYou must respond in valid JSON format. Always consider conversation context for routing follow-up questions.' },
       { role: 'user', content: prompt },
-    ]);
+    ], {
+      model: GROQ_MODELS.LLAMA_4_SCOUT // Main model for all agents
+    });
 
     const detection: IntentDetection = JSON.parse(response.message.content || '{}');
-
-    // Override needsBreakdown if keywords detected
-    if (hasBreakdownKeywords) {
-      detection.needsBreakdown = true;
-    }
 
     // Ensure at least one domain
     if (!detection.domains || detection.domains.length === 0) {
@@ -81,8 +125,8 @@ export async function orchestrateQuery(
   const startTime = Date.now();
 
   try {
-    // Step 1: Detect intent
-    const intent = await detectIntent(query);
+    // Step 1: Detect intent WITH CONVERSATION CONTEXT
+    const intent = await detectIntent(query, userContext?.recentHistory);
     console.log(`Intent detected: ${intent.domains.join(', ')} (confidence: ${intent.confidence})`);
 
     // Step 2: Retrieve chat history for context
@@ -140,14 +184,15 @@ export async function orchestrateQuery(
     }
 
     // Step 6: Combine responses if multiple agents were used
-    const combinedSummary = responses.length > 1
+    const isMultiAgent = responses.length > 1;
+    const combinedSummary = isMultiAgent
       ? combineMultiAgentResponses(responses)
       : responses[0].summary;
 
-    // Step 7: Combine breakdowns if multiple
-    const allBreakdowns = responses
-      .filter((r) => r.breakdown && r.breakdown.length > 0)
-      .flatMap((r) => r.breakdown!);
+    // Step 7: Take breakdown from PRIMARY agent only (not all agents!)
+    // CRITICAL: Only use the first agent's breakdown to avoid overwhelming users
+    const primaryBreakdown = responses.find((r) => r.breakdown && r.breakdown.length > 0)?.breakdown;
+    const primaryBreakdownTips = responses.find((r) => r.breakdown && r.breakdown.length > 0)?.breakdownTips;
 
     // Step 8: Combine all resources and sources
     const allResources = responses
@@ -170,32 +215,37 @@ export async function orchestrateQuery(
     const needsBreakdown = responses.some(
       (r) => r.metadata?.needsBreakdown === true && (!r.breakdown || r.breakdown.length === 0)
     );
+    
+    const usedBreakdown = !!(primaryBreakdown && primaryBreakdown.length > 0);
 
     console.log('🎯 Orchestrator decision:', {
+      isMultiAgent,
       agentNeedsBreakdown: responses.map(r => ({
         domain: r.domain,
         needsBreakdown: r.metadata?.needsBreakdown,
         hasBreakdown: !!(r.breakdown && r.breakdown.length > 0)
       })),
+      primaryBreakdownSteps: primaryBreakdown?.length || 0,
       finalNeedsBreakdown: needsBreakdown,
-      hasBreakdown: allBreakdowns.length > 0,
+      usedBreakdown,
     });
 
     return {
       success: true,
       responses,
-      combinedSummary: responses.length > 1 ? combinedSummary : undefined,
-      breakdown: allBreakdowns.length > 0 ? allBreakdowns : undefined,
-      allSources: allSources.slice(0, 8),
-      allResources: allResources.slice(0, 10),
+      combinedSummary: isMultiAgent ? combinedSummary : undefined,
+      breakdown: primaryBreakdown, // Only primary agent's breakdown
+      breakdownTips: primaryBreakdownTips, // Tips from primary agent
+      resources: allResources.slice(0, 10),
+      sources: allSources.slice(0, 8),
       metadata: {
         domainsInvolved: intent.domains,
         executionTime,
-        usedBreakdown: allBreakdowns.length > 0,
+        usedBreakdown,
         needsBreakdown, // CRITICAL: Include this for frontend button detection!
         confidence: intent.confidence,
         complexity: intent.complexity,
-        multiAgent: responses.length > 1,
+        multiAgent: isMultiAgent,
       },
     };
 
@@ -228,10 +278,24 @@ function combineMultiAgentResponses(responses: AIResponse[]): string {
     daily_task: '✅ Task Management Guidance',
   };
 
+  // Phrases to remove from individual summaries (they're redundant in multi-agent context)
+  const redundantPhrases = [
+    /I've created a step-by-step plan below.*?\.?$/gim,
+    /I've created a step-by-step plan to help you.*?\.?$/gim,
+    /I've created a plan below.*?\.?$/gim,
+    /See the step-by-step plan below.*?\.?$/gim,
+  ];
+
   const sections = responses
     .map((response) => {
       const label = domainLabels[response.domain];
-      return `${label}:\n${response.summary}`;
+      // Strip out mentions of "step-by-step plan" from individual summaries
+      let cleanedSummary = response.summary;
+      redundantPhrases.forEach(phrase => {
+        cleanedSummary = cleanedSummary.replace(phrase, '').trim();
+      });
+      
+      return `${label}:\n${cleanedSummary}`;
     })
     .join('\n\n---\n\n');
 
