@@ -226,8 +226,12 @@ export async function orchestrateQuery(
 
     // Step 6: Combine responses if multiple agents were used
     const isMultiAgent = responses.length > 1;
+    
+    // CRITICAL: If there's a breakdown, check if we should skip multi-agent sections
+    const hasBreakdown = responses.some(r => r.breakdown && r.breakdown.length > 0);
+    
     const combinedSummary = isMultiAgent
-      ? combineMultiAgentResponses(responses)
+      ? combineMultiAgentResponses(responses, hasBreakdown)
       : responses[0].summary;
 
     // Step 7: Take breakdown from PRIMARY agent only (not all agents!)
@@ -309,7 +313,7 @@ export async function orchestrateQuery(
 /**
  * Combine multiple agent responses into a coherent summary
  */
-function combineMultiAgentResponses(responses: AIResponse[]): string {
+function combineMultiAgentResponses(responses: AIResponse[], hasBreakdown: boolean = false): string {
   if (responses.length === 0) return '';
   if (responses.length === 1) return responses[0].summary;
 
@@ -327,7 +331,41 @@ function combineMultiAgentResponses(responses: AIResponse[]): string {
     /See the step-by-step plan below.*?\.?$/gim,
   ];
 
-  const sections = responses
+  // Filter out empty, error, or useless responses
+  const meaningfulResponses = responses.filter((response) => {
+    const summary = response.summary.trim();
+    
+    // Filter out empty responses
+    if (!summary || summary === '---' || summary === '') return false;
+    
+    // Filter out error messages
+    if (summary.toLowerCase().includes('encountered an issue') || 
+        summary.toLowerCase().includes('error processing') ||
+        summary.toLowerCase().includes('please try rephrasing')) return false;
+    
+    // Filter out very short non-meaningful responses (< 10 chars)
+    if (summary.length < 10) return false;
+    
+    return true;
+  });
+
+  // If only one meaningful response remains, return it directly
+  if (meaningfulResponses.length === 1) {
+    return meaningfulResponses[0].summary;
+  }
+
+  // If no meaningful responses, return a fallback
+  if (meaningfulResponses.length === 0) {
+    return "I've analyzed your question. Let me provide you with a structured plan to help you achieve your goal.";
+  }
+
+  // CRITICAL: If there's a breakdown, don't show "Career Guidance:" / "Finance Guidance:" sections!
+  // Just return a simple intro - the breakdown will be displayed separately in the UI
+  if (hasBreakdown) {
+    return "I've created a step-by-step plan to help you achieve your goal.";
+  }
+
+  const sections = meaningfulResponses
     .map((response) => {
       const label = domainLabels[response.domain];
       // Strip out mentions of "step-by-step plan" from individual summaries
@@ -340,7 +378,7 @@ function combineMultiAgentResponses(responses: AIResponse[]): string {
     })
     .join('\n\n---\n\n');
 
-  const intro = responses.length === 2
+  const intro = meaningfulResponses.length === 2
     ? `I've analyzed your question from multiple perspectives. Here's comprehensive guidance:`
     : `Your question touches on several areas. Here's what I can help with:`;
 

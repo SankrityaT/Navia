@@ -142,12 +142,18 @@ export async function generateBreakdown(
       : '';
 
     // CRITICAL: Include conversation history so LLM knows WHAT to break down
-    // When user says "create a plan for this", we need context!
+    // When user says "create a plan for this" or "create the plan again", we need context!
+    // BUT: Only use the MOST RECENT exchanges to avoid confusion with old topics
     const historyContext = conversationHistory && conversationHistory.length > 0
-      ? `\n\nRECENT CONVERSATION (for understanding "this" or "that"):\n${conversationHistory
-          .slice(-6) // Last 6 messages (3 exchanges) for context
-          .map((msg: any) => `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`)
-          .join('\n')}\n`
+      ? (() => {
+          // Take only the last 4 messages (2 exchanges) for breakdown context
+          // This prevents confusion from old topics (e.g., chicken biryani when asking about flights)
+          const recentMessages = conversationHistory.slice(-4);
+          
+          return `\n\n=== RECENT CONVERSATION (for understanding "this" or "the plan") ===
+${recentMessages.map((msg: any) => `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`).join('\n')}
+=== END RECENT CONVERSATION ===\n`;
+        })()
       : '';
 
     const prompt = `Please break down this task into manageable micro-steps:
@@ -157,7 +163,11 @@ ${context ? `Context: ${context}` : ''}
 ${historyContext}
 ${userProfileInfo}
 
-IMPORTANT: If the task says something like "create a plan for this" or "break that down", use the conversation history to understand what they're referring to. Generate a breakdown for the ACTUAL task they discussed, not a generic plan.
+🚨 CRITICAL INSTRUCTIONS:
+- If the task says "create a plan for this" or "create the plan again", look at the MOST RECENT conversation (the messages right above)
+- Focus on the IMMEDIATE topic being discussed (e.g., if they just asked about "cheap flight websites", create a plan for that)
+- IGNORE older unrelated topics from earlier in the conversation
+- Generate a breakdown for the ACTUAL current task, not past topics
 
 Respond in JSON format with a complete breakdown following your guidelines.`;
 
@@ -178,7 +188,16 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
       firstChars: response.message.content?.substring(0, 100) || 'empty',
     });
 
-    const breakdown: BreakdownResponse = JSON.parse(response.message.content || '{}');
+    let breakdown: BreakdownResponse;
+    try {
+      breakdown = JSON.parse(response.message.content || '{}');
+    } catch (parseError) {
+      console.error('❌ JSON parsing failed:', {
+        error: parseError instanceof Error ? parseError.message : String(parseError),
+        rawContent: response.message.content?.substring(0, 500) || 'empty',
+      });
+      throw new Error('Failed to parse breakdown JSON response');
+    }
 
     console.log('✅ Parsed breakdown:', {
       hasBreakdown: !!breakdown.breakdown,
@@ -231,29 +250,43 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       task: request.task,
+      context: request.context,
       hasHistory: !!conversationHistory,
+      historyLength: conversationHistory?.length || 0,
     });
     
-    // Fallback: Return hierarchical format (not string array!)
+    // CRITICAL: Breakdown generation failed (likely API error, rate limit, or timeout)
+    // Return a simple fallback that at least mentions it's about the task
+    const taskDescription = request.task || 'your goal';
+    const cleanTask = taskDescription.replace(/create a plan for this|break.*down|step.*step/gi, '').trim();
+    
+    console.warn('⚠️ Using fallback breakdown due to generation error');
+    
     return {
       breakdown: [
         {
-          title: 'Step 1: Gather any materials or information you need',
-          timeEstimate: '5 min',
-          subSteps: [],
+          title: `Step 1: Research and gather information about ${cleanTask || 'what you need'}`,
+          timeEstimate: '5-10 min',
+          subSteps: [
+            'Look up relevant resources online',
+            'Make notes of key information',
+          ],
           isOptional: false,
           isHard: false,
         },
         {
-          title: 'Step 2: Complete the main task in small chunks',
+          title: 'Step 2: Make a decision or take action based on what you learned',
           timeEstimate: '10-15 min',
-          subSteps: [],
+          subSteps: [
+            'Review your options',
+            'Choose the best approach for your situation',
+          ],
           isOptional: false,
           isHard: false,
         },
         {
-          title: 'Step 3: Review what you\'ve done and celebrate completion',
-          timeEstimate: '2 min',
+          title: 'Step 3: Complete the task and review your work',
+          timeEstimate: '5 min',
           subSteps: [],
           isOptional: true,
           isHard: false,
@@ -261,8 +294,11 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
       ],
       needsBreakdown: true,
       complexity: 5,
-      estimatedTime: 'Varies based on task',
-      tips: ['Take breaks between steps', 'You don\'t have to do it all at once'],
+      estimatedTime: '20-30 minutes',
+      tips: [
+        'Take breaks if needed - you don\'t have to finish everything at once',
+        'If you get stuck, try asking for more specific help',
+      ],
     };
   }
 }
