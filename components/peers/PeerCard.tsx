@@ -5,11 +5,11 @@
 'use client';
 
 import { PeerProfile } from '@/lib/types';
+import { generateAnonymousName } from '@/lib/utils/anonymousNames';
 import { 
   MapPin, 
   Briefcase, 
   Heart, 
-  MessageCircle, 
   X, 
   Check, 
   GraduationCap,
@@ -30,9 +30,13 @@ interface PeerCardProps {
   matchReasons: string[];
   onConnect?: (userId: string) => void;
   onPass?: (userId: string) => void;
+  isConnecting?: boolean;
 }
 
-export default function PeerCard({ peer, matchScore, matchReasons, onConnect, onPass }: PeerCardProps) {
+export default function PeerCard({ peer, matchScore, matchReasons, onConnect, onPass, isConnecting = false }: PeerCardProps) {
+  // Generate Reddit-style anonymous username
+  const anonymousName = generateAnonymousName(peer.user_id);
+
   // Helper to get interest icons
   const getInterestIcon = (interest: string) => {
     const lower = interest.toLowerCase();
@@ -55,7 +59,7 @@ export default function PeerCard({ peer, matchScore, matchReasons, onConnect, on
         <div className="flex items-start justify-between mb-6">
           <div className="flex-1">
             <h3 className="text-3xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>
-              {peer.name}
+              {anonymousName}
             </h3>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--clay-200)]/60 rounded-full border border-[var(--clay-400)]/30">
               <GraduationCap className="w-4 h-4 text-[var(--clay-700)]" strokeWidth={2.5} />
@@ -211,23 +215,28 @@ export default function PeerCard({ peer, matchScore, matchReasons, onConnect, on
         <div className="flex gap-4">
           <button
             onClick={() => onPass?.(peer.user_id)}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[var(--stone)] hover:bg-[var(--clay-200)] text-[var(--charcoal)] rounded-2xl font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 hover:-translate-y-0.5"
+            disabled={isConnecting}
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[var(--stone)] hover:bg-[var(--clay-200)] text-[var(--charcoal)] rounded-2xl font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           >
             <X className="w-5 h-5" strokeWidth={2.5} />
-            Skip
+            Pass
           </button>
           <button
             onClick={() => onConnect?.(peer.user_id)}
-            className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+            disabled={isConnecting}
+            className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           >
-            <Check className="w-5 h-5" strokeWidth={2.5} />
-            Start Mutual Accountability
-          </button>
-          <button
-            onClick={() => {/* TODO: Implement message first */}}
-            className="flex items-center justify-center px-5 py-4 bg-[var(--sage-400)]/40 hover:bg-[var(--sage-400)]/60 text-[var(--moss-600)] rounded-2xl font-semibold transition-all duration-300 border-2 border-[var(--sage-500)]/40 hover:border-[var(--sage-500)]/60 hover:-translate-y-0.5"
-          >
-            <MessageCircle className="w-5 h-5" strokeWidth={2.5} />
+            {isConnecting ? (
+              <>
+                <Sparkles className="w-5 h-5 animate-spin" strokeWidth={2.5} />
+                Connecting...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" strokeWidth={2.5} />
+                Connect
+              </>
+            )}
           </button>
         </div>
       </div>

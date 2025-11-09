@@ -8,6 +8,7 @@ import OnboardingStep1 from '@/components/auth/OnboardingStep1';
 import OnboardingStep2 from '@/components/auth/OnboardingStep2';
 import OnboardingStep3 from '@/components/auth/OnboardingStep3';
 import OnboardingStep4 from '@/components/auth/OnboardingStep4';
+import OnboardingStep5 from '@/components/auth/OnboardingStep5';
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -27,10 +28,34 @@ export default function OnboardingPage() {
     setStep(4);
   };
 
-  const handleStep4 = async (data: any) => {
+  const handleStep4 = (data: any) => {
+    setOnboardingData({ ...onboardingData, ...data });
+    setStep(5);
+  };
+
+  const handleStep5 = async (data: any) => {
     const finalData = { ...onboardingData, ...data };
     
     // Save to backend
+    try {
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalData),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save onboarding data');
+      }
+    } catch (error) {
+      console.error('Onboarding error:', error);
+    }
+  };
+
+  const handleSkipStep5 = async () => {
+    // Save without custom interests/seeking
+    const finalData = { ...onboardingData };
+    
     try {
       const response = await fetch('/api/onboarding', {
         method: 'POST',
@@ -58,7 +83,7 @@ export default function OnboardingPage() {
           {/* Progress indicator */}
           <div className="mb-12">
             <div className="flex items-center justify-center gap-2">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={i}
                   className={`h-2 rounded-full transition-all duration-500 ${
@@ -71,8 +96,8 @@ export default function OnboardingPage() {
                 />
               ))}
             </div>
-            <p className="text-center text-sm text-[var(--charcoal)]/60 mt-3 font-medium">
-              Step {step} of 4 • ~{Math.max(0, (4 - step) * 20 + 20)} seconds
+            <p className="text-center text-sm text-[var(--charcoal)]/60 mt-3">
+              Step {step} of 5 • ~{Math.max(0, (5 - step) * 20 + 20)} seconds
             </p>
           </div>
 
@@ -82,6 +107,7 @@ export default function OnboardingPage() {
             {step === 2 && <OnboardingStep2 onNext={handleStep2} onBack={() => setStep(1)} />}
             {step === 3 && <OnboardingStep3 onNext={handleStep3} onBack={() => setStep(2)} />}
             {step === 4 && <OnboardingStep4 onNext={handleStep4} onBack={() => setStep(3)} />}
+            {step === 5 && <OnboardingStep5 onNext={handleStep5} onBack={() => setStep(4)} onSkip={handleSkipStep5} />}
           </div>
         </div>
       </div>

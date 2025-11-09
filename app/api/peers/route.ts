@@ -5,9 +5,15 @@
 
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { findPeerMatches, storePeerProfile } from '@/lib/pinecone/peers';
+import { createClient } from '@supabase/supabase-js';
+import { findPeerMatches, storePeerProfile, getPeerProfile } from '@/lib/pinecone/peers';
 import { generateEmbedding } from '@/lib/embeddings/client';
-import { PeerProfile } from '@/lib/types';
+import type { PeerProfile } from '@/lib/types';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // GET: Find matching peers
 export async function GET(request: Request) {
@@ -17,27 +23,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Fetch user's peer profile from Pinecone
-    const mockUserProfile: PeerProfile = {
-      user_id: userId,
-      name: 'Current User',
-      graduation_year: 2024,
-      months_post_grad: 6,
-      neurotype: ['ADHD'],
-      current_struggles: ['job_searching', 'time_management'],
-      career_field: 'software_engineering',
-      interests: ['coding', 'gaming', 'coffee'],
-      seeking: ['accountability_partner', 'career_networking'],
-      bio: 'Looking for support in job search',
-      match_preferences: {
-        similar_struggles: true,
-        similar_neurotype: 'preferred',
-      },
-    };
+    // Fetch user's peer profile from Pinecone
+    const { getPeerProfile } = await import('@/lib/pinecone/peers');
+    const userProfile = await getPeerProfile(userId);
 
-    const matches = await findPeerMatches(userId, mockUserProfile, 10);
+    if (!userProfile) {
+      // User hasn't completed peer profile yet
+      return NextResponse.json({ 
+        matches: [],
+        hasProfile: false,
+        message: 'Complete your profile to start matching'
+      });
+    }
 
-    return NextResponse.json({ matches });
+    // Get existing connections to filter them out
+    const { data: connections } = await supabase
+      .from('peer_connections')
+      .select('user1_id, user2_id')
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+    // Extract connected user IDs
+    const connectedUserIds = new Set(
+      (connections || []).flatMap(conn => [conn.user1_id, conn.user2_id])
+    );
+    connectedUserIds.delete(userId); // Remove self
+
+    // Find matches
+    const allMatches = await findPeerMatches(userId, userProfile, 10);
+    
+    // Filter out already-connected peers
+    const matches = allMatches.filter(match => !connectedUserIds.has(match.peer.user_id));
+
+    return NextResponse.json({ 
+      matches,
+      hasProfile: true
+    });
   } catch (error) {
     console.error('Peer matching error:', error);
     return NextResponse.json({ error: 'Failed to find matches' }, { status: 500 });

@@ -9,6 +9,7 @@ import {
   MessageCircle, 
   Users, 
   CheckSquare,
+  UserCircle,
   Leaf,
   Sparkles
 } from 'lucide-react';
@@ -19,8 +20,10 @@ export default function Navbar() {
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/chat', label: 'Navia', icon: MessageCircle },
-    { href: '/peers', label: 'Connections', icon: Users },
+    { href: '/peers', label: 'Peers', icon: Users },
+    { href: '/connections', label: 'Connections', icon: Users },
     { href: '/tasks', label: 'Tasks', icon: CheckSquare },
+    { href: '/profile', label: 'Profile', icon: UserCircle },
   ];
 
   const isActive = (href: string) => pathname.startsWith(href);
@@ -75,7 +78,15 @@ export default function Navbar() {
                   avatarBox: "w-9 h-9 rounded-xl border-2 border-[var(--clay-300)]"
                 }
               }}
-            />
+            >
+              <UserButton.MenuItems>
+                <UserButton.Link
+                  label="Edit Profile"
+                  labelIcon={<Users className="w-4 h-4" />}
+                  href="/profile/edit"
+                />
+              </UserButton.MenuItems>
+            </UserButton>
           </div>
         </div>
 

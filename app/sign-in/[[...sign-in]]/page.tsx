@@ -111,6 +111,8 @@ export default function SignInPage() {
               {/* Clerk Sign In Component with Custom Styling */}
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border-2 border-[var(--clay-200)]">
                 <SignIn 
+                  fallbackRedirectUrl="/dashboard"
+                  signUpUrl="/sign-up"
                   appearance={{
                     elements: {
                       rootBox: "w-full",

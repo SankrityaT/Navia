@@ -17,7 +17,11 @@ CREATE TABLE user_profiles (
   other_neurotype TEXT,
   ef_challenges JSONB,
   current_goal TEXT,
+  current_goals TEXT[], -- Array of goals for multi-select
   job_field TEXT,
+  interests TEXT[], -- User's interests for peer matching
+  seeking TEXT[], -- What user is looking for in peers
+  offers TEXT[], -- What user can offer to peers
   onboarded BOOLEAN DEFAULT FALSE,
   onboarded_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { storeUserProfile } from '@/lib/pinecone/operations';
 import { generateEmbedding } from '@/lib/embeddings/client';
 import { upsertUserProfile } from '@/lib/supabase/operations';
+import { getSmartDefaults } from '@/lib/peer-matching/smart-defaults';
 
 export async function POST(request: Request) {
   try {
@@ -19,13 +20,20 @@ export async function POST(request: Request) {
       neurotypes, 
       other_neurotype,
       ef_challenges, 
-      current_goal,
+      current_goal,      // Legacy: single goal (for backwards compatibility)
+      current_goals,     // New: multiple goals
       job_field,
-      graduation_timeline 
+      graduation_timeline,
+      interests, // Optional from step 5
+      seeking,   // Optional from step 5
     } = data;
 
+    // Support both single and multiple goals
+    const goalsArray = current_goals || (current_goal ? [current_goal] : []);
+    const primaryGoal = goalsArray[0] || current_goal;
+
     // Validate required fields
-    if (!neurotypes || !ef_challenges || !current_goal || !graduation_timeline) {
+    if (!neurotypes || !ef_challenges || (!current_goal && !current_goals) || !graduation_timeline) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -115,6 +123,84 @@ They benefit from structured guidance, breakdown of complex tasks, and supportiv
       // Log error but don't fail the onboarding
       // User can still use the app even if Pinecone storage fails
       console.error('Pinecone storage error (non-critical):', pineconeError);
+    }
+
+    // Store peer profile for matching
+    try {
+      const neurotypesArray = Object.entries(neurotypes)
+        .filter(([_, v]) => v)
+        .map(([k]) => k);
+      
+      const efChallengesArray = Object.entries(ef_challenges)
+        .filter(([_, v]) => v)
+        .map(([k]) => k);
+
+      // Calculate months post-grad from graduation_timeline
+      const now = new Date();
+      let monthsPostGrad = 0;
+      
+      if (graduation_timeline === 'Graduating this year') {
+        // Currently graduating - 0 months
+        monthsPostGrad = 0;
+      } else if (graduation_timeline === '3-6 months ago') {
+        monthsPostGrad = 4; // Average of 3-6
+      } else if (graduation_timeline === '6-12 months ago') {
+        monthsPostGrad = 9; // Average of 6-12
+      } else if (graduation_timeline === '1-2 years ago') {
+        monthsPostGrad = 18; // Average of 12-24
+      } else if (graduation_timeline === '2+ years ago') {
+        monthsPostGrad = 30; // 2.5 years
+      } else if (graduation_timeline === 'Never went to college') {
+        monthsPostGrad = 0; // Treat as current
+      } else {
+        // Fallback: try to extract year
+        const yearMatch = graduation_timeline.match(/\d{4}/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[0]);
+          monthsPostGrad = (now.getFullYear() - year) * 12 + now.getMonth();
+        }
+      }
+
+      // Get smart defaults for interests, seeking, and offers
+      const smartDefaults = getSmartDefaults({
+        current_goal: primaryGoal,
+        ef_challenges: efChallengesArray,
+        neurotype: neurotypesArray,
+        job_field,
+      });
+
+      // Use custom interests/seeking if provided, otherwise use smart defaults
+      const finalInterests = interests && interests.length > 0 ? interests : smartDefaults.interests;
+      const finalSeeking = seeking && seeking.length > 0 ? seeking : smartDefaults.seeking;
+
+      const peerProfileData = {
+        user_id: userId,
+        name: userName,
+        graduation_year: parseInt(graduation_timeline.match(/\d{4}/)?.[0] || new Date().getFullYear().toString()),
+        months_post_grad: monthsPostGrad,
+        neurotype: neurotypesArray,
+        current_struggles: efChallengesArray,
+        career_field: job_field || undefined,
+        interests: finalInterests,
+        seeking: finalSeeking,
+        offers: smartDefaults.offers,
+        bio: `${goalsArray.map((g: string) => g.replace(/_/g, ' ')).join(', ')}. ${neurotypesArray.join(', ')} navigating post-grad life.`,
+        match_preferences: {
+          similar_struggles: true,
+          similar_neurotype: 'preferred' as const,
+        },
+      };
+
+      // Store peer profile by calling internal API
+      const peerProfileText = `${peerProfileData.current_struggles.join(' ')} ${peerProfileData.interests.join(' ')} ${peerProfileData.career_field || ''} ${peerProfileData.bio}`;
+      const peerEmbedding = await generateEmbedding(peerProfileText);
+      
+      const { storePeerProfile } = await import('@/lib/pinecone/peers');
+      await storePeerProfile(peerProfileData, peerEmbedding);
+
+      console.log(`✅ Peer profile stored in Pinecone for ${userName} (${userId})`);
+    } catch (peerError) {
+      console.error('Peer profile storage error (non-critical):', peerError);
     }
 
     return NextResponse.json({ 

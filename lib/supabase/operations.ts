@@ -16,7 +16,11 @@ export interface UserProfile {
   other_neurotype?: string;
   ef_challenges?: Record<string, boolean>;
   current_goal?: string;
+  current_goals?: string[]; // Array of goals for multi-select
   job_field?: string;
+  interests?: string[]; // User's interests for peer matching
+  seeking?: string[]; // What user is looking for in peers
+  offers?: string[]; // What user can offer to peers
   onboarded?: boolean;
   onboarded_at?: string;
 }
@@ -36,7 +40,11 @@ export async function upsertUserProfile(profile: UserProfile) {
       other_neurotype: profile.other_neurotype,
       ef_challenges: profile.ef_challenges,
       current_goal: profile.current_goal,
+      current_goals: profile.current_goals,
       job_field: profile.job_field,
+      interests: profile.interests,
+      seeking: profile.seeking,
+      offers: profile.offers,
       onboarded: profile.onboarded,
       onboarded_at: profile.onboarded_at,
       updated_at: new Date().toISOString(),

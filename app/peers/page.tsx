@@ -4,33 +4,33 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PeerMatch } from '@/lib/types';
 import PeerCard from '@/components/peers/PeerCard';
 import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
 import { Users, Sparkles } from 'lucide-react';
+import { usePeersStore } from '@/lib/store/peersStore';
+import type { PeersState } from '@/lib/store/peersStore';
 
 export default function PeersPage() {
-  const [matches, setMatches] = useState<PeerMatch[]>([]);
+  const matches = usePeersStore((state: PeersState) => state.matches);
+  const hasProfile = usePeersStore((state: PeersState) => state.hasProfile);
+  const isLoading = usePeersStore((state: PeersState) => state.isLoading);
+  const error = usePeersStore((state: PeersState) => state.error);
+  const startPolling = usePeersStore((state: PeersState) => state.startPolling);
+  const stopPolling = usePeersStore((state: PeersState) => state.stopPolling);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
-    fetchMatches();
-  }, []);
+    startPolling();
+    return () => stopPolling();
+  }, [startPolling, stopPolling]);
 
-  const fetchMatches = async () => {
-    try {
-      const response = await fetch('/api/peers');
-      const data = await response.json();
-      setMatches(data.matches || []);
-    } catch (error) {
-      console.error('Failed to fetch matches:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [matches.length]);
 
   const handleConnect = async (userId: string) => {
+    setIsConnecting(true);
     try {
       const response = await fetch('/api/peers/connect', {
         method: 'POST',
@@ -41,14 +41,19 @@ export default function PeersPage() {
       const data = await response.json();
       
       if (data.success) {
-        alert('Connection request sent! They\'ll be notified to accept and set mutual goals.');
-        nextCard();
+        // Show success message briefly, then move to next card
+        setTimeout(() => {
+          nextCard();
+          setIsConnecting(false);
+        }, 1000);
       } else {
         alert('Failed to send connection request. Please try again.');
+        setIsConnecting(false);
       }
     } catch (error) {
       console.error('Connect error:', error);
       alert('Something went wrong. Please try again.');
+      setIsConnecting(false);
     }
   };
 
@@ -88,12 +93,14 @@ export default function PeersPage() {
                 Meet others navigating similar post-grad challenges—no masking required
               </p>
             </div>
-            <div className="flex items-center gap-2 px-5 py-3 bg-[var(--sand)]/80 backdrop-blur-sm rounded-2xl border border-[var(--clay-300)]/30 shadow-sm">
-              <Users className="w-5 h-5 text-[var(--clay-600)]" strokeWidth={2.5} />
-              <span className="font-semibold text-[var(--charcoal)]">
-                {currentIndex + 1} / {matches.length}
-              </span>
-            </div>
+            {matches.length > 0 && (
+              <div className="flex items-center gap-2 px-5 py-3 bg-[var(--sand)]/80 backdrop-blur-sm rounded-2xl border border-[var(--clay-300)]/30 shadow-sm">
+                <Users className="w-5 h-5 text-[var(--clay-600)]" strokeWidth={2.5} />
+                <span className="font-semibold text-[var(--charcoal)]">
+                  {currentIndex + 1} / {matches.length}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -104,19 +111,47 @@ export default function PeersPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--clay-500)] mx-auto mb-4"></div>
               <p className="text-[var(--charcoal)]/70">Finding your matches...</p>
             </div>
+          ) : error ? (
+            <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-red-300/40 p-12 text-center max-w-md">
+              <Users className="w-16 h-16 text-red-400 mx-auto mb-4" />
+              <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>Unable to load matches</h3>
+              <p className="text-[var(--charcoal)]/70 mb-4">{error}</p>
+              <button
+                onClick={() => usePeersStore.getState().fetchMatches()}
+                className="px-6 py-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : !hasProfile ? (
+            <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-[var(--clay-300)]/30 p-12 text-center max-w-md">
+              <Users className="w-16 h-16 text-[var(--clay-400)] mx-auto mb-4" />
+              <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>No profile found</h3>
+              <p className="text-[var(--charcoal)]/70 mb-6">
+                Your profile needs to be updated. Please edit your profile or re-complete onboarding.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => window.location.href = '/profile/edit'}
+                  className="px-6 py-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg"
+                >
+                  Edit Profile
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/onboarding'}
+                  className="px-6 py-3 bg-[var(--stone)] hover:bg-[var(--charcoal)]/20 text-[var(--charcoal)] rounded-2xl font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40"
+                >
+                  Re-complete Onboarding
+                </button>
+              </div>
+            </div>
           ) : matches.length === 0 ? (
             <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-[var(--clay-300)]/30 p-12 text-center max-w-md">
               <Users className="w-16 h-16 text-[var(--clay-400)] mx-auto mb-4" />
               <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>No matches yet</h3>
               <p className="text-[var(--charcoal)]/70 mb-6">
-                Complete your peer profile to start connecting with others
+                We're still finding people with similar experiences. Check back soon!
               </p>
-              <button 
-                onClick={() => window.location.href = '/onboarding'}
-                className="px-6 py-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg"
-              >
-                Create Profile
-              </button>
             </div>
           ) : currentIndex >= matches.length ? (
             <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-[var(--clay-300)]/30 p-12 text-center max-w-md">
@@ -140,6 +175,7 @@ export default function PeersPage() {
               matchReasons={currentMatch.matchReasons}
               onConnect={handleConnect}
               onPass={handlePass}
+              isConnecting={isConnecting}
             />
           )}
         </div>

@@ -1,15 +1,63 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { isUserOnboarded } from '@/lib/supabase/operations';
 
+// Public routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
+  '/',              // Landing page
+  '/sign-in(.*)',   // Sign-in pages
+  '/sign-up(.*)',   // Sign-up pages
 ]);
 
+// Protected routes that require special handling
+const isOnboardingRoute = createRouteMatcher(['/onboarding']);
+const isApiRoute = createRouteMatcher(['/api(.*)']);
+
+// All other routes are protected by default:
+// - /dashboard
+// - /chat
+// - /tasks
+// - /peers
+// - /peers/connection/[id]
+
 export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+  const { userId } = await auth();
+
+  // Allow public routes without authentication
+  if (isPublicRoute(request)) {
+    return NextResponse.next();
   }
+
+  // PROTECT ALL NON-PUBLIC ROUTES - Require authentication
+  // This will redirect unauthenticated users to sign-in
+  await auth.protect();
+
+  // Skip onboarding check for API routes
+  if (isApiRoute(request)) {
+    return NextResponse.next();
+  }
+
+  // If user is authenticated, enforce onboarding flow
+  if (userId) {
+    try {
+      const hasCompletedOnboarding = await isUserOnboarded(userId);
+
+      // If user hasn't completed onboarding and is not on onboarding page, redirect to onboarding
+      if (!hasCompletedOnboarding && !isOnboardingRoute(request)) {
+        return NextResponse.redirect(new URL('/onboarding', request.url));
+      }
+
+      // If user has completed onboarding and is on onboarding page, redirect to dashboard
+      if (hasCompletedOnboarding && isOnboardingRoute(request)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      // On error, allow the request to proceed to avoid blocking the user
+    }
+  }
+
+  return NextResponse.next();
 });
 
 export const config = {

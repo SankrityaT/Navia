@@ -4,23 +4,93 @@
 //          Near-peer timing (15%), Complementary skills (10%)
 
 import { getIndex } from './client';
-import { PeerProfile, PeerMatch } from '../types';
 import { generateEmbedding } from '../embeddings/client';
+import { generateAnonymousName } from '../utils/anonymousNames';
+import { PeerProfile, PeerMatch } from '../types';
 
 // Store peer profile in Pinecone
 export async function storePeerProfile(profile: PeerProfile, embedding: number[]) {
   const index = getIndex();
   
+  // Flatten nested objects for Pinecone metadata (only supports primitives and string arrays)
+  const flatMetadata = {
+    type: 'peer_profile',
+    user_id: profile.user_id,
+    name: profile.name,
+    graduation_year: profile.graduation_year,
+    months_post_grad: profile.months_post_grad,
+    neurotype: profile.neurotype,
+    current_struggles: profile.current_struggles,
+    career_field: profile.career_field || '',
+    location: profile.location || '',
+    interests: profile.interests,
+    seeking: profile.seeking,
+    offers: profile.offers,
+    availability: profile.availability || '',
+    bio: profile.bio,
+    // Flatten match_preferences
+    similar_struggles: profile.match_preferences.similar_struggles,
+    similar_neurotype: profile.match_preferences.similar_neurotype,
+  };
+  
   await index.upsert([
     {
       id: `peer_${profile.user_id}`,
       values: embedding,
-      metadata: {
-        type: 'peer_profile',
-        ...profile,
-      } as any,
+      metadata: flatMetadata as any,
     },
   ]);
+}
+
+// Fetch user's peer profile from Pinecone
+export async function getPeerProfile(userId: string): Promise<PeerProfile | null> {
+  const index = getIndex();
+  const profileId = `peer_${userId}`;
+  
+  console.log('🔍 [GET PEER PROFILE] Fetching profile with ID:', profileId);
+  
+  try {
+    const result = await index.fetch([profileId]);
+    console.log('📦 [GET PEER PROFILE] Fetch result:', {
+      recordCount: Object.keys(result.records).length,
+      hasRecord: !!result.records[profileId],
+    });
+    
+    const record = result.records[profileId];
+    
+    if (!record || !record.metadata) {
+      console.log('❌ [GET PEER PROFILE] No record or metadata found');
+      console.log('📋 [GET PEER PROFILE] Available records:', Object.keys(result.records));
+      return null;
+    }
+    
+    console.log('✅ [GET PEER PROFILE] Profile found:', record.metadata.name);
+    const meta = record.metadata as any;
+    
+    // Reconstruct the PeerProfile from flattened metadata
+    return {
+      user_id: meta.user_id,
+      name: meta.name,
+      graduation_year: meta.graduation_year,
+      months_post_grad: meta.months_post_grad,
+      neurotype: meta.neurotype || [],
+      current_struggles: meta.current_struggles || [],
+      career_field: meta.career_field || undefined,
+      location: meta.location || undefined,
+      interests: meta.interests || [],
+      seeking: meta.seeking || [],
+      offers: meta.offers || [],
+      availability: meta.availability || undefined,
+      bio: meta.bio,
+      match_preferences: {
+        similar_struggles: meta.similar_struggles,
+        similar_neurotype: meta.similar_neurotype,
+      },
+    };
+  } catch (error) {
+    console.error('❌ [GET PEER PROFILE] Error fetching peer profile:', error);
+    return null;
+  }
 }
 
 // Find matching peers using similarity search
@@ -36,6 +106,7 @@ export async function findPeerMatches(
   const embedding = await generateEmbedding(queryText);
   
   // Query Pinecone for similar peers
+  console.log(`🔍 Searching for matches for user: ${userId}`);
   const results = await index.query({
     vector: embedding,
     filter: {
@@ -46,11 +117,40 @@ export async function findPeerMatches(
     includeMetadata: true,
   });
   
+  console.log(`🔍 Found ${results.matches.length} potential matches for user ${userId}`);
+  results.matches.forEach(match => {
+    console.log(`  - Match: ${match.metadata?.name} (user_id: ${match.metadata?.user_id}, score: ${match.score})`);
+  });
+  
   // Score and rank matches
   const matches: PeerMatch[] = results.matches.map((match) => {
-    const peer = match.metadata as unknown as PeerProfile;
+    const meta = match.metadata as any;
+    
+    // Reconstruct PeerProfile from flattened metadata
+    const peer: PeerProfile = {
+      user_id: meta.user_id,
+      name: meta.name,
+      graduation_year: meta.graduation_year,
+      months_post_grad: meta.months_post_grad,
+      neurotype: meta.neurotype || [],
+      current_struggles: meta.current_struggles || [],
+      career_field: meta.career_field || undefined,
+      location: meta.location || undefined,
+      interests: meta.interests || [],
+      seeking: meta.seeking || [],
+      offers: meta.offers || [],
+      availability: meta.availability || undefined,
+      bio: meta.bio,
+      match_preferences: {
+        similar_struggles: meta.similar_struggles,
+        similar_neurotype: meta.similar_neurotype,
+      },
+    };
+    
     const score = calculateMatchScore(userProfile, peer, match.score || 0);
     const matchReasons = getMatchReasons(userProfile, peer);
+    
+    console.log(`  Match: ${peer.name} (score: ${score})`);
     
     return {
       peer,
@@ -119,13 +219,16 @@ function calculateMatchScore(user: PeerProfile, peer: PeerProfile, vectorScore: 
 function getMatchReasons(user: PeerProfile, peer: PeerProfile): string[] {
   const reasons: string[] = [];
   
+  // Use anonymous username for privacy
+  const peerName = generateAnonymousName(peer.user_id);
+  
   // Near-peer timing (show first - establishes credibility)
   const monthsDiff = Math.abs(user.months_post_grad - peer.months_post_grad);
   if (monthsDiff <= 12) {
-    reasons.push(`${peer.name} graduated around the same time—they get what you're going through`);
+    reasons.push(`${peerName} graduated around the same time—they get what you're going through`);
   } else if (monthsDiff <= 36) {
     const yearsDiff = Math.round(monthsDiff / 12);
-    reasons.push(`${peer.name} is ${yearsDiff} year${yearsDiff > 1 ? 's' : ''} ahead—recently navigated similar challenges`);
+    reasons.push(`${peerName} is ${yearsDiff} year${yearsDiff > 1 ? 's' : ''} ahead—recently navigated similar challenges`);
   }
   
   // Shared struggles (primary connection point)
@@ -148,7 +251,7 @@ function getMatchReasons(user: PeerProfile, peer: PeerProfile): string[] {
     reasons.push(`You can help each other—mutual accountability partnership`);
   } else if (userNeedsPeerOffers.length > 0) {
     const formatted = userNeedsPeerOffers.map(s => s.replace(/_/g, ' ')).join(', ');
-    reasons.push(`${peer.name} can help with: ${formatted}`);
+    reasons.push(`${peerName} can help with: ${formatted}`);
   }
   
   // Shared neurotype (safe space)

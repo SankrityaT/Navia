@@ -1,10 +1,10 @@
 // FRONTEND: Onboarding Step 3 - Current Goals
-// Single select radio buttons with optional job field dropdown
+// Multi-select checkboxes with optional job field dropdown
 
 'use client';
 
 import { useState } from 'react';
-import { Circle, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Check, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface Step3Props {
   onNext: (data: any) => void;
@@ -12,7 +12,7 @@ interface Step3Props {
 }
 
 export default function OnboardingStep3({ onNext, onBack }: Step3Props) {
-  const [selectedGoal, setSelectedGoal] = useState('');
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [jobField, setJobField] = useState('');
 
   const goalOptions = [
@@ -34,13 +34,21 @@ export default function OnboardingStep3({ onNext, onBack }: Step3Props) {
     'Other / Not decided',
   ];
 
+  const toggleGoal = (key: string) => {
+    if (selectedGoals.includes(key)) {
+      setSelectedGoals(selectedGoals.filter(g => g !== key));
+    } else {
+      setSelectedGoals([...selectedGoals, key]);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedGoal) return;
+    if (selectedGoals.length === 0) return;
     
     onNext({ 
-      current_goal: selectedGoal,
-      job_field: selectedGoal === 'finding_job' ? jobField : null
+      current_goals: selectedGoals,
+      job_field: selectedGoals.includes('finding_job') ? jobField : null
     });
   };
 
@@ -52,30 +60,36 @@ export default function OnboardingStep3({ onNext, onBack }: Step3Props) {
       >
         What are you focused on right now?
       </h2>
-      <p className="text-[var(--charcoal)]/70 mb-8 text-lg">Pick the top priority</p>
+      <p className="text-[var(--charcoal)]/70 mb-8 text-lg">
+        Pick all that apply {selectedGoals.length > 0 && `(${selectedGoals.length} selected)`}
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Goal Options */}
         <div className="space-y-3">
           {goalOptions.map((option) => {
-            const isSelected = selectedGoal === option.key;
+            const isSelected = selectedGoals.includes(option.key);
             
             return (
               <button
                 key={option.key}
                 type="button"
-                onClick={() => setSelectedGoal(option.key)}
+                onClick={() => toggleGoal(option.key)}
                 className={`w-full p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-3 ${
                   isSelected
                     ? 'border-[var(--clay-500)] bg-[var(--clay-50)]'
                     : 'border-[var(--stone)] hover:border-[var(--clay-300)] bg-[var(--sand)]/40'
                 }`}
               >
-                <div className="flex items-center justify-center">
-                  {isSelected ? (
-                    <CheckCircle2 className="w-6 h-6 text-[var(--clay-500)]" strokeWidth={2.5} />
-                  ) : (
-                    <Circle className="w-6 h-6 text-[var(--charcoal)]/30" strokeWidth={2} />
+                <div
+                  className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                    isSelected
+                      ? 'border-[var(--clay-500)] bg-[var(--clay-500)]'
+                      : 'border-[var(--charcoal)]/30'
+                  }`}
+                >
+                  {isSelected && (
+                    <Check className="w-4 h-4 text-[var(--cream)]" strokeWidth={3} />
                   )}
                 </div>
                 <span className="font-medium text-[var(--charcoal)]">{option.label}</span>
@@ -85,7 +99,7 @@ export default function OnboardingStep3({ onNext, onBack }: Step3Props) {
         </div>
 
         {/* Job Field Dropdown - Show only if "Finding a job" is selected */}
-        {selectedGoal === 'finding_job' && (
+        {selectedGoals.includes('finding_job') && (
           <div className="pt-4 animate-fade-in-up">
             <label className="block text-lg font-medium text-[var(--charcoal)] mb-3">
               What field? <span className="text-[var(--charcoal)]/60 font-normal">(Optional)</span>
@@ -117,7 +131,7 @@ export default function OnboardingStep3({ onNext, onBack }: Step3Props) {
           </button>
           <button
             type="submit"
-            disabled={!selectedGoal}
+            disabled={selectedGoals.length === 0}
             className="flex-1 inline-flex items-center justify-center gap-2 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] py-4 rounded-full text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             Continue
