@@ -1,15 +1,11 @@
-// FRONTEND: Main dashboard page
+// FRONTEND: Main dashboard page with warm-organic aesthetic
 // TODO: Fetch tasks from API
 // TODO: Get user info from Clerk
 
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import Header from '@/components/dashboard/Header';
-import TodaysFocus from '@/components/dashboard/TodaysFocus';
-import QuickWins from '@/components/dashboard/QuickWins';
-import ProgressTracker from '@/components/dashboard/ProgressTracker';
-import Link from 'next/link';
-import { LayoutGrid, MessageCircle, Users } from 'lucide-react';
+import Header from '@/components/dashboard/HeaderNew';
+import Dashboard from '@/components/dashboard/DashboardNew';
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -66,48 +62,9 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       <Header userName={userName} />
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Quick nav */}
-        <div className="mb-6 flex flex-wrap gap-3">
-          <Link
-            href="/tasks"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            <LayoutGrid className="w-5 h-5" />
-            View All Tasks
-          </Link>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Chat with Navia
-          </Link>
-          <Link
-            href="/peers"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-          >
-            <Users className="w-5 h-5" />
-            Peer Network
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-8">
-            <TodaysFocus tasks={mockTasks} />
-            <ProgressTracker goals={mockGoals} />
-          </div>
-
-          {/* Sidebar */}
-          <div>
-            <QuickWins tasks={mockQuickWins} />
-          </div>
-        </div>
-      </div>
-    </div>
+      <Dashboard tasks={mockTasks} quickWins={mockQuickWins} goals={mockGoals} />
+    </>
   );
 }
