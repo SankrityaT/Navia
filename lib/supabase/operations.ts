@@ -1,0 +1,241 @@
+// Supabase operations for user profiles and chat history
+// Provides CRUD operations with proper error handling
+
+import { supabaseAdmin } from './client';
+
+// ============================================
+// USER PROFILE OPERATIONS
+// ============================================
+
+export interface UserProfile {
+  clerk_user_id: string;
+  name?: string;
+  email?: string;
+  graduation_timeline?: string;
+  neurotypes?: Record<string, boolean>;
+  other_neurotype?: string;
+  ef_challenges?: Record<string, boolean>;
+  current_goal?: string;
+  job_field?: string;
+  onboarded?: boolean;
+  onboarded_at?: string;
+}
+
+/**
+ * Create or update user profile in Supabase
+ */
+export async function upsertUserProfile(profile: UserProfile) {
+  const { data, error } = await supabaseAdmin
+    .from('user_profiles')
+    .upsert({
+      clerk_user_id: profile.clerk_user_id,
+      name: profile.name,
+      email: profile.email,
+      graduation_timeline: profile.graduation_timeline,
+      neurotypes: profile.neurotypes,
+      other_neurotype: profile.other_neurotype,
+      ef_challenges: profile.ef_challenges,
+      current_goal: profile.current_goal,
+      job_field: profile.job_field,
+      onboarded: profile.onboarded,
+      onboarded_at: profile.onboarded_at,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'clerk_user_id'
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error upserting user profile:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Get user profile from Supabase
+ */
+export async function getUserProfile(clerkUserId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('user_profiles')
+    .select('*')
+    .eq('clerk_user_id', clerkUserId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No rows returned - user not found
+      return null;
+    }
+    console.error('Error getting user profile:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Check if user has completed onboarding
+ */
+export async function isUserOnboarded(clerkUserId: string): Promise<boolean> {
+  const profile = await getUserProfile(clerkUserId);
+  return profile?.onboarded === true;
+}
+
+// ============================================
+// CHAT MESSAGE OPERATIONS
+// ============================================
+
+export interface ChatMessage {
+  user_id: string;
+  message: string;
+  response: string;
+  category: 'finance' | 'career' | 'daily_task';
+  persona: string;
+  metadata?: Record<string, any>;
+  pinecone_id?: string;
+}
+
+/**
+ * Store chat message in Supabase
+ */
+export async function storeChatMessage(chatMessage: ChatMessage) {
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .insert({
+      user_id: chatMessage.user_id,
+      message: chatMessage.message,
+      response: chatMessage.response,
+      category: chatMessage.category,
+      persona: chatMessage.persona,
+      metadata: chatMessage.metadata,
+      pinecone_id: chatMessage.pinecone_id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error storing chat message:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Get chat history for a user
+ */
+export async function getChatHistory(
+  userId: string,
+  limit: number = 50,
+  category?: 'finance' | 'career' | 'daily_task'
+) {
+  let query = supabaseAdmin
+    .from('chat_messages')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error getting chat history:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Get recent chat context for AI (last N messages)
+ */
+export async function getRecentChatContext(
+  userId: string,
+  limit: number = 5
+): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  const messages = await getChatHistory(userId, limit);
+  
+  // Convert to chat format (newest first, so reverse)
+  const context: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    context.push({ role: 'user', content: msg.message });
+    context.push({ role: 'assistant', content: msg.response });
+  }
+  
+  return context;
+}
+
+/**
+ * Delete old chat messages (cleanup)
+ */
+export async function deleteOldChatMessages(
+  userId: string,
+  olderThanDays: number = 90
+) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+
+  const { error } = await supabaseAdmin
+    .from('chat_messages')
+    .delete()
+    .eq('user_id', userId)
+    .lt('created_at', cutoffDate.toISOString());
+
+  if (error) {
+    console.error('Error deleting old chat messages:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get chat statistics for a user
+ */
+export async function getChatStatistics(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .select('category, created_at')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error getting chat statistics:', error);
+    return {
+      totalChats: 0,
+      byCategory: { finance: 0, career: 0, daily_task: 0 },
+      recentActivity: [],
+    };
+  }
+
+  const byCategory = {
+    finance: 0,
+    career: 0,
+    daily_task: 0,
+  };
+
+  const byDate: Record<string, number> = {};
+
+  data.forEach((msg) => {
+    byCategory[msg.category as keyof typeof byCategory]++;
+    const date = new Date(msg.created_at).toISOString().split('T')[0];
+    byDate[date] = (byDate[date] || 0) + 1;
+  });
+
+  const recentActivity = Object.entries(byDate)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 7);
+
+  return {
+    totalChats: data.length,
+    byCategory,
+    recentActivity,
+  };
+}

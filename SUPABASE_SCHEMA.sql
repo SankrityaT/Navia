@@ -10,12 +10,16 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE user_profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   clerk_user_id TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
+  name TEXT,
   email TEXT,
-  graduation_date DATE,
-  university TEXT,
-  months_post_grad INTEGER,
-  neurotype TEXT[],
+  graduation_timeline TEXT,
+  neurotypes JSONB,
+  other_neurotype TEXT,
+  ef_challenges JSONB,
+  current_goal TEXT,
+  job_field TEXT,
+  onboarded BOOLEAN DEFAULT FALSE,
+  onboarded_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -99,6 +103,25 @@ CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_tasks_parent ON tasks(parent_task_id);
 
 -- ============================================
+-- CHAT MESSAGES (AI conversation history)
+-- ============================================
+CREATE TABLE chat_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL REFERENCES user_profiles(clerk_user_id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  response TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('finance', 'career', 'daily_task')),
+  persona TEXT NOT NULL,
+  metadata JSONB,
+  pinecone_id TEXT, -- Reference to Pinecone vector ID
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_messages_user ON chat_messages(user_id, created_at DESC);
+CREATE INDEX idx_chat_messages_category ON chat_messages(category);
+CREATE INDEX idx_chat_messages_pinecone ON chat_messages(pinecone_id);
+
+-- ============================================
 -- ENABLE ROW LEVEL SECURITY (RLS)
 -- ============================================
 
@@ -107,6 +130,7 @@ ALTER TABLE peer_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE peer_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE check_ins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- RLS POLICIES
@@ -179,6 +203,13 @@ CREATE POLICY "Users can update own tasks" ON tasks
 
 CREATE POLICY "Users can delete own tasks" ON tasks
   FOR DELETE USING (user_id = auth.jwt() ->> 'sub');
+
+-- Chat Messages: Users can only see/create their own messages
+CREATE POLICY "Users can view own chat messages" ON chat_messages
+  FOR SELECT USING (user_id = auth.jwt() ->> 'sub');
+
+CREATE POLICY "Users can create own chat messages" ON chat_messages
+  FOR INSERT WITH CHECK (user_id = auth.jwt() ->> 'sub');
 
 -- ============================================
 -- FUNCTIONS & TRIGGERS
