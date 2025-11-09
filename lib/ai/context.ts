@@ -3,8 +3,7 @@
 
 import { getUserProfile } from '@/lib/supabase/operations';
 import { getRecentChatContext } from '@/lib/supabase/operations';
-import { retrieveRelevantContext } from '@/lib/pinecone/chat-history';
-import { getUserProfile as getPineconeProfile } from '@/lib/pinecone/operations';
+import { retrieveRelevantContext, ChatMessage } from '@/lib/pinecone/chat-history';
 
 export interface AIContext {
   userProfile: {
@@ -16,12 +15,7 @@ export interface AIContext {
     graduationTimeline?: string;
   };
   recentMessages: Array<{ role: 'user' | 'assistant'; content: string }>;
-  relevantPastConversations: Array<{
-    message: string;
-    response: string;
-    category: string;
-    timestamp: number;
-  }>;
+  relevantPastConversations: ChatMessage[];
   profileSummary: string;
 }
 
@@ -62,12 +56,7 @@ export async function buildAIContext(
         graduationTimeline: profile?.graduation_timeline,
       },
       recentMessages,
-      relevantPastConversations: relevantConversations.map((conv) => ({
-        message: conv.message,
-        response: conv.response,
-        category: conv.category,
-        timestamp: conv.timestamp,
-      })),
+      relevantPastConversations: relevantConversations,
       profileSummary,
     };
   } catch (error) {

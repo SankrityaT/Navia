@@ -166,9 +166,20 @@ export async function orchestrateQuery(
     const executionTime = Date.now() - startTime;
     
     // Check if any agent suggests breakdown but didn't generate one
+    // TRUST THE LLM'S DECISION - use agent's needsBreakdown flag
     const needsBreakdown = responses.some(
-      (r) => r.metadata?.needsBreakdown && (!r.breakdown || r.breakdown.length === 0)
-    ) || (allBreakdowns.length === 0 && intent.needsBreakdown);
+      (r) => r.metadata?.needsBreakdown === true && (!r.breakdown || r.breakdown.length === 0)
+    );
+
+    console.log('🎯 Orchestrator decision:', {
+      agentNeedsBreakdown: responses.map(r => ({
+        domain: r.domain,
+        needsBreakdown: r.metadata?.needsBreakdown,
+        hasBreakdown: !!(r.breakdown && r.breakdown.length > 0)
+      })),
+      finalNeedsBreakdown: needsBreakdown,
+      hasBreakdown: allBreakdowns.length > 0,
+    });
 
     return {
       success: true,

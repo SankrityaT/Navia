@@ -13,7 +13,7 @@ import {
   getDebtManagementAdvice,
   searchStudentBenefits,
 } from '../tools/finance-tools';
-import { generateBreakdown, analyzeTaskComplexity, explicitlyRequestsBreakdown } from './breakdown';
+import { generateBreakdown, analyzeTaskComplexity, explicitlyRequestsBreakdown, isSimpleGreetingOrSocial } from './breakdown';
 
 /**
  * Process a finance-related query
@@ -56,10 +56,13 @@ export async function processFinanceQuery(
       ? `\n\nUSER CONTEXT:\n- Energy Level: ${userContext.energy_level || 'unknown'}\n- EF Profile: ${userContext.ef_profile?.join(', ') || 'not provided'}\n- Goals: ${userContext.current_goals?.join(', ') || 'not provided'}`
       : '';
 
-    // Step 5: Check if user EXPLICITLY requested a breakdown
-    const explicitBreakdownRequest = explicitlyRequestsBreakdown(query);
+    // Step 5: Check if query is a simple greeting - NEVER suggest breakdown for these
+    const isGreeting = isSimpleGreetingOrSocial(query);
+    
+    // Step 6: Check if user EXPLICITLY requested a breakdown
+    const explicitBreakdownRequest = !isGreeting && explicitlyRequestsBreakdown(query);
 
-    // Step 6: Generate breakdown ONLY if explicitly requested
+    // Step 7: Generate breakdown ONLY if explicitly requested (and not a greeting)
     let breakdown: string[] | undefined;
     if (explicitBreakdownRequest) {
       console.log('🎯 Finance: User explicitly requested breakdown, generating...');
@@ -71,13 +74,12 @@ export async function processFinanceQuery(
       breakdown = breakdownResult.breakdown;
     }
 
-    // Step 7: Analyze complexity for metadata
-    // If breakdown was already generated (explicit request), set needsBreakdown to false
-    // Otherwise, use complexity analysis to determine if we should suggest it
+    // Step 8: Analyze complexity for metadata (only for logging/context)
     const complexityAnalysis = await analyzeTaskComplexity(query);
-    const needsBreakdown = breakdown && breakdown.length > 0 
-      ? false  // Breakdown already provided, no need to suggest
-      : complexityAnalysis.needsBreakdown; // Suggest breakdown if complex but not explicitly requested
+    
+    // Important: If breakdown was already generated, we'll set needsBreakdown to false
+    // Otherwise, we'll let the LLM decide by passing complexity to it
+    // The LLM will return needsBreakdown in its response metadata
 
     // Step 8: Build breakdown context if generated
     const breakdownContext = breakdown && breakdown.length > 0
@@ -99,10 +101,14 @@ ${resourceContext}
 ${breakdownContext}
 
 Provide a helpful, structured response following the JSON format specified in your system prompt.
-Complexity: ${complexityAnalysis.complexity}/10
-Needs Breakdown: ${needsBreakdown}
 
-Remember: If a breakdown was provided above, include it in the "breakdown" field but DO NOT duplicate the steps in your summary text. Just mention that a plan was created.
+Task Complexity: ${complexityAnalysis.complexity}/10
+${breakdown && breakdown.length > 0 ? 'Breakdown already generated and provided above.' : 'No breakdown generated yet - YOU decide if needsBreakdown should be true.'}
+
+Remember: 
+- If a breakdown was provided above, include it in the "breakdown" field and set needsBreakdown: false
+- If NO breakdown above BUT task would benefit, answer normally and set needsBreakdown: true
+- DO NOT ask about breakdown in summary - the UI will show a button
 
 Respond in JSON format following your schema.`;
 
@@ -113,7 +119,27 @@ Respond in JSON format following your schema.`;
 
     const aiResponse: AIResponse = JSON.parse(response.message.content || '{}');
 
-    // Step 10: Enhance response with retrieved data
+    // Step 10: Determine final needsBreakdown value
+    // PRIORITY ORDER:
+    // 1. If it's a greeting/social interaction → always false
+    // 2. If breakdown was pre-generated → false
+    // 3. Otherwise → trust LLM's decision
+    const finalNeedsBreakdown = isGreeting 
+      ? false  // NEVER suggest breakdown for greetings
+      : breakdown && breakdown.length > 0 
+        ? false  // Breakdown already provided
+        : (aiResponse.metadata?.needsBreakdown ?? false); // Use LLM's decision
+
+    console.log('🤖 Finance LLM decision:', {
+      query: query.substring(0, 50),
+      isGreeting,
+      llmNeedsBreakdown: aiResponse.metadata?.needsBreakdown,
+      hasPreGeneratedBreakdown: !!breakdown,
+      finalNeedsBreakdown,
+      complexity: complexityAnalysis.complexity,
+    });
+
+    // Step 11: Enhance response with retrieved data
     const sources: SourceReference[] = ragSources.map((s) => ({
       title: s.title || 'Untitled',
       url: s.url || '',
@@ -142,11 +168,11 @@ Respond in JSON format following your schema.`;
       ? breakdown  // Use pre-generated breakdown
       : undefined; // Don't use LLM's breakdown - it might duplicate steps in summary
     
-    console.log('🔍 Finance agent response:', {
+    console.log('🔍 Finance agent final response:', {
       hasPreGeneratedBreakdown: !!breakdown,
       breakdownLength: breakdown?.length || 0,
       finalBreakdown: finalBreakdown?.length || 0,
-      needsBreakdown,
+      finalNeedsBreakdown,
       complexity: complexityAnalysis.complexity,
     });
     
@@ -159,7 +185,7 @@ Respond in JSON format following your schema.`;
       metadata: {
         confidence: aiResponse.metadata?.confidence || 0.8,
         complexity: complexityAnalysis.complexity,
-        needsBreakdown,
+        needsBreakdown: finalNeedsBreakdown, // Use calculated value
         suggestedActions: aiResponse.metadata?.suggestedActions || [],
         retrievedFromRAG: ragSources.length,
         externalResourcesFound: externalResources.length,
