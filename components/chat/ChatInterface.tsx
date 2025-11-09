@@ -1,12 +1,11 @@
-// FRONTEND: Main chat interface with persona detection
-// TODO: Implement streaming responses
+// FRONTEND: Main chat interface with persona detection - Enhanced with streaming and modern UI
 // TODO: Add voice input option
 // TODO: Store chat history locally
 
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -20,7 +19,8 @@ interface Message {
   resources?: Array<{ title: string; url: string; description?: string; type?: string }>;
   sources?: Array<{ title: string; url: string; excerpt?: string }>;
   suggestBreakdown?: boolean;
-  originalQuery?: string; // Store the original query for context when "Yes" is clicked
+  originalQuery?: string;
+  isStreaming?: boolean; // For streaming animation
 }
 
 interface ChatInterfaceProps {
@@ -36,7 +36,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     {
       id: '1',
       role: 'assistant',
-      content: "Hi! I'm Navia, your AI executive function coach. I'm here to help you with career planning, finances, daily tasks, and more. What's on your mind?",
+      content: "Hi! I'm Navia, your AI executive function coach. 💚\n\nI'm here to support you with career planning, managing finances, organizing daily tasks, and more—without any masking required. Just tell me what's on your mind, and we'll figure it out together.",
       persona: 'daily_tasks',
       personaIcon: '✅',
       timestamp: new Date(),
@@ -44,7 +44,9 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [currentPersona, setCurrentPersona] = useState<string>('daily_tasks');
+  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -69,6 +71,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setIsTyping(true);
 
     try {
       const response = await fetch('/api/query', {
@@ -77,25 +80,27 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         body: JSON.stringify({
           query: textToSend,
           userContext,
-          forceBreakdown: forceBreakdown || false, // Explicit flag when "Yes" is clicked
+          forceBreakdown: forceBreakdown || false,
         }),
       });
 
       const data = await response.json();
 
-      console.log('📨 Frontend received:', {
-        hasBreakdown: !!data.breakdown,
-        breakdownLength: data.breakdown?.length || 0,
-        needsBreakdown: data.metadata?.needsBreakdown,
-        willShowButtons: data.metadata?.needsBreakdown && (!data.breakdown || data.breakdown.length === 0),
-      });
+      // Update persona immediately
+      const newPersona = data.domains?.[0] || data.persona || 'daily_tasks';
+      setCurrentPersona(newPersona);
 
+      // Simulate streaming effect
+      const assistantMessageId = (Date.now() + 1).toString();
+      const fullContent = data.summary || data.message;
+      
+      // Add empty message first
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: assistantMessageId,
         role: 'assistant',
-        content: data.summary || data.message,
-        persona: data.domains?.[0] || data.persona,
-        personaIcon: getPersonaIcon(data.domains?.[0] || data.persona),
+        content: '',
+        persona: newPersona,
+        personaIcon: getPersonaIcon(newPersona),
         timestamp: new Date(),
         functionCall: data.functionCall,
         breakdown: data.breakdown,
@@ -103,14 +108,34 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         sources: data.sources,
         suggestBreakdown: data.metadata?.needsBreakdown && (!data.breakdown || data.breakdown.length === 0),
         originalQuery: textToSend,
+        isStreaming: true,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-      if (data.domains?.[0]) {
-        setCurrentPersona(data.domains[0]);
+      setIsTyping(false);
+      
+      // Stream the content character by character
+      const words = fullContent.split(' ');
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 30)); // Faster streaming
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.id === assistantMessageId
+              ? { ...msg, content: words.slice(0, i + 1).join(' ') + (i < words.length - 1 ? ' ' : '') }
+              : msg
+          )
+        );
       }
+      
+      // Mark streaming complete
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
+        )
+      );
     } catch (error) {
       console.error('Chat error:', error);
+      setIsTyping(false);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -153,138 +178,245 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
 
   const getPersonaLabel = (persona: string) => {
     const labels: Record<string, string> = {
-      career: '💼 Career',
-      finance: '💰 Finance',
-      daily_tasks: '✅ Daily Tasks',
+      career: 'Career',
+      finance: 'Finance',
+      daily_tasks: 'Daily Tasks',
     };
-    return labels[persona] || '✅ Daily Tasks';
+    return labels[persona] || 'Daily Tasks';
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg">
+    <div className="flex flex-col h-full bg-white/80 backdrop-blur-sm rounded-[2rem] border-2 border-[var(--clay-200)] shadow-xl hover:shadow-2xl transition-all duration-300">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900">Chat with Navia</h2>
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-sm text-gray-600">Current mode:</span>
-          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+      <div className="px-6 py-5 border-b-2 border-[var(--clay-200)]">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md">
+            <MessageCircle className="w-6 h-6 text-white" strokeWidth={2.5} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
+              Chat with Navia
+            </h2>
+            <p className="text-sm text-[var(--charcoal)]/60">Your AI executive function coach</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[var(--charcoal)]/70 font-medium">Current mode:</span>
+          <span className="px-3 py-1.5 bg-gradient-to-r from-[var(--clay-100)] to-[var(--clay-200)] text-[var(--clay-700)] rounded-full text-sm font-semibold border border-[var(--clay-300)]">
             {getPersonaLabel(currentPersona)}
           </span>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg p-4 ${
-                message.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}
-            >
-              {message.role === 'assistant' && message.personaIcon && (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">{message.personaIcon}</span>
-                  <span className="text-xs font-medium text-gray-600">
+          <div key={message.id} className="flex flex-col">
+            {message.role === 'user' ? (
+              /* User Message - Bubble on Right */
+              <div className="flex justify-end">
+                <div className="max-w-[75%] bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] text-white rounded-3xl px-6 py-4 shadow-lg">
+                  <p className="whitespace-pre-wrap leading-relaxed text-[16px] font-medium">{message.content}</p>
+                </div>
+              </div>
+            ) : (
+              /* AI Message - No Bubble, Plain Text on Left */
+              <div className="flex flex-col max-w-[90%]">
+                {/* Persona Badge */}
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-500)] flex items-center justify-center shadow-md">
+                    <span className="text-base">{message.personaIcon}</span>
+                  </div>
+                  <span className="text-xs font-bold text-[var(--charcoal)]/70 uppercase tracking-wider">
                     {getPersonaLabel(message.persona || 'daily_tasks')}
                   </span>
                 </div>
-              )}
-              <p className="whitespace-pre-wrap">{message.content}</p>
-              
-              {/* Breakdown suggestion buttons */}
-              {message.role === 'assistant' && message.suggestBreakdown && !message.breakdown && (
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <p className="text-sm font-medium mb-3">Would you like me to break this down into step-by-step actions?</p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleBreakdownResponse(true, message.originalQuery || '')}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm"
-                    >
-                      ✅ Yes, create a plan
-                    </button>
-                    <button
-                      onClick={() => handleBreakdownResponse(false, message.originalQuery || '')}
-                      className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors text-sm"
-                    >
-                      No, thanks
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Breakdown steps */}
-              {message.breakdown && message.breakdown.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <span>📋</span>
-                    <span>Step-by-Step Plan:</span>
+                
+                {/* Message Content - No Bubble */}
+                <div className="text-[var(--charcoal)] space-y-4">
+                  <p className="whitespace-pre-wrap text-[16px] leading-[1.7] font-normal">
+                    {message.content}
+                    {message.isStreaming && (
+                      <span className="inline-block w-1.5 h-5 ml-1 bg-[var(--clay-500)] animate-pulse rounded-sm"></span>
+                    )}
                   </p>
-                  <ol className="space-y-2 ml-1">
-                    {message.breakdown.map((step, index) => (
-                      <li key={index} className="text-sm flex gap-3">
-                        <span className="font-bold text-blue-600 min-w-[24px]">{index + 1}.</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
               
-              {/* Resources */}
-              {message.resources && message.resources.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <p className="text-sm font-semibold mb-2">🔗 Recommended Resources:</p>
-                  <div className="space-y-2">
-                    {message.resources.slice(0, 3).map((resource, index) => (
-                      <a
-                        key={index}
-                        href={resource.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {resource.title}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
+                  {/* Breakdown suggestion buttons - Enhanced for Accessibility */}
+                  {message.suggestBreakdown && !message.breakdown && (
+                    <div className="mt-6 p-5 bg-[var(--clay-50)] rounded-2xl border-2 border-[var(--clay-300)]">
+                      <p className="text-base font-semibold mb-4 text-[var(--charcoal)] leading-relaxed">
+                        💡 Would you like me to break this down into step-by-step actions?
+                      </p>
+                      <div className="flex gap-3 flex-wrap">
+                        <button
+                          onClick={() => handleBreakdownResponse(true, message.originalQuery || '')}
+                          className="flex-1 min-w-[140px] px-5 py-3.5 bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] hover:from-[var(--sage-600)] hover:to-[var(--sage-700)] text-white rounded-xl font-bold transition-all duration-200 text-sm shadow-md hover:shadow-lg active:scale-95"
+                        >
+                          ✅ Yes, create a plan
+                        </button>
+                        <button
+                          onClick={() => handleBreakdownResponse(false, message.originalQuery || '')}
+                          className="flex-1 min-w-[140px] px-5 py-3.5 bg-white hover:bg-[var(--stone)] text-[var(--charcoal)] rounded-xl font-bold transition-all duration-200 text-sm border-2 border-[var(--clay-300)] hover:border-[var(--clay-400)] shadow-sm active:scale-95"
+                        >
+                          No, thanks
+                        </button>
+                      </div>
+                    </div>
+                  )}
               
-              {/* Function call result */}
-              {message.functionCall && (
-                <div className="mt-3 pt-3 border-t border-gray-300">
-                  <p className="text-sm font-medium mb-2">
-                    {message.functionCall.name === 'break_down_task' && '📋 Task Breakdown Created'}
-                    {message.functionCall.name === 'get_references' && '📚 Resources Found'}
-                  </p>
-                  {message.functionCall.result?.link && (
-                    <a
-                      href={message.functionCall.result.link}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      View in Task Visualizer →
-                    </a>
+                  {/* Breakdown steps - Enhanced for Clarity */}
+                  {message.breakdown && message.breakdown.length > 0 && (
+                    <div className="mt-6 p-5 bg-[var(--clay-50)] rounded-2xl border-2 border-[var(--clay-300)]">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md">
+                          <span className="text-lg">📋</span>
+                        </div>
+                        <p className="text-base font-bold text-[var(--charcoal)]">
+                          Your Step-by-Step Plan
+                        </p>
+                      </div>
+                      <ol className="space-y-3">
+                        {message.breakdown.map((step, index) => (
+                          <li key={index} className="flex gap-3.5 items-start p-3 bg-white rounded-xl border border-[var(--clay-200)] hover:border-[var(--clay-400)] transition-colors">
+                            <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--clay-500)] text-white font-bold text-sm flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            <span className="flex-1 leading-relaxed text-[15px] pt-0.5">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+              
+                  {/* Sources/Resources - ChatGPT/Claude Style - Horizontal Layout */}
+                  {(() => {
+                    // Filter valid resources and sources
+                    const validResources = message.resources?.filter(r => r.title && r.title.trim() && r.url && r.url.trim()) || [];
+                    const validSources = message.sources?.filter(s => s.title && s.title.trim() && s.url && s.url.trim()) || [];
+                    const totalSources = validResources.length + validSources.length;
+                    
+                    if (totalSources === 0) return null;
+                    
+                    return (
+                      <div className="mt-6">
+                        <button
+                          onClick={() => setExpandedSources(prev => ({ ...prev, [message.id]: !prev[message.id] }))}
+                          className="inline-flex items-center gap-3 px-4 py-3 bg-[var(--sand)] hover:bg-[var(--stone)] border-2 border-[var(--clay-300)] hover:border-[var(--clay-400)] rounded-xl transition-all duration-200 shadow-sm hover:shadow-md group"
+                        >
+                          <div className="flex items-center justify-center w-8 h-8 bg-[var(--clay-500)] rounded-lg">
+                            {expandedSources[message.id] ? (
+                              <ChevronUp className="w-5 h-5 text-white" strokeWidth={3} />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-white" strokeWidth={3} />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-bold text-[var(--charcoal)]">
+                              {totalSources}
+                            </span>
+                            <span className="text-sm font-semibold text-[var(--charcoal)]/80">
+                              {totalSources === 1 ? 'Source' : 'Sources'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-[var(--charcoal)]/60 font-medium ml-1">
+                            {expandedSources[message.id] ? 'Hide' : 'Show'}
+                          </span>
+                        </button>
+                        
+                        {expandedSources[message.id] && (
+                          <div className="mt-4 flex gap-4 overflow-x-auto pb-3">
+                            {validResources.map((resource, index) => (
+                              <a
+                                key={`resource-${index}`}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0 w-72 p-4 bg-white hover:bg-[var(--sand)] rounded-2xl border-2 border-[var(--clay-300)] hover:border-[var(--clay-500)] transition-all hover:shadow-lg active:scale-[0.98] group"
+                              >
+                                <div className="flex items-start gap-3 mb-2.5">
+                                  <div className="w-8 h-8 rounded-lg bg-[var(--clay-500)] flex items-center justify-center flex-shrink-0">
+                                    <ExternalLink className="w-4 h-4 text-white" strokeWidth={2.5} />
+                                  </div>
+                                  <p className="text-sm font-bold text-[var(--charcoal)] group-hover:text-[var(--clay-600)] line-clamp-2 leading-snug">
+                                    {resource.title}
+                                  </p>
+                                </div>
+                                {resource.description && (
+                                  <p className="text-sm text-[var(--charcoal)]/70 line-clamp-2 leading-relaxed ml-11">
+                                    {resource.description}
+                                  </p>
+                                )}
+                              </a>
+                            ))}
+                            {validSources.map((source, index) => (
+                              <a
+                                key={`source-${index}`}
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0 w-72 p-4 bg-white hover:bg-[var(--sand)] rounded-2xl border-2 border-[var(--clay-300)] hover:border-[var(--clay-500)] transition-all hover:shadow-lg active:scale-[0.98] group"
+                              >
+                                <div className="flex items-start gap-3 mb-2.5">
+                                  <div className="w-8 h-8 rounded-lg bg-[var(--clay-500)] flex items-center justify-center flex-shrink-0">
+                                    <ExternalLink className="w-4 h-4 text-white" strokeWidth={2.5} />
+                                  </div>
+                                  <p className="text-sm font-bold text-[var(--charcoal)] group-hover:text-[var(--clay-600)] line-clamp-2 leading-snug">
+                                    {source.title}
+                                  </p>
+                                </div>
+                                {source.excerpt && (
+                                  <p className="text-sm text-[var(--charcoal)]/70 line-clamp-2 leading-relaxed ml-11">
+                                    {source.excerpt}
+                                  </p>
+                                )}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+              
+                  {/* Function call result */}
+                  {message.functionCall && (
+                    <div className="mt-5 p-3 bg-[var(--sage-100)]/50 rounded-lg border border-[var(--sage-300)]">
+                      <p className="text-xs font-semibold mb-1.5 text-[var(--charcoal)]">
+                        {message.functionCall.name === 'break_down_task' && '📋 Task Breakdown Created'}
+                        {message.functionCall.name === 'get_references' && '📚 Resources Found'}
+                      </p>
+                      {message.functionCall.result?.link && (
+                        <a
+                          href={message.functionCall.result.link}
+                          className="text-xs text-[var(--clay-600)] hover:text-[var(--clay-700)] font-medium hover:underline underline-offset-2 transition-colors"
+                        >
+                          View in Task Visualizer →
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-              
-              <p className="text-xs mt-2 opacity-70">
-                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
+              </div>
+            )}
           </div>
         ))}
         
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg p-4">
-              <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
+        {/* Modern Typing Indicator */}
+        {isTyping && (
+          <div className="flex flex-col max-w-[90%]">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-500)] flex items-center justify-center shadow-sm">
+                <MessageCircle className="w-4 h-4 text-white" strokeWidth={2.5} />
+              </div>
+              <span className="text-xs font-semibold text-[var(--charcoal)]/60 uppercase tracking-wider">
+                Navia
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                <div className="w-2 h-2 bg-[var(--clay-400)] rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1.4s' }}></div>
+                <div className="w-2 h-2 bg-[var(--clay-400)] rounded-full animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1.4s' }}></div>
+                <div className="w-2 h-2 bg-[var(--clay-400)] rounded-full animate-bounce" style={{ animationDelay: '400ms', animationDuration: '1.4s' }}></div>
+              </div>
             </div>
           </div>
         )}
@@ -292,26 +424,32 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-6 py-4 border-t border-gray-200">
-        <div className="flex gap-2">
+      {/* Input - Enhanced for Accessibility */}
+      <div className="px-6 py-6 border-t-2 border-[var(--clay-200)] bg-[var(--sand)]/30">
+        <div className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask Navia anything or describe what you're working on..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
+            placeholder="Type your message here..."
+            className="flex-1 px-5 py-4 text-base border-2 border-[var(--clay-300)] rounded-2xl focus:ring-4 focus:ring-[var(--clay-400)]/30 focus:border-[var(--clay-500)] text-[var(--charcoal)] placeholder:text-[var(--charcoal)]/50 transition-all duration-200 bg-white font-medium shadow-sm"
             disabled={isLoading}
+            aria-label="Message input"
           />
           <button
             onClick={() => handleSend()}
             disabled={isLoading || !input.trim()}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-7 py-4 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-2xl font-bold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 min-w-[100px]"
+            aria-label="Send message"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-5 h-5" strokeWidth={2.5} />
+            <span className="text-sm">Send</span>
           </button>
         </div>
+        <p className="text-xs text-[var(--charcoal)]/60 mt-3 font-medium">
+          💡 Tip: Press Enter to send your message
+        </p>
       </div>
     </div>
   );
