@@ -31,7 +31,10 @@ export interface AgentContext {
   userId: string;
   query: string;
   userContext?: UserContext;
+  profileSummary?: string;
+  recentMessages?: Array<{ role: 'user' | 'assistant'; content: string }>;
   chatHistory?: ChatMessage[];
+  relevantConversations?: ChatMessage[];
   relevantSources?: KnowledgeSource[];
 }
 

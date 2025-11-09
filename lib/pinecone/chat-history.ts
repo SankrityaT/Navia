@@ -41,7 +41,8 @@ export async function storeChatMessage(
   metadata: {
     category: 'finance' | 'career' | 'daily_task';
     persona: string;
-    [key: string]: any;
+    complexity?: number;
+    hadBreakdown?: boolean;
   }
 ): Promise<void> {
   try {
@@ -53,24 +54,32 @@ export async function storeChatMessage(
     const vector = await generateEmbedding(textToEmbed);
 
     // Store in Pinecone
-    // Destructure to avoid duplicate keys (category, persona already in metadata)
-    const { category, persona, ...otherMetadata } = metadata;
-    
+    const { category, persona, complexity, hadBreakdown } = metadata;
+
+    const cleanMetadata: Record<string, any> = {
+      userId,
+      category,
+      persona,
+      timestamp,
+      messagePreview: message.substring(0, 200),
+      responsePreview: response.substring(0, 200),
+      fullMessage: message,
+      fullResponse: response,
+    };
+
+    if (typeof complexity === 'number') {
+      cleanMetadata.complexity = complexity;
+    }
+
+    if (typeof hadBreakdown === 'boolean') {
+      cleanMetadata.hadBreakdown = hadBreakdown;
+    }
+
     await index.upsert([
       {
         id: generateChatId(userId, timestamp),
         values: vector,
-        metadata: {
-          userId,
-          category,
-          persona,
-          timestamp,
-          messagePreview: message.substring(0, 200),
-          responsePreview: response.substring(0, 200),
-          fullMessage: message,
-          fullResponse: response,
-          ...otherMetadata,
-        },
+        metadata: cleanMetadata,
       },
     ]);
 
