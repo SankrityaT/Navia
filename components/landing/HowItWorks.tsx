@@ -46,9 +46,9 @@ export default function HowItWorks() {
             </div>
             <div className="pt-2">
               <div className="text-sm font-semibold text-[#E5989B] mb-2">STEP 2</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Take the Assessment</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Explore Your Patterns</h3>
               <p className="text-gray-600 leading-relaxed">
-                Our gentle, adaptive assessment helps identify your masking patterns, energy drains, and environmental stressors. No judgment, just understanding.
+                Gentle prompts help you notice your masking patterns, energy shifts, and environmental stressors. No judgment, just understanding.
               </p>
             </div>
           </div>

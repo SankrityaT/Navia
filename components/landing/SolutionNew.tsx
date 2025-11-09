@@ -27,7 +27,7 @@ export default function Solution() {
         {/* Bento Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[minmax(200px,auto)]">
           
-          {/* Large Feature - Masking Assessment (spans 7 cols, 2 rows) */}
+          {/* Large Feature - Masking Insight Studio (spans 7 cols, 2 rows) */}
           <div className="md:col-span-7 md:row-span-2 group bg-gradient-to-br from-[var(--clay-100)] via-[var(--sand)] to-[var(--clay-200)] p-10 md:p-12 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--clay-300)] rounded-full blur-[80px] opacity-30"></div>
             <div className="relative z-10">
@@ -35,15 +35,15 @@ export default function Solution() {
                 <Brain className="w-8 h-8 text-[var(--cream)]" strokeWidth={2.5} />
               </div>
               <h3 className="text-3xl md:text-4xl font-serif font-bold text-[var(--charcoal)] mb-5" style={{fontFamily: 'var(--font-fraunces)'}}>
-                Masking Assessment Tool
+                Masking Insight Studio
               </h3>
               <p className="text-lg text-[var(--charcoal)]/70 leading-relaxed mb-6 max-w-xl">
-                Understand your masking patterns and energy expenditure. Our AI helps you identify when and where you're masking most, so you can make informed decisions about your energy.
+                Gain gentle insight into your energy patterns and how different situations affect you. Guided prompts help you notice when you're most drained so you can make mindful choices about your day.
               </p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-[var(--sage-600)]"></div>
-                  <span className="text-[var(--charcoal)]/80">Track masking patterns over time</span>
+                  <span className="text-[var(--charcoal)]/80">Track your energy patterns over time</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-[var(--sage-600)]"></div>
@@ -66,7 +66,7 @@ export default function Solution() {
               Environmental Stressor Mapping
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed">
-              Visualize what environments trigger overwhelm and plan accordingly.
+              Identify patterns in what environments trigger overwhelm, helping you plan your days with more awareness.
             </p>
           </div>
 
@@ -79,7 +79,7 @@ export default function Solution() {
               Energy Management
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed">
-              Schedule tasks when you have the right energy for them.
+              Learn to recognize your energy patterns and make informed choices about when to tackle different tasks.
             </p>
           </div>
 
@@ -135,10 +135,10 @@ export default function Solution() {
               </div>
               <div>
                 <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-3" style={{fontFamily: 'var(--font-fraunces)'}}>
-                  Daily Support That Understands You
+                  Support That Understands You
                 </h3>
                 <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                  No generic advice—just support tailored to your brain, your challenges, and your goals. At your own pace, in your own way.
+                  Guidance tailored to your unique needs and goals—complementing the support systems you already have. At your own pace, in your own way.
                 </p>
               </div>
             </div>

@@ -45,8 +45,8 @@ export default function SignUpPage() {
                     <Brain className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Personalized Assessment</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">Understand your unique masking patterns and energy levels</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Personalized Insight Path</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Discover your masking patterns and energy rhythms with supportive prompts</p>
                   </div>
                 </div>
               </div>

@@ -34,7 +34,7 @@ export default function CTAFooter() {
               </h2>
               
               <p className="text-lg md:text-xl text-[var(--charcoal)]/70 mb-10 leading-relaxed">
-                Start your journey with a gentle assessment. No pressure, no judgment—just understanding.
+                Begin with a gentle check-in to share how you're doing. No pressure, no judgment—just caring guidance crafted around you.
               </p>
               
               <div className="flex flex-col sm:flex-row items-start gap-4 mb-8">
@@ -42,7 +42,7 @@ export default function CTAFooter() {
                   href="/sign-up"
                   className="group inline-flex items-center gap-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 hover:-translate-y-0.5"
                 >
-                  Begin Your Assessment
+                  Get Started
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
                 </Link>
                 <a
