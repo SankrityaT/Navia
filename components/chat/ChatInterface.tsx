@@ -125,8 +125,10 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
 
   const handleBreakdownResponse = async (accept: boolean, originalQuery: string) => {
     if (accept) {
-      // Send the original query again with forceBreakdown flag
-      await handleSend(originalQuery + ' - create a plan', false);
+      // User accepted - resend query with explicit breakdown request
+      // This triggers the explicitlyRequestsBreakdown() check in backend
+      const explicitRequest = `${originalQuery} - create a plan for this`;
+      await handleSend(explicitRequest, false);
     } else {
       // User declined, just acknowledge
       const declineMessage: Message = {
