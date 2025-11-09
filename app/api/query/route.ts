@@ -24,41 +24,73 @@ export async function POST(request: Request) {
       );
     }
 
-    // FULL HISTORY WITH SEMANTIC RANKING APPROACH
-    // Step 1: Get ALL chat history for complete context (time-based, newest first)
-    const fullHistory = await retrieveChatHistory(userId, 1000);
-
-    // Step 2: Get semantically relevant messages (similarity-based)
-    const semanticMatches = await retrieveRelevantContext(userId, query, undefined, 5);
+    // HYBRID RETRIEVAL WITH DOMAIN FILTERING: TOP 3 SEMANTIC + REST CHRONOLOGICAL
+    // Step 1: Quick intent detection to get primary domain for filtering
+    const { detectIntent } = await import('@/lib/agents/orchestrator');
+    const quickIntent = await detectIntent(query, undefined);
+    const primaryDomain = quickIntent.domains[0] || 'daily_task';
     
-    // Step 3: Create a Set of semantically relevant timestamps for quick lookup
+    console.log(`🎯 Primary domain for history retrieval: ${primaryDomain}`);
+    
+    // Step 2: Get top 3 semantically relevant messages FILTERED by domain
+    const semanticMatches = await retrieveRelevantContext(userId, query, primaryDomain, 3);
+    
+    // Step 3: Get ALL chat history for that domain (time-based, newest first)
+    const fullHistory = await retrieveChatHistory(userId, 1000, primaryDomain);
+    
+    // Step 4: Remove semantic matches from full history to avoid duplicates
     const semanticTimestamps = new Set(semanticMatches.map(m => m.timestamp));
+    const chronologicalHistory = fullHistory.filter(chat => !semanticTimestamps.has(chat.timestamp));
 
-    // Step 4: Format chat history with semantic relevance markers
-    const conversationHistory = fullHistory.map((chat) => {
-      const isSemanticMatch = semanticTimestamps.has(chat.timestamp);
-      
-      return [
+    // Step 4: Format conversation history - SEMANTIC FIRST, THEN CHRONOLOGICAL
+    // Keep track of semantic match count for formatting in agents
+    const semanticMatchMessageCount = semanticMatches.length * 2; // × 2 for user + assistant
+    
+    const conversationHistory = [
+      // TOP 3: Most semantically relevant (will be marked in agent formatting)
+      ...semanticMatches.map((chat) => [
         { 
-          role: 'user', 
+          role: 'user' as const, 
           content: chat.message,
-          isSemanticMatch // Mark semantically relevant messages
         },
         { 
-          role: 'assistant', 
+          role: 'assistant' as const, 
           content: chat.response,
-          isSemanticMatch // Mark semantically relevant messages
         },
-      ];
-    }).flat();
+      ]).flat(),
+      
+      // REST: Chronological chat history (for general context)
+      ...chronologicalHistory.map((chat) => [
+        { 
+          role: 'user' as const, 
+          content: chat.message,
+        },
+        { 
+          role: 'assistant' as const, 
+          content: chat.response,
+        },
+      ]).flat(),
+    ];
 
-    // Build enhanced context with full history + semantic markers
+    // Build enhanced context with hybrid retrieval
     const enhancedContext = {
       ...userContext,
-      recentHistory: conversationHistory, // ENTIRE conversation history with semantic markers
-      fullHistoryCount: fullHistory.length, // Track how many messages
-      semanticMatchCount: semanticMatches.length, // Track how many are semantically relevant
+      recentHistory: conversationHistory, // TOP 3 semantic + rest chronological (clean: only role + content)
+      fullHistoryCount: fullHistory.length,
+      semanticMatchCount: semanticMatches.length, // How many conversations are semantic matches
+      semanticMatchMessageCount, // How many messages (conversations × 2) are semantic matches
+      retrievalStrategy: 'hybrid_semantic_first', // For debugging
     };
+
+    // Log retrieval strategy for debugging
+    console.log('🔍 Hybrid Retrieval Summary:', {
+      primaryDomain,
+      totalMessages: fullHistory.length,
+      semanticTop3: semanticMatches.length,
+      chronologicalRest: chronologicalHistory.length,
+      conversationHistoryLength: conversationHistory.length,
+      order: 'TOP 3 semantic (filtered) → rest chronological (filtered)',
+    });
 
     // Orchestrate the query with full context
     const result = await orchestrateQuery(userId, query, enhancedContext);
@@ -75,8 +107,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Determine primary domain for chat history storage
-    const primaryDomain = result.metadata.domainsInvolved[0] || 'daily_task';
+    // Use the same primary domain for chat history storage
+    // (already determined at line 31 for history retrieval)
     const responseText = result.combinedSummary || result.responses[0]?.summary || '';
 
     // Store the conversation in Pinecone

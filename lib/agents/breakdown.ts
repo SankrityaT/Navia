@@ -13,7 +13,7 @@ import { BreakdownRequest, BreakdownResponse } from './types';
  */
 export async function explicitlyRequestsBreakdown(
   query: string,
-  conversationHistory?: Array<{role: string, content: string, isSemanticMatch?: boolean}>
+  conversationHistory?: Array<{role: string, content: string}>
 ): Promise<boolean> {
   try {
     // Build conversation context if available

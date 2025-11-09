@@ -23,18 +23,42 @@ import { retrieveChatHistory } from '../pinecone/chat-history';
  */
 export async function detectIntent(
   query: string, 
-  conversationHistory?: Array<{role: string, content: string, isSemanticMatch?: boolean}>
+  conversationHistory?: Array<{role: string, content: string}>
 ): Promise<IntentDetection> {
   try {
     // Build conversation context for intent detection
+    // CRITICAL: Include semantic matches (first few messages) + recent messages (last few)
     const historyContext = conversationHistory && conversationHistory.length > 0
-      ? `\n\nRECENT CONVERSATION CONTEXT (last ${Math.min(10, conversationHistory.length)} messages):\n${conversationHistory
-          .slice(-10) // Last 10 messages for routing context
-          .map((msg: any) => {
-            const marker = msg.isSemanticMatch ? '⭐ ' : '';
-            return `${marker}${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
-          })
-          .join('\n')}\n\n⭐ = Semantically relevant to current query\n`
+      ? (() => {
+          // Semantic matches are at the BEGINNING of the array (by design from API route)
+          // We need to determine how many messages are semantic matches
+          // For routing, we want: all semantic matches + last 7 chronological
+          
+          // Estimate: typically 3 conversations × 2 messages = 6 semantic messages
+          // But we'll use a heuristic: first 10 messages OR messages until we've seen enough semantic context
+          const semanticMessages = conversationHistory.slice(0, 6); // Top 3 conversations (6 messages)
+          const chronologicalMessages = conversationHistory.slice(6); // Rest
+          const recentMessages = chronologicalMessages.slice(-7); // Last 7 from chronological
+          
+          // Combine: semantic first (for relevance) + recent (for context)
+          const contextForRouting = [...semanticMessages, ...recentMessages];
+          
+          console.log('🧭 Orchestrator routing context:', {
+            totalHistory: conversationHistory.length,
+            semanticMessages: semanticMessages.length,
+            recentMessages: recentMessages.length,
+            contextForRouting: contextForRouting.length,
+          });
+          
+          return `\n\nCONVERSATION CONTEXT FOR ROUTING (${contextForRouting.length} messages):\n${contextForRouting
+            .map((msg: any, index: number) => {
+              // First 6 are semantic matches
+              const isSemanticMatch = index < semanticMessages.length;
+              const marker = isSemanticMatch ? '⭐ [RELEVANT] ' : '';
+              return `${marker}${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
+            })
+            .join('\n')}\n\n⭐ = Most semantically relevant to current query\n`;
+        })()
       : '';
 
     const prompt = `Analyze this user query and determine routing:

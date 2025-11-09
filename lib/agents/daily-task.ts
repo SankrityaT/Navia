@@ -5,7 +5,7 @@ import { groqStructuredOutput, GROQ_MODELS } from '../groq/client';
 import { DAILY_TASK_AGENT_PROMPT } from './prompts';
 import { AgentContext, AIResponse, ResourceLink, SourceReference } from './types';
 import { retrieveTaskSources } from '../pinecone/rag';
-import { retrieveRelevantContext } from '../pinecone/chat-history';
+// Chat history now comes via userContext.recentHistory from API route
 import { searchProductivityResources, searchNeurodivergentResources } from '../tools/tavily';
 import { generateBreakdown, analyzeTaskComplexity, explicitlyRequestsBreakdown } from './breakdown';
 
@@ -21,20 +21,24 @@ export async function processDailyTaskQuery(
 
     // Step 1: Retrieve relevant knowledge from Pinecone
     const ragSources = await retrieveTaskSources(query, 5);
-
-    // Step 2: Retrieve relevant past conversations
-    const chatHistory = await retrieveRelevantContext(userId, query, 'daily_task', 3);
     
-    // Step 3: Fetch productivity and neurodivergent-friendly resources
+    // Step 2: Fetch productivity and neurodivergent-friendly resources
     const externalResources = await fetchRelevantTaskResources(query);
+    
+    // Note: Chat history is now passed via userContext.recentHistory from API route
+    // (domain-filtered, top 3 semantic + rest chronological)
 
     // Step 5: Build context for LLM
     
     // CRITICAL: Full conversation history with semantic relevance markers
+    // First N messages are semantic matches (marked with ⭐)
+    const semanticCount = userContext?.semanticMatchMessageCount || 0;
     const recentConversationContext = userContext?.recentHistory && userContext.recentHistory.length > 0
       ? `\n\n### FULL CONVERSATION HISTORY (${userContext.fullHistoryCount || 0} total messages):\n${userContext.recentHistory
-          .map((msg: any) => {
-            const marker = msg.isSemanticMatch ? '⭐ [HIGHLY RELEVANT] ' : '';
+          .map((msg: any, index: number) => {
+            // First N messages are semantic matches
+            const isSemanticMatch = index < semanticCount;
+            const marker = isSemanticMatch ? '⭐ [HIGHLY RELEVANT] ' : '';
             return `${marker}${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
           })
           .join('\n')}\n### END OF CONVERSATION HISTORY\n\n⭐ IMPORTANT: Messages marked with ⭐ are the most relevant to the current query. Pay special attention to these!\n`
@@ -43,12 +47,6 @@ export async function processDailyTaskQuery(
     const ragContext = ragSources.length > 0
       ? `\n\nRELEVANT KNOWLEDGE FROM DATABASE:\n${ragSources
           .map((s) => `- ${s.title}: ${s.content}`)
-          .join('\n')}`
-      : '';
-
-    const historyContext = chatHistory.length > 0
-      ? `\n\nRELEVANT PAST CONVERSATIONS (from other sessions):\n${chatHistory
-          .map((h) => `- User asked: "${h.message.substring(0, 100)}..."\n  Response: "${h.response.substring(0, 100)}..."`)
           .join('\n')}`
       : '';
 
@@ -115,7 +113,6 @@ USER QUERY: "${query}"
 ${userContextInfo}
 ${energyAdjustment}
 ${ragContext}
-${historyContext}
 ${resourceContext}
 ${breakdownContext}
 
