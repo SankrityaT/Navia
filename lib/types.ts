@@ -64,7 +64,8 @@ export interface PeerProfile {
   career_field?: string;
   location?: string;
   interests: string[];
-  seeking: string[];
+  seeking: string[]; // What they need help with
+  offers: string[]; // What they can help others with (strengths-based)
   availability?: string;
   bio: string;
   match_preferences: {
@@ -78,4 +79,42 @@ export interface PeerMatch {
   peer: PeerProfile;
   score: number;
   matchReasons: string[];
+}
+
+// Connection between two peers (accountability partnership)
+export interface PeerConnection {
+  connection_id: string;
+  user1_id: string;
+  user2_id: string;
+  status: 'pending' | 'active' | 'paused' | 'ended';
+  initiated_by: string;
+  created_at: string;
+  accepted_at?: string;
+  goals?: {
+    user1_goals: string[];
+    user2_goals: string[];
+  };
+  last_checkin?: string;
+}
+
+// Message between peers
+export interface PeerMessage {
+  message_id: string;
+  connection_id: string;
+  sender_id: string;
+  content: string;
+  timestamp: string;
+  read: boolean;
+}
+
+// Check-in record
+export interface CheckIn {
+  checkin_id: string;
+  connection_id: string;
+  user_id: string;
+  week_start: string;
+  goals_completed: number;
+  total_goals: number;
+  reflection?: string;
+  timestamp: string;
 }

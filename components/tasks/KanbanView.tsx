@@ -1,21 +1,181 @@
-// FRONTEND: Kanban board view for tasks
-// TODO: Implement drag-and-drop functionality (use @dnd-kit/core)
-// TODO: Update task status in Pinecone on drop
+// FRONTEND: ADHD-Friendly Kanban Board with Drag & Drop
+// Research-based: High contrast, color-coded priorities, generous whitespace
 
 'use client';
 
+import { useState } from 'react';
 import { Task } from '@/lib/types';
-import { Clock, MoreVertical } from 'lucide-react';
+import { Clock, Circle, CheckCircle2, Timer, MoreHorizontal, GripVertical } from 'lucide-react';
+import TaskModal from './TaskModal';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { useSortable } from '@dnd-kit/sortable';
 
 interface KanbanViewProps {
   tasks: Task[];
 }
 
-export default function KanbanView({ tasks }: KanbanViewProps) {
+// Draggable Task Card Component
+function DraggableTaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.task_id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const getPriorityDot = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-500';
+      case 'medium':
+        return 'bg-yellow-500';
+      case 'low':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'career':
+        return '💼';
+      case 'finance':
+        return '💰';
+      case 'daily_life':
+        return '✅';
+      case 'social':
+        return '👥';
+      default:
+        return '📋';
+    }
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-2xl p-5 border-2 border-[var(--clay-300)]/30 hover:border-[var(--clay-400)]/50 hover:shadow-lg transition-all duration-300 cursor-pointer group"
+    >
+      <div className="flex items-start gap-3">
+        {/* Drag Handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing mt-1"
+        >
+          <GripVertical className="w-4 h-4 text-[var(--charcoal)]/40" strokeWidth={2} />
+        </button>
+
+        {/* Card Content */}
+        <div className="flex-1" onClick={onClick}>
+          {/* Priority Dot + Title */}
+          <div className="flex items-start gap-3 mb-3">
+            <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${getPriorityDot(task.priority)}`} />
+            <h4 className="font-semibold text-[var(--charcoal)] leading-snug flex-1">
+              {task.title}
+            </h4>
+          </div>
+
+          {/* Time + Category */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-[var(--charcoal)]/70">
+              <Clock className="w-4 h-4" strokeWidth={2} />
+              <span className="font-medium">{task.time_estimate} min</span>
+              <span className="text-[var(--charcoal)]/40">|</span>
+              <span className="text-lg">{getCategoryIcon(task.category)}</span>
+            </div>
+            
+            {/* Expand indicator */}
+            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreHorizontal className="w-5 h-5 text-[var(--clay-500)]" strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
+  const [tasks, setTasks] = useState(initialTasks);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start drag
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const taskId = active.id as string;
+    const newStatus = over.id as Task['status'];
+
+    // Update task status
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.task_id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
+
+    // TODO: Call API to update task in Supabase
+    console.log(`Task ${taskId} moved to ${newStatus}`);
+  };
+  
   const columns = [
-    { status: 'not_started', title: 'Not Started', color: 'border-red-500' },
-    { status: 'in_progress', title: 'In Progress', color: 'border-yellow-500' },
-    { status: 'completed', title: 'Completed', color: 'border-green-500' },
+    { 
+      status: 'not_started', 
+      title: 'Not Started', 
+      icon: Circle,
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-300',
+      textColor: 'text-red-700'
+    },
+    { 
+      status: 'in_progress', 
+      title: 'In Progress', 
+      icon: Timer,
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-300',
+      textColor: 'text-yellow-700'
+    },
+    { 
+      status: 'completed', 
+      title: 'Complete', 
+      icon: CheckCircle2,
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-300',
+      textColor: 'text-green-700'
+    },
   ];
 
   const getTasksByStatus = (status: string) => {
@@ -50,57 +210,101 @@ export default function KanbanView({ tasks }: KanbanViewProps) {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {columns.map((column) => (
-        <div key={column.status} className="bg-gray-50 rounded-lg p-4">
-          <div className={`border-l-4 ${column.color} pl-3 mb-4`}>
-            <h3 className="text-lg font-bold text-gray-900">{column.title}</h3>
-            <p className="text-sm text-gray-600">
-              {getTasksByStatus(column.status).length} tasks
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {getTasksByStatus(column.status).map((task) => (
-              <div
-                key={task.task_id}
-                className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{getCategoryIcon(task.category)}</span>
-                    <div className={`w-2 h-2 rounded-full ${getPriorityDot(task.priority)}`} />
-                  </div>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <h4 className="font-semibold text-gray-900 mb-2">{task.title}</h4>
-
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{task.time_estimate} min</span>
-                  </div>
-                  {task.due_date && (
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                      {new Date(task.due_date).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {getTasksByStatus(column.status).length === 0 && (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                No tasks
-              </div>
-            )}
-          </div>
+  // Empty state check
+  if (tasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-20 h-20 rounded-full bg-[var(--sage-400)]/20 flex items-center justify-center mb-6">
+          <Circle className="w-10 h-10 text-[var(--sage-600)]" strokeWidth={2} />
         </div>
-      ))}
-    </div>
+        <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-3" style={{fontFamily: 'var(--font-fraunces)'}}>
+          No tasks yet!
+        </h3>
+        <p className="text-[var(--charcoal)]/60 mb-6 max-w-md text-center">
+          Go to Chat and ask Navia to break down a task.
+        </p>
+        <a
+          href="/chat"
+          className="px-6 py-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg"
+        >
+          Open Chat
+        </a>
+      </div>
+    );
+  }
+
+  const activeTask = activeId ? tasks.find((t) => t.task_id === activeId) : null;
+
+  return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {columns.map((column) => {
+          const Icon = column.icon;
+          const columnTasks = getTasksByStatus(column.status);
+          
+          return (
+            <div key={column.status} className="flex flex-col">
+              {/* Column Header */}
+              <div className={`${column.bgColor} ${column.borderColor} border-2 rounded-2xl p-4 mb-4`}>
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-6 h-6 ${column.textColor}`} strokeWidth={2.5} />
+                  <div>
+                    <h3 className={`text-lg font-serif font-bold ${column.textColor}`} style={{fontFamily: 'var(--font-fraunces)'}}>
+                      {column.title}
+                    </h3>
+                    <p className="text-sm text-[var(--charcoal)]/60">
+                      {columnTasks.length} {columnTasks.length === 1 ? 'task' : 'tasks'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Drop Zone */}
+              <div
+                id={column.status}
+                className="space-y-4 flex-1 min-h-[200px] p-2 rounded-2xl transition-colors"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {}}
+              >
+                {columnTasks.map((task) => (
+                  <DraggableTaskCard
+                    key={task.task_id}
+                    task={task}
+                    onClick={() => setSelectedTask(task)}
+                  />
+                ))}
+
+                {columnTasks.length === 0 && (
+                  <div className="text-center py-12 text-[var(--charcoal)]/40 text-sm italic">
+                    Drag tasks here
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Drag Overlay */}
+      <DragOverlay>
+        {activeTask ? (
+          <div className="bg-[var(--sand)] rounded-2xl p-5 border-2 border-[var(--clay-500)] shadow-2xl opacity-90">
+            <h4 className="font-semibold text-[var(--charcoal)]">{activeTask.title}</h4>
+          </div>
+        ) : null}
+      </DragOverlay>
+
+      {/* Task Modal */}
+      {selectedTask && (
+        <TaskModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
+    </DndContext>
   );
 }

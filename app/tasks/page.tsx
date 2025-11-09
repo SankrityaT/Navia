@@ -1,14 +1,13 @@
-// FRONTEND: Task visualizer page with Kanban and List views
-// TODO: Fetch tasks from API
+// FRONTEND: ADHD-Friendly Task Visualizer
+// Research-based design for neurodivergent users
 
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, Search, MessageCircle } from 'lucide-react';
 import KanbanView from '@/components/tasks/KanbanView';
-import ListView from '@/components/tasks/ListView';
+import ListView from '@/components/tasks/ListViewSimple';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 
 export default function TasksPage() {
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
@@ -85,50 +84,69 @@ export default function TasksPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-[var(--cream)] relative overflow-hidden">
+      {/* Organic background */}
+      <div className="absolute inset-0 texture-grain"></div>
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--clay-200)] rounded-full blur-[120px] opacity-20 -translate-y-1/2 translate-x-1/4"></div>
+      
+      {/* Fixed Header */}
+      <div className="relative z-10 bg-[var(--sand)]/95 backdrop-blur-md border-b border-[var(--clay-300)]/30 shadow-sm sticky top-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: Back to Chat + Title */}
             <div className="flex items-center gap-4">
               <Link
-                href="/dashboard"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                href="/chat"
+                className="flex items-center gap-2 text-[var(--charcoal)]/60 hover:text-[var(--charcoal)] transition-colors font-medium"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <MessageCircle className="w-5 h-5" strokeWidth={2.5} />
+                <span className="hidden sm:inline">Back to Chat</span>
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900">Task Visualizer</h1>
+              <div className="h-6 w-px bg-[var(--clay-300)]/40"></div>
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
+                Task Visualizer
+              </h1>
             </div>
 
-            {/* View toggle */}
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => setView('kanban')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                  view === 'kanban'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <LayoutGrid className="w-5 h-5" />
-                Kanban
-              </button>
-              <button
-                onClick={() => setView('list')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                  view === 'list'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <List className="w-5 h-5" />
-                List
+            {/* Right: View Toggle + Search */}
+            <div className="flex items-center gap-3">
+              {/* View Toggle */}
+              <div className="flex gap-1 bg-[var(--stone)] p-1 rounded-xl">
+                <button
+                  onClick={() => setView('kanban')}
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+                    view === 'kanban'
+                      ? 'bg-[var(--clay-500)] text-[var(--cream)] shadow-md'
+                      : 'text-[var(--charcoal)]/70 hover:text-[var(--charcoal)]'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" strokeWidth={2.5} />
+                  <span className="hidden sm:inline">Kanban</span>
+                </button>
+                <button
+                  onClick={() => setView('list')}
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+                    view === 'list'
+                      ? 'bg-[var(--clay-500)] text-[var(--cream)] shadow-md'
+                      : 'text-[var(--charcoal)]/70 hover:text-[var(--charcoal)]'
+                  }`}
+                >
+                  <List className="w-4 h-4" strokeWidth={2.5} />
+                  <span className="hidden sm:inline">List</span>
+                </button>
+              </div>
+
+              {/* Search Icon (placeholder for future) */}
+              <button className="p-2 hover:bg-[var(--stone)] rounded-xl transition-colors">
+                <Search className="w-5 h-5 text-[var(--charcoal)]/60" strokeWidth={2.5} />
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Main Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {view === 'kanban' ? <KanbanView tasks={mockTasks} /> : <ListView tasks={mockTasks} />}
       </div>
     </div>
