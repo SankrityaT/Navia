@@ -104,6 +104,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         timestamp: new Date(),
         functionCall: data.functionCall,
         breakdown: data.breakdown,
+        breakdownTips: data.breakdownTips,
         resources: data.resources,
         sources: data.sources,
         suggestBreakdown: data.metadata?.needsBreakdown && (!data.breakdown || data.breakdown.length === 0),
@@ -248,45 +249,116 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                         💡 Would you like me to break this down into step-by-step actions?
                       </p>
                       <div className="flex gap-3 flex-wrap">
-                        <button
-                          onClick={() => handleBreakdownResponse(true, message.originalQuery || '')}
+                    <button
+                      onClick={() => handleBreakdownResponse(true, message.originalQuery || '')}
                           className="flex-1 min-w-[140px] px-5 py-3.5 bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] hover:from-[var(--sage-600)] hover:to-[var(--sage-700)] text-white rounded-xl font-bold transition-all duration-200 text-sm shadow-md hover:shadow-lg active:scale-95"
-                        >
-                          ✅ Yes, create a plan
-                        </button>
-                        <button
-                          onClick={() => handleBreakdownResponse(false, message.originalQuery || '')}
+                    >
+                      ✅ Yes, create a plan
+                    </button>
+                    <button
+                      onClick={() => handleBreakdownResponse(false, message.originalQuery || '')}
                           className="flex-1 min-w-[140px] px-5 py-3.5 bg-white hover:bg-[var(--stone)] text-[var(--charcoal)] rounded-xl font-bold transition-all duration-200 text-sm border-2 border-[var(--clay-300)] hover:border-[var(--clay-400)] shadow-sm active:scale-95"
-                        >
-                          No, thanks
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    >
+                      No, thanks
+                    </button>
+                  </div>
+                </div>
+              )}
               
                   {/* Breakdown steps - Enhanced for Clarity */}
-                  {message.breakdown && message.breakdown.length > 0 && (
+              {message.breakdown && message.breakdown.length > 0 && (
                     <div className="mt-6 p-5 bg-[var(--clay-50)] rounded-2xl border-2 border-[var(--clay-300)]">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md">
                           <span className="text-lg">📋</span>
                         </div>
                         <p className="text-base font-bold text-[var(--charcoal)]">
-                          Your Step-by-Step Plan
+                          Your Step-by-Step Plan ({message.breakdown.length} main steps)
                         </p>
                       </div>
-                      <ol className="space-y-3">
-                        {message.breakdown.map((step, index) => (
-                          <li key={index} className="flex gap-3.5 items-start p-3 bg-white rounded-xl border border-[var(--clay-200)] hover:border-[var(--clay-400)] transition-colors">
-                            <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--clay-500)] text-white font-bold text-sm flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <span className="flex-1 leading-relaxed text-[15px] pt-0.5">{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
+                      <div className="space-y-4">
+                        {message.breakdown.map((step: any, index: number) => {
+                          // Handle both old format (string) and new format (object)
+                          const isOldFormat = typeof step === 'string';
+                          const title = isOldFormat ? step : step.title;
+                          const timeEstimate = !isOldFormat ? step.timeEstimate : null;
+                          const subSteps = !isOldFormat ? step.subSteps : null;
+                          const isOptional = !isOldFormat ? step.isOptional : false;
+                          const isHard = !isOldFormat ? step.isHard : false;
+
+                          return (
+                            <div 
+                              key={index} 
+                              className={`p-4 bg-white rounded-xl border-2 ${
+                                isOptional ? 'border-[var(--sage-300)]' : 'border-[var(--clay-300)]'
+                              } hover:border-[var(--clay-500)] transition-all`}
+                            >
+                              {/* Main Step Header */}
+                              <div className="flex items-start gap-3 mb-2">
+                                <span className={`flex items-center justify-center w-8 h-8 rounded-lg ${
+                                  isOptional ? 'bg-[var(--sage-500)]' : 'bg-[var(--clay-500)]'
+                                } text-white font-bold text-sm flex-shrink-0`}>
+                                  {index + 1}
+                                </span>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-[var(--charcoal)] text-base leading-snug">
+                                      {title}
+                                    </span>
+                                    {isOptional && (
+                                      <span className="px-2 py-0.5 bg-[var(--sage-200)] text-[var(--sage-700)] text-xs font-bold rounded-md">
+                                        OPTIONAL
+                                      </span>
+                                    )}
+                                    {isHard && (
+                                      <span className="px-2 py-0.5 bg-[var(--clay-200)] text-[var(--clay-700)] text-xs font-bold rounded-md">
+                                        ⚠️ CHALLENGING
+                                      </span>
+                                    )}
+                                    {timeEstimate && (
+                                      <span className="text-xs text-[var(--charcoal)]/60 font-medium">
+                                        ⏱ {timeEstimate}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Sub-steps (if any) */}
+                              {subSteps && subSteps.length > 0 && (
+                                <ul className="ml-11 mt-3 space-y-2">
+                                  {subSteps.map((subStep: string, subIndex: number) => (
+                                    <li key={subIndex} className="flex items-start gap-2 text-sm text-[var(--charcoal)]/80 leading-relaxed">
+                                      <span className="text-[var(--clay-500)] mt-0.5">•</span>
+                                      <span className="flex-1">{subStep}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Breakdown Tips (if any) */}
+                      {(message as any).breakdownTips && (message as any).breakdownTips.length > 0 && (
+                        <div className="mt-4 p-4 bg-[var(--sage-50)] rounded-xl border border-[var(--sage-300)]">
+                          <p className="text-sm font-bold text-[var(--charcoal)] mb-2 flex items-center gap-2">
+                            <span>💡</span>
+                            <span>Helpful Tips</span>
+                          </p>
+                          <ul className="space-y-1.5">
+                            {(message as any).breakdownTips.map((tip: string, tipIndex: number) => (
+                              <li key={tipIndex} className="text-sm text-[var(--charcoal)]/80 leading-relaxed flex items-start gap-2">
+                                <span className="text-[var(--sage-600)] mt-0.5">→</span>
+                                <span className="flex-1">{tip}</span>
+                      </li>
+                    ))}
+                          </ul>
+                        </div>
+                      )}
+                </div>
+              )}
               
                   {/* Sources/Resources - ChatGPT/Claude Style - Horizontal Layout */}
                   {(() => {
@@ -328,17 +400,17 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                             {validResources.map((resource, index) => (
                               <a
                                 key={`resource-${index}`}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                                 className="flex-shrink-0 w-72 p-4 bg-white hover:bg-[var(--sand)] rounded-2xl border-2 border-[var(--clay-300)] hover:border-[var(--clay-500)] transition-all hover:shadow-lg active:scale-[0.98] group"
-                              >
+                      >
                                 <div className="flex items-start gap-3 mb-2.5">
                                   <div className="w-8 h-8 rounded-lg bg-[var(--clay-500)] flex items-center justify-center flex-shrink-0">
                                     <ExternalLink className="w-4 h-4 text-white" strokeWidth={2.5} />
                                   </div>
                                   <p className="text-sm font-bold text-[var(--charcoal)] group-hover:text-[var(--clay-600)] line-clamp-2 leading-snug">
-                                    {resource.title}
+                        {resource.title}
                                   </p>
                                 </div>
                                 {resource.description && (
@@ -369,33 +441,33 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                                     {source.excerpt}
                                   </p>
                                 )}
-                              </a>
-                            ))}
-                          </div>
+                      </a>
+                    ))}
+                  </div>
                         )}
-                      </div>
+                </div>
                     );
                   })()}
               
-                  {/* Function call result */}
-                  {message.functionCall && (
+              {/* Function call result */}
+              {message.functionCall && (
                     <div className="mt-5 p-3 bg-[var(--sage-100)]/50 rounded-lg border border-[var(--sage-300)]">
                       <p className="text-xs font-semibold mb-1.5 text-[var(--charcoal)]">
-                        {message.functionCall.name === 'break_down_task' && '📋 Task Breakdown Created'}
-                        {message.functionCall.name === 'get_references' && '📚 Resources Found'}
-                      </p>
-                      {message.functionCall.result?.link && (
-                        <a
-                          href={message.functionCall.result.link}
+                    {message.functionCall.name === 'break_down_task' && '📋 Task Breakdown Created'}
+                    {message.functionCall.name === 'get_references' && '📚 Resources Found'}
+                  </p>
+                  {message.functionCall.result?.link && (
+                    <a
+                      href={message.functionCall.result.link}
                           className="text-xs text-[var(--clay-600)] hover:text-[var(--clay-700)] font-medium hover:underline underline-offset-2 transition-colors"
-                        >
-                          View in Task Visualizer →
-                        </a>
-                      )}
-                    </div>
+                    >
+                      View in Task Visualizer →
+                    </a>
                   )}
                 </div>
-              </div>
+              )}
+                </div>
+            </div>
             )}
           </div>
         ))}

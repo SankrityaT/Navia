@@ -191,11 +191,11 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                     >
                       💰 Finance
                     </button>
-                  </div>
-                  <div className="px-4 py-2 bg-gradient-to-r from-[var(--sage-100)] to-[var(--sage-200)] rounded-full border border-[var(--sage-300)]">
-                    <span className="text-sm font-semibold text-[var(--sage-700)]">
-                      {todayTasks.length} tasks
-                    </span>
+                </div>
+                <div className="px-4 py-2 bg-gradient-to-r from-[var(--sage-100)] to-[var(--sage-200)] rounded-full border border-[var(--sage-300)]">
+                  <span className="text-sm font-semibold text-[var(--sage-700)]">
+                    {todayTasks.length} tasks
+                  </span>
                   </div>
                 </div>
               </div>
@@ -228,8 +228,8 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                       <p className="text-sm text-[var(--charcoal)]/60">Try a different filter or add new tasks.</p>
                     </>
                   )}
-                </div>
-              ) : (
+                  </div>
+                ) : (
                 <div className="space-y-3">
                   {todayTasks.map((task, index) => (
                     <div
@@ -278,7 +278,7 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                     </div>
                   ))}
                 </div>
-              )}
+                )}
             </div>
 
             {/* Goal Progress Card - AI Predictions */}

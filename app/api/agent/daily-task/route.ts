@@ -41,7 +41,6 @@ export async function POST(request: Request) {
           persona: 'daily_task_agent',
           complexity: response.metadata?.complexity,
           hadBreakdown: !!response.breakdown,
-          energyLevel: userContext?.energy_level,
         }
       );
     } catch (storageError) {

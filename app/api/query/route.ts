@@ -4,7 +4,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { orchestrateQuery } from '@/lib/agents/orchestrator';
-import { storeChatMessage } from '@/lib/pinecone/chat-history';
+import { storeChatMessage, retrieveChatHistory, retrieveRelevantContext } from '@/lib/pinecone/chat-history';
 import { autoStoreTaskIfNeeded } from '@/lib/tasks/ai-task-storage';
 
 export async function POST(request: Request) {
@@ -24,8 +24,44 @@ export async function POST(request: Request) {
       );
     }
 
-    // Orchestrate the query through the multi-agent system
-    const result = await orchestrateQuery(userId, query, userContext);
+    // FULL HISTORY WITH SEMANTIC RANKING APPROACH
+    // Step 1: Get ALL chat history for complete context (time-based, newest first)
+    const fullHistory = await retrieveChatHistory(userId, 1000);
+
+    // Step 2: Get semantically relevant messages (similarity-based)
+    const semanticMatches = await retrieveRelevantContext(userId, query, undefined, 5);
+    
+    // Step 3: Create a Set of semantically relevant timestamps for quick lookup
+    const semanticTimestamps = new Set(semanticMatches.map(m => m.timestamp));
+
+    // Step 4: Format chat history with semantic relevance markers
+    const conversationHistory = fullHistory.map((chat) => {
+      const isSemanticMatch = semanticTimestamps.has(chat.timestamp);
+      
+      return [
+        { 
+          role: 'user', 
+          content: chat.message,
+          isSemanticMatch // Mark semantically relevant messages
+        },
+        { 
+          role: 'assistant', 
+          content: chat.response,
+          isSemanticMatch // Mark semantically relevant messages
+        },
+      ];
+    }).flat();
+
+    // Build enhanced context with full history + semantic markers
+    const enhancedContext = {
+      ...userContext,
+      recentHistory: conversationHistory, // ENTIRE conversation history with semantic markers
+      fullHistoryCount: fullHistory.length, // Track how many messages
+      semanticMatchCount: semanticMatches.length, // Track how many are semantically relevant
+    };
+
+    // Orchestrate the query with full context
+    const result = await orchestrateQuery(userId, query, enhancedContext);
 
     if (!result.success) {
       return NextResponse.json(
@@ -54,8 +90,6 @@ export async function POST(request: Request) {
           persona: 'orchestrator',
           complexity: result.metadata.complexity,
           hadBreakdown: result.metadata.usedBreakdown,
-          multiAgent: result.metadata.multiAgent,
-          domainsInvolved: result.metadata.domainsInvolved.join(','),
         }
       );
     } catch (storageError) {
@@ -88,9 +122,9 @@ export async function POST(request: Request) {
       // Primary response
       summary: result.combinedSummary || result.responses[0]?.summary,
       
-      // Resources and sources
-      resources: result.allResources,
-      sources: result.allSources,
+      // Resources and sources (from orchestrator, already deduplicated)
+      resources: result.resources,
+      sources: result.sources,
       
       // Individual agent responses (for debugging or detailed view)
       agentResponses: result.responses.map((r) => ({
@@ -108,9 +142,13 @@ export async function POST(request: Request) {
       },
     };
     
-    // ONLY add breakdown field if it exists and has items
+    // ONLY add breakdown field if it exists and has items (from PRIMARY agent only)
     if (result.breakdown && result.breakdown.length > 0) {
       responseData.breakdown = result.breakdown;
+      // Also include tips if they exist
+      if (result.breakdownTips && result.breakdownTips.length > 0) {
+        responseData.breakdownTips = result.breakdownTips;
+      }
     }
     
     // Only add taskIds if they exist
