@@ -114,12 +114,14 @@ CREATE TABLE chat_messages (
   persona TEXT NOT NULL,
   metadata JSONB,
   pinecone_id TEXT, -- Reference to Pinecone vector ID
+  is_error BOOLEAN DEFAULT FALSE NOT NULL, -- Track error responses (API failures, rate limits)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX idx_chat_messages_user ON chat_messages(user_id, created_at DESC);
 CREATE INDEX idx_chat_messages_category ON chat_messages(category);
 CREATE INDEX idx_chat_messages_pinecone ON chat_messages(pinecone_id);
+CREATE INDEX idx_chat_messages_user_success ON chat_messages(user_id, created_at DESC) WHERE is_error = FALSE;
 
 -- ============================================
 -- ENABLE ROW LEVEL SECURITY (RLS)

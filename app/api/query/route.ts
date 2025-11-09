@@ -96,11 +96,34 @@ export async function POST(request: Request) {
     const result = await orchestrateQuery(userId, query, enhancedContext);
 
     if (!result.success) {
+      // Store error in database for analytics/debugging, but mark as error
+      const errorMessage = 'I encountered an issue processing your question. That\'s okay - sometimes technology has its own executive function challenges! Please try rephrasing your question about tasks, organization, or productivity.';
+      
+      try {
+        const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
+        await storeInSupabase({
+          user_id: userId,
+          message: query,
+          response: errorMessage,
+          category: primaryDomain,
+          persona: 'orchestrator',
+          metadata: {
+            error: true,
+            errorType: 'orchestration_failure',
+            ...result.metadata,
+          },
+          is_error: true, // Mark as error - will be hidden from UI
+        });
+        console.log(`⚠️ Error chat stored for analytics (hidden from UI) for user ${userId}`);
+      } catch (storageError) {
+        console.error('Failed to store error chat:', storageError);
+      }
+
       return NextResponse.json(
         {
           success: false,
           error: 'Failed to process query',
-          message: 'I encountered an issue processing your question. Please try rephrasing or breaking it into smaller parts.',
+          message: errorMessage,
           metadata: result.metadata,
         },
         { status: 500 }
@@ -111,8 +134,12 @@ export async function POST(request: Request) {
     // (already determined at line 31 for history retrieval)
     const responseText = result.combinedSummary || result.responses[0]?.summary || '';
 
-    // Store the conversation in Pinecone
+    // Store the conversation in BOTH Supabase (primary) and Pinecone (semantic search)
     try {
+      const timestamp = Date.now();
+      const pineconeId = `chat_${userId}_${timestamp}`;
+
+      // 1. Store in Pinecone for semantic search (with embedding)
       await storeChatMessage(
         userId,
         query,
@@ -124,6 +151,26 @@ export async function POST(request: Request) {
           hadBreakdown: result.metadata.usedBreakdown,
         }
       );
+
+      // 2. Store in Supabase as primary database
+      const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
+      await storeInSupabase({
+        user_id: userId,
+        message: query,
+        response: responseText,
+        category: primaryDomain,
+        persona: 'orchestrator',
+        metadata: {
+          complexity: result.metadata.complexity,
+          hadBreakdown: result.metadata.usedBreakdown,
+          domains: result.metadata.domainsInvolved,
+          executionTime: result.metadata.executionTime,
+        },
+        pinecone_id: pineconeId,
+        is_error: false, // Explicitly mark as successful
+      });
+
+      console.log(`✅ Chat stored in both Supabase and Pinecone for user ${userId}`);
     } catch (storageError) {
       console.error('Failed to store orchestrated chat:', storageError);
       // Don't fail the request if storage fails

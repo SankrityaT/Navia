@@ -39,9 +39,9 @@ export default async function ChatPage() {
           </Link>
         </div>
 
-        <div className="h-[calc(100vh-120px)]">
-          <ChatInterface userContext={userContext} />
-        </div>
+      <div className="h-[calc(100vh-120px)]">
+        <ChatInterface userContext={userContext} />
+      </div>
       </div>
     </div>
   );
