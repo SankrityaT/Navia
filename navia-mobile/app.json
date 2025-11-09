@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Navia",
+    "slug": "navia-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.navia.app"
+    },
+    "android": {
+      "package": "com.navia.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "scheme": "navia",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
