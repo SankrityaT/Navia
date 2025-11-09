@@ -26,16 +26,19 @@ export async function processCareerQuery(
   try {
     const { userId, query, userContext } = context;
 
-    // Step 1: Retrieve relevant knowledge from Pinecone
-    const ragSources = await retrieveCareerSources(query, 5);
+    // Step 1: Check if query is a greeting - skip resource fetching for greetings
+    const isGreeting = isSimpleGreetingOrSocial(query);
 
-    // Step 2: Retrieve relevant past conversations
-    const chatHistory = await retrieveRelevantContext(userId, query, 'career', 3);
+    // Step 2: Retrieve relevant knowledge from Pinecone (skip for greetings)
+    const ragSources = isGreeting ? [] : await retrieveCareerSources(query, 5);
 
-    // Step 3: Determine specific career topic and fetch external resources
-    const externalResources = await fetchRelevantCareerResources(query);
+    // Step 3: Retrieve relevant past conversations (skip for greetings)
+    const chatHistory = isGreeting ? [] : await retrieveRelevantContext(userId, query, 'career', 3);
+    
+    // Step 4: Determine specific career topic and fetch external resources (skip for greetings)
+    const externalResources = isGreeting ? [] : await fetchRelevantCareerResources(query);
 
-    // Step 4: Build context for LLM
+    // Step 5: Build context for LLM
     const ragContext = ragSources.length > 0
       ? `\n\nRELEVANT KNOWLEDGE FROM DATABASE:\n${ragSources
           .map((s) => `- ${s.title}: ${s.content}`)
@@ -58,9 +61,6 @@ export async function processCareerQuery(
       ? `\n\nUSER CONTEXT:\n- Energy Level: ${userContext.energy_level || 'unknown'}\n- EF Profile: ${userContext.ef_profile?.join(', ') || 'not provided'}\n- Goals: ${userContext.current_goals?.join(', ') || 'not provided'}`
       : '';
 
-    // Step 5: Check if query is a simple greeting - NEVER suggest breakdown for these
-    const isGreeting = isSimpleGreetingOrSocial(query);
-    
     // Step 6: Check if user EXPLICITLY requested a breakdown
     const explicitBreakdownRequest = !isGreeting && explicitlyRequestsBreakdown(query);
 
@@ -121,7 +121,7 @@ Respond in JSON format following your schema.`;
 
     const aiResponse: AIResponse = JSON.parse(response.message.content || '{}');
 
-    // Step 10: Determine final needsBreakdown value
+    // Step 10: Determine final needsBreakdown and showResources values
     // PRIORITY ORDER:
     // 1. If it's a greeting/social interaction → always false
     // 2. If breakdown was pre-generated → false
@@ -132,12 +132,19 @@ Respond in JSON format following your schema.`;
         ? false  // Breakdown already provided
         : (aiResponse.metadata?.needsBreakdown ?? false); // Use LLM's decision
 
+    // Trust LLM's decision on whether to show resources
+    const shouldShowResources = isGreeting 
+      ? false 
+      : (aiResponse.metadata?.showResources ?? true);
+
     console.log('🤖 Career LLM decision:', {
       query: query.substring(0, 50),
       isGreeting,
       llmNeedsBreakdown: aiResponse.metadata?.needsBreakdown,
+      llmShowResources: aiResponse.metadata?.showResources,
       hasPreGeneratedBreakdown: !!breakdown,
       finalNeedsBreakdown,
+      shouldShowResources,
       complexity: complexityAnalysis.complexity,
     });
 
@@ -156,12 +163,14 @@ Respond in JSON format following your schema.`;
       type: categorizeResourceType(r.category),
     }));
 
-    // Merge with AI-generated resources
-    if (aiResponse.resources) {
-      resources.push(...aiResponse.resources);
-    }
-    if (aiResponse.sources) {
-      sources.push(...aiResponse.sources);
+    // Merge with AI-generated resources (SKIP FOR GREETINGS)
+    if (!isGreeting) {
+      if (aiResponse.resources) {
+        resources.push(...aiResponse.resources);
+      }
+      if (aiResponse.sources) {
+        sources.push(...aiResponse.sources);
+      }
     }
 
     // Step 11: Return complete response with breakdown
@@ -178,16 +187,17 @@ Respond in JSON format following your schema.`;
       complexity: complexityAnalysis.complexity,
     });
     
-    // Build response object - ONLY include breakdown if it exists and has items
+    // Build response object - ONLY include resources if LLM says showResources: true
     const finalResponse: AIResponse = {
       domain: 'career',
       summary: aiResponse.summary || 'Here\'s guidance on your career question.',
-      resources: resources.slice(0, 8), // Limit to top 8 resources
-      sources: sources.slice(0, 5), // Limit to top 5 sources
+      resources: shouldShowResources ? resources.slice(0, 8) : [], // LLM decides!
+      sources: shouldShowResources ? sources.slice(0, 5) : [], // LLM decides!
       metadata: {
         confidence: aiResponse.metadata?.confidence || 0.8,
         complexity: complexityAnalysis.complexity,
         needsBreakdown: finalNeedsBreakdown, // Use calculated value
+        showResources: shouldShowResources, // Pass through LLM's decision
         suggestedActions: aiResponse.metadata?.suggestedActions || [],
         retrievedFromRAG: ragSources.length,
         externalResourcesFound: externalResources.length,
