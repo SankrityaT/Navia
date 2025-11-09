@@ -43,10 +43,10 @@ export default function Problem() {
               <Users className="w-8 h-8 text-[var(--cream)]" strokeWidth={2.5} />
             </div>
             <h3 className="text-2xl font-serif font-semibold text-[var(--charcoal)] mb-5" style={{fontFamily: 'var(--font-fraunces)'}}>
-              Double Masking
+              Navigating Expectations
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              Navigating job interviews and workplace expectations while managing executive function challenges is exhausting.
+              Managing job interviews and workplace demands while handling executive function challenges takes a toll on your energy and well-being.
             </p>
           </div>
 

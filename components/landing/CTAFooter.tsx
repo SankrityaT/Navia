@@ -20,7 +20,7 @@ export default function CTAFooter() {
             <span className="block text-[#E5989B]">First Step?</span>
           </h2>
           <p className="text-lg md:text-xl text-gray-700 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Start your journey with a gentle assessment. No pressure, no judgment—just understanding.
+            Start your journey with a gentle check-in that listens. No pressure, no judgment—just understanding support.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

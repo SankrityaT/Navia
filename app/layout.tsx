@@ -29,8 +29,14 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
-        <body className="font-body antialiased">{children}</body>
+      <html
+        lang="en"
+        className={`${fraunces.variable} ${dmSans.variable}`}
+        suppressHydrationWarning
+      >
+        <body className="font-body antialiased" suppressHydrationWarning>
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );

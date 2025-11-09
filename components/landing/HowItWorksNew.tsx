@@ -43,7 +43,7 @@ export default function HowItWorks() {
                       Create Your Profile
                     </h3>
                     <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Share what feels comfortable. Tell us about your executive function challenges, your goals, and what support looks like for you.
+                      Share what feels comfortable. Tell us about your challenges, your goals, and what kind of support would be helpful for you.
                     </p>
                   </div>
                 </div>
@@ -77,10 +77,10 @@ export default function HowItWorks() {
                   <div>
                     <div className="text-sm font-semibold text-[var(--sage-600)] mb-2 uppercase tracking-wider">STEP 2</div>
                     <h3 className="text-2xl md:text-3xl font-serif font-bold text-[var(--charcoal)] mb-4" style={{fontFamily: 'var(--font-fraunces)'}}>
-                      Take the Assessment
+                      Explore Your Patterns
                     </h3>
                     <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Our gentle, adaptive assessment helps identify your masking patterns, energy drains, and environmental stressors. No judgment, just understanding.
+                      Gentle prompts help you notice energy changes, what drains you, and the environments that feel supportive. No judgment—just curious reflection.
                     </p>
                   </div>
                 </div>
@@ -118,24 +118,26 @@ export default function HowItWorks() {
                       Get Personalized Support
                     </h3>
                     <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Receive tailored recommendations, task breakdowns, and coping strategies designed for your unique neurodivergent profile.
+                      Receive personalized suggestions, task breakdowns, and strategies to help you navigate daily challenges in ways that work for you.
                     </p>
                   </div>
                 </div>
               </div>
               
+              {/* Connection dot at bottom-right of Step 3 */}
+              <div className="hidden md:block absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[var(--clay-500)] shadow-sm" style={{transform: 'translate(50%, 50%)'}}></div>
             </div>
           </div>
 
-          {/* Connecting Line 3 - Curved path to Step 4 */}
-          <svg className="hidden md:block absolute top-[700px] left-0 w-full h-[180px] pointer-events-none" style={{zIndex: 1}}>
+          {/* Connecting Line 3 - Curved S-path from Step 3 to Step 4 */}
+          <svg className="hidden md:block absolute top-[680px] left-0 w-full h-[200px] pointer-events-none" style={{zIndex: 1}}>
             <path
-              d="M 420 40 Q 520 90, 680 140"
+              d="M 420 20 Q 500 60, 550 100 T 680 160"
               stroke="var(--clay-400)"
-              strokeWidth="3"
+              strokeWidth="2.5"
               fill="none"
               strokeDasharray="8 8"
-              opacity="0.4"
+              opacity="0.5"
               className="animate-dash"
               style={{animationDelay: '0.6s'}}
             />
@@ -144,6 +146,9 @@ export default function HowItWorks() {
           {/* Step 4 - Bottom Right */}
           <div className="flex justify-end">
             <div className="relative group max-w-md">
+              {/* Connection dot at top-left of Step 4 */}
+              <div className="hidden md:block absolute top-0 left-0 w-2 h-2 rounded-full bg-[var(--clay-500)] shadow-sm" style={{transform: 'translate(-50%, -50%)'}}></div>
+              
               {/* Card */}
               <div className="bg-gradient-to-br from-[var(--clay-300)]/30 via-[var(--sand)] to-[var(--clay-400)]/40 p-10 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
                 <div className="flex items-start gap-6">
@@ -156,7 +161,7 @@ export default function HowItWorks() {
                       Track Your Progress
                     </h3>
                     <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Watch your growth over time. Celebrate small wins, adjust strategies, and build confidence in your abilities—at your own pace.
+                      See your progress over time. Celebrate small wins, adjust what's working, and build confidence—all at your own pace.
                     </p>
                   </div>
                 </div>

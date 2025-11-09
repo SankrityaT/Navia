@@ -59,7 +59,7 @@ export default function Hero() {
               When all support disappears at the finish line, we're here.
             </p>
             <p className="text-base md:text-lg text-[var(--charcoal)]/60 mb-14 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-600">
-              AI-powered executive function coaching that adapts to your unique neurodivergent needs—no masking required.
+              AI-powered executive function coaching that adapts to your unique neurodivergent needs—support that respects your authentic self.
             </p>
 
             {/* Primary CTA */}
@@ -68,7 +68,7 @@ export default function Hero() {
                 href="/sign-up"
                 className="group inline-flex items-center gap-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 hover:-translate-y-0.5"
               >
-                Take Your First Assessment
+                Get Started
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
               </Link>
               <button className="inline-flex items-center gap-3 bg-[var(--sand)] hover:bg-[var(--stone)] text-[var(--charcoal)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60">
@@ -84,7 +84,7 @@ export default function Hero() {
                   <Leaf className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
                 </div>
                 <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Understanding</div>
-                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>No Masking</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Be Yourself</div>
               </div>
               <div className="bg-[var(--sand)]/60 backdrop-blur-sm p-10 rounded-3xl border border-[var(--clay-300)]/20 hover:border-[var(--clay-400)]/40 transition-all duration-500 hover:-translate-y-1 animate-fade-in-up delay-[900ms]">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
@@ -97,8 +97,8 @@ export default function Hero() {
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--moss-500)] to-[var(--moss-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
                   <Sparkles className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
                 </div>
-                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Adaptive AI</div>
-                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Learns With You</div>
+                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Personalized</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Adapts to You</div>
               </div>
             </div>
           </div>
