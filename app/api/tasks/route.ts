@@ -7,7 +7,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { queryTasks, storeTask, updateTaskStatus, deleteTask } from '@/lib/pinecone/operations';
-import { generateEmbedding } from '@/lib/openai/client';
+import { generateEmbedding } from '@/lib/embeddings/client';
 import { Task } from '@/lib/types';
 
 // GET: Query tasks

@@ -1,6 +1,6 @@
 // BACKEND: Pinecone client initialization
-// TODO: Configure Pinecone index with proper dimensions (1536 for OpenAI embeddings)
-// TODO: Set up metadata filtering for user_id, date, priority, status, category
+// Configured for 1024 dimensions (Pinecone multilingual-e5-large embeddings)
+// Metadata filtering enabled for user_id, date, priority, status, category
 
 import { Pinecone } from '@pinecone-database/pinecone';
 
