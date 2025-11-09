@@ -18,7 +18,7 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/chat', label: 'AI Coach', icon: MessageCircle },
+    { href: '/chat', label: 'Navia', icon: MessageCircle },
     { href: '/peers', label: 'Connections', icon: Users },
     { href: '/tasks', label: 'Tasks', icon: CheckSquare },
   ];
