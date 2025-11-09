@@ -23,14 +23,18 @@ export default async function ChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--cream)] via-[var(--sand)] to-[var(--clay-50)] relative overflow-hidden">
+      {/* Floating decorative blobs */}
+      <div className="absolute top-20 right-10 w-72 h-72 bg-[var(--clay-200)] rounded-full blur-[120px] opacity-20"></div>
+      <div className="absolute bottom-20 left-10 w-64 h-64 bg-[var(--sage-400)] rounded-full blur-[100px] opacity-15"></div>
+      
+      <div className="relative z-10 max-w-6xl mx-auto p-6">
         <div className="mb-6">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="inline-flex items-center gap-2 text-[var(--charcoal)] hover:text-[var(--clay-600)] transition-colors font-medium"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
             Back to Dashboard
           </Link>
         </div>
