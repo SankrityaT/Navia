@@ -1,51 +1,105 @@
-// FRONTEND: Hero section for landing page
-// TODO: Add animations on scroll
-// TODO: Optimize images and add proper alt text
-// TODO: Make CTA button trigger Clerk sign-up modal
+// Warm-organic hero with terracotta palette, Fraunces typography, and staggered animations
+// Layered backgrounds create depth and atmosphere
+
+'use client';
 
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Leaf, Shield, Sparkles } from 'lucide-react';
 
 export default function Hero() {
   return (
-    <section className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center">
-          {/* Main Headline */}
-          <h1 className="text-6xl md:text-7xl font-bold text-gray-900 mb-6">
-            Navia
-            <span className="block text-5xl md:text-6xl mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Beyond the Cliff
-            </span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
-            Your AI executive function coach for post-college success
-          </p>
-
-          {/* CTA Button */}
-          <Link
-            href="/sign-up"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all shadow-lg hover:shadow-xl"
-          >
-            Get Started Free
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-
-          {/* Stats */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="text-4xl font-bold text-blue-600 mb-2">30-40%</div>
-              <div className="text-gray-600">Unemployment rate for neurodivergent young adults</div>
+    <section className="min-h-screen flex flex-col relative overflow-hidden">
+      {/* Layered organic background */}
+      <div className="absolute inset-0 bg-[var(--cream)] texture-grain"></div>
+      <div className="absolute inset-0 organic-blob opacity-40"></div>
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[var(--clay-200)] rounded-full blur-[120px] opacity-20 -translate-y-1/2 translate-x-1/4"></div>
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[var(--sage-400)] rounded-full blur-[100px] opacity-15 translate-y-1/3 -translate-x-1/4"></div>
+      
+      <div className="relative z-10 flex flex-col flex-1">
+        {/* Minimal Navigation */}
+        <nav className="w-full px-6 py-8 md:px-12 animate-fade-in">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3 animate-slide-in-left delay-100">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center shadow-lg">
+                <Leaf className="w-6 h-6 text-[var(--cream)]" strokeWidth={2.5} />
+              </div>
+              <span className="text-2xl font-serif font-semibold text-[var(--charcoal)] tracking-tight" style={{fontFamily: 'var(--font-fraunces)'}}>Navia</span>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="text-4xl font-bold text-purple-600 mb-2">100%</div>
-              <div className="text-gray-600">Support disappears at graduation</div>
+            <div className="hidden md:flex items-center gap-10 text-[var(--charcoal)] font-medium animate-fade-in delay-200">
+              <a href="#features" className="hover:text-[var(--clay-600)] transition-colors duration-300">Features</a>
+              <a href="#how-it-works" className="hover:text-[var(--clay-600)] transition-colors duration-300">How It Works</a>
+              <a href="#about" className="hover:text-[var(--clay-600)] transition-colors duration-300">About</a>
+              <Link 
+                href="/sign-in"
+                className="text-[var(--clay-600)] hover:text-[var(--clay-700)] transition-colors duration-300 font-semibold"
+              >
+                Sign In
+              </Link>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="text-4xl font-bold text-green-600 mb-2">24/7</div>
-              <div className="text-gray-600">AI-powered guidance available</div>
+          </div>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="flex-1 flex items-center justify-center px-6 py-16 md:py-24">
+          <div className="max-w-5xl mx-auto text-center">
+            {/* Empathetic Badge */}
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--sand)]/80 backdrop-blur-sm rounded-full border border-[var(--clay-300)]/30 mb-10 shadow-sm animate-scale-in delay-300">
+              <Leaf className="w-4 h-4 text-[var(--sage-600)]" strokeWidth={2.5} />
+              <span className="text-sm text-[var(--charcoal)] font-medium">Built with care for neurodivergent minds</span>
+            </div>
+
+            {/* Main Headline - Addressing the Support Cliff */}
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-[var(--charcoal)] mb-8 leading-[1.1] tracking-tight animate-fade-in-up delay-400" style={{fontFamily: 'var(--font-fraunces)'}}>
+              You're Not Alone
+              <span className="block mt-4 text-[var(--clay-600)] italic font-light">After Graduation</span>
+            </h1>
+
+            {/* Empathetic Subheadline */}
+            <p className="text-xl md:text-2xl text-[var(--charcoal)]/80 mb-5 max-w-3xl mx-auto leading-relaxed font-light animate-fade-in-up delay-500">
+              When all support disappears at the finish line, we're here.
+            </p>
+            <p className="text-base md:text-lg text-[var(--charcoal)]/60 mb-14 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-600">
+              AI-powered executive function coaching that adapts to your unique neurodivergent needs—no masking required.
+            </p>
+
+            {/* Primary CTA */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20 animate-scale-in delay-700">
+              <Link
+                href="/sign-up"
+                className="group inline-flex items-center gap-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 hover:-translate-y-0.5"
+              >
+                Take Your First Assessment
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
+              </Link>
+              <button className="inline-flex items-center gap-3 bg-[var(--sand)] hover:bg-[var(--stone)] text-[var(--charcoal)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60">
+                <Shield className="w-5 h-5" strokeWidth={2.5} />
+                Privacy First
+              </button>
+            </div>
+
+            {/* Trust Indicators */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <div className="bg-[var(--sand)]/60 backdrop-blur-sm p-10 rounded-3xl border border-[var(--clay-300)]/20 hover:border-[var(--clay-400)]/40 transition-all duration-500 hover:-translate-y-1 animate-fade-in-up delay-800">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--sage-400)] to-[var(--sage-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
+                  <Leaf className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
+                </div>
+                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Understanding</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>No Masking</div>
+              </div>
+              <div className="bg-[var(--sand)]/60 backdrop-blur-sm p-10 rounded-3xl border border-[var(--clay-300)]/20 hover:border-[var(--clay-400)]/40 transition-all duration-500 hover:-translate-y-1 animate-fade-in-up delay-[900ms]">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
+                  <Shield className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
+                </div>
+                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Privacy First</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Your Safe Space</div>
+              </div>
+              <div className="bg-[var(--sand)]/60 backdrop-blur-sm p-10 rounded-3xl border border-[var(--clay-300)]/20 hover:border-[var(--clay-400)]/40 transition-all duration-500 hover:-translate-y-1 animate-fade-in-up delay-[1000ms]">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--moss-500)] to-[var(--moss-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
+                  <Sparkles className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
+                </div>
+                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Adaptive AI</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Learns With You</div>
+              </div>
             </div>
           </div>
         </div>

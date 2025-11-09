@@ -1,81 +1,69 @@
-// FRONTEND: Problem section showing the support cliff
-// TODO: Add interactive graph/chart showing support drop-off
-// TODO: Add testimonials or real data points
+// Problem section with empathetic, calming design
+// Addresses pain points without overwhelming neurodivergent users
 
-import { TrendingDown, AlertCircle } from 'lucide-react';
+import { Heart, Users, Sparkles } from 'lucide-react';
 
 export default function Problem() {
   return (
-    <section className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            The Post-Graduation Cliff
+    <section className="py-24 bg-gradient-to-b from-white to-[#FFF9F5]">
+      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="text-center mb-20">
+          <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+            We Understand What You're
+            <span className="block text-[#E5989B]">Going Through</span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Neurodivergent students face a sudden drop in support after college
+          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            The transition after graduation can feel isolating. You're not imagining it.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          {/* Visual representation */}
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 p-8 rounded-2xl">
-            <div className="flex items-center gap-3 mb-6">
-              <TrendingDown className="w-8 h-8 text-red-600" />
-              <h3 className="text-2xl font-bold text-gray-900">Support Cliff</h3>
+        {/* Pain Points - Soft, Spacious Cards */}
+        <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <div className="bg-white p-10 rounded-3xl border border-[#E5989B]/10 hover:border-[#E5989B]/30 transition-all">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FFE5D9] to-[#FFD6A5] flex items-center justify-center mb-6">
+              <Heart className="w-7 h-7 text-[#FFB4A2]" />
             </div>
-            
-            {/* Simple visual graph */}
-            <div className="relative h-64 flex items-end justify-around">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-20 bg-green-500 rounded-t-lg" style={{ height: '80%' }}></div>
-                <span className="text-sm font-medium text-gray-700">College</span>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-20 bg-red-500 rounded-t-lg" style={{ height: '20%' }}></div>
-                <span className="text-sm font-medium text-gray-700">Post-Grad</span>
-              </div>
-            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              The Support Cliff
+            </h3>
+            <p className="text-gray-600 leading-relaxed">
+              All the accommodations and structure that helped you succeed suddenly disappear at graduation.
+            </p>
           </div>
 
-          {/* Key problems */}
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  No More Academic Support
-                </h4>
-                <p className="text-gray-600">
-                  Disability services, tutoring, and structured schedules vanish overnight
-                </p>
-              </div>
+          <div className="bg-white p-10 rounded-3xl border border-[#E5989B]/10 hover:border-[#E5989B]/30 transition-all">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#E5C1CD] to-[#E5989B] flex items-center justify-center mb-6">
+              <Users className="w-7 h-7 text-white" />
             </div>
-
-            <div className="flex gap-4">
-              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  Executive Function Challenges
-                </h4>
-                <p className="text-gray-600">
-                  Task initiation, time management, and organization become overwhelming
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                  High Unemployment
-                </h4>
-                <p className="text-gray-600">
-                  30-40% unemployment rate despite having valuable skills and education
-                </p>
-              </div>
-            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Double Masking
+            </h3>
+            <p className="text-gray-600 leading-relaxed">
+              Navigating job interviews and workplace expectations while managing executive function challenges is exhausting.
+            </p>
           </div>
+
+          <div className="bg-white p-10 rounded-3xl border border-[#E5989B]/10 hover:border-[#E5989B]/30 transition-all">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#B8E0D2] to-[#95D5B2] flex items-center justify-center mb-6">
+              <Sparkles className="w-7 h-7 text-[#52B788]" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Burnout & Overwhelm
+            </h3>
+            <p className="text-gray-600 leading-relaxed">
+              Without the right support, even simple tasks can feel impossible, leading to cycles of burnout.
+            </p>
+          </div>
+        </div>
+
+        {/* Empathetic Message */}
+        <div className="bg-gradient-to-br from-[#FFF5F0] to-[#FFE5D9] p-12 rounded-3xl text-center">
+          <p className="text-xl md:text-2xl text-gray-800 font-medium mb-4">
+            "You've worked so hard to get here."
+          </p>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            You deserve support that doesn't end with a diploma. Navia is here to help you navigate what comes next—at your own pace, in your own way.
+          </p>
         </div>
       </div>
     </section>
