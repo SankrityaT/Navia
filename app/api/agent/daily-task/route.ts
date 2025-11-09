@@ -31,21 +31,35 @@ export async function POST(request: Request) {
     const executionTime = Date.now() - startTime;
 
     // Store conversation in Pinecone for future context
-    try {
-      await storeChatMessage(
-        userId,
-        query,
-        response.summary,
-        {
-          category: 'daily_task',
-          persona: 'daily_task_agent',
-          complexity: response.metadata?.complexity,
-          hadBreakdown: !!response.breakdown,
-        }
-      );
-    } catch (storageError) {
-      console.error('Failed to store chat message:', storageError);
-      // Don't fail the request if storage fails
+    // CRITICAL: Don't store error messages - they pollute the vector database!
+    const isErrorResponse = !response.summary || 
+      response.summary.toLowerCase().includes('encountered an issue') ||
+      response.summary.toLowerCase().includes('error processing') ||
+      response.summary.toLowerCase().includes('please try rephrasing') ||
+      response.summary.toLowerCase().includes('api error') ||
+      response.summary.toLowerCase().includes('rate limit') ||
+      response.summary.toLowerCase().includes('quota exceeded') ||
+      response.summary.trim().length < 20;
+
+    if (!isErrorResponse) {
+      try {
+        await storeChatMessage(
+          userId,
+          query,
+          response.summary,
+          {
+            category: 'daily_task',
+            persona: 'daily_task_agent',
+            complexity: response.metadata?.complexity,
+            hadBreakdown: !!response.breakdown,
+          }
+        );
+      } catch (storageError) {
+        console.error('Failed to store chat message:', storageError);
+        // Don't fail the request if storage fails
+      }
+    } else {
+      console.warn('⚠️ Daily Task agent: Skipping Pinecone storage - Error response detected');
     }
 
     // Auto-store task if breakdown was generated (for Task Visualizer)

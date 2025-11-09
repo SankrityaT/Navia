@@ -179,7 +179,7 @@ export interface BreakdownRequest {
  * Breakdown response
  */
 export interface BreakdownResponse {
-  breakdown: string[];
+  breakdown: BreakdownStep[];  // Hierarchical steps with sub-steps
   needsBreakdown: boolean;
   complexity: number;
   estimatedTime?: string;

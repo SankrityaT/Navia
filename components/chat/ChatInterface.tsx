@@ -74,12 +74,29 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     setIsTyping(true);
 
     try {
+      // Get recent session messages for context (excluding welcome message)
+      // IMPORTANT: Include the message we just sent! (messages state hasn't updated yet)
+      const sessionMessages = [...messages, userMessage]
+        .slice(1) // Skip welcome message
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+      
+      console.log('🔍 Sending to API:', {
+        query: textToSend,
+        sessionMessagesCount: sessionMessages.length,
+        sessionMessages: sessionMessages.slice(-4), // Show last 4 for debugging
+      });
+      
       const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: textToSend,
           userContext,
+          sessionMessages, // Include current session for follow-ups!
           forceBreakdown: forceBreakdown || false,
         }),
       });

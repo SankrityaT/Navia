@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { query, userContext } = body;
+    const { query, userContext, sessionMessages = [] } = body;
 
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
@@ -23,11 +23,18 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    
+    console.log('📨 Received query with session context:', {
+      query,
+      sessionMessageCount: sessionMessages.length,
+      sessionMessages: sessionMessages.slice(-4), // Show last 4 for debugging
+    });
 
     // HYBRID RETRIEVAL WITH DOMAIN FILTERING: TOP 3 SEMANTIC + REST CHRONOLOGICAL
     // Step 1: Quick intent detection to get primary domain for filtering
+    // CRITICAL: Pass session messages for context-aware routing!
     const { detectIntent } = await import('@/lib/agents/orchestrator');
-    const quickIntent = await detectIntent(query, undefined);
+    const quickIntent = await detectIntent(query, sessionMessages, sessionMessages.length);
     const primaryDomain = quickIntent.domains[0] || 'daily_task';
     
     console.log(`🎯 Primary domain for history retrieval: ${primaryDomain}`);
@@ -42,12 +49,19 @@ export async function POST(request: Request) {
     const semanticTimestamps = new Set(semanticMatches.map(m => m.timestamp));
     const chronologicalHistory = fullHistory.filter(chat => !semanticTimestamps.has(chat.timestamp));
 
-    // Step 4: Format conversation history - SEMANTIC FIRST, THEN CHRONOLOGICAL
-    // Keep track of semantic match count for formatting in agents
+    // Step 4: Format conversation history - SESSION FIRST, THEN SEMANTIC, THEN CHRONOLOGICAL
+    // CRITICAL: Session messages come first for immediate context (follow-ups!)
+    const sessionMessageCount = sessionMessages.length;
     const semanticMatchMessageCount = semanticMatches.length * 2; // × 2 for user + assistant
     
     const conversationHistory = [
-      // TOP 3: Most semantically relevant (will be marked in agent formatting)
+      // CURRENT SESSION: Most important for follow-up questions
+      ...sessionMessages.map((msg: any) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      })),
+      
+      // TOP 3 SEMANTIC: Most semantically relevant from stored history
       ...semanticMatches.map((chat) => [
         { 
           role: 'user' as const, 
@@ -75,21 +89,23 @@ export async function POST(request: Request) {
     // Build enhanced context with hybrid retrieval
     const enhancedContext = {
       ...userContext,
-      recentHistory: conversationHistory, // TOP 3 semantic + rest chronological (clean: only role + content)
+      recentHistory: conversationHistory, // SESSION + semantic + chronological (clean: only role + content)
       fullHistoryCount: fullHistory.length,
+      sessionMessageCount, // How many messages from current session (for follow-ups!)
       semanticMatchCount: semanticMatches.length, // How many conversations are semantic matches
       semanticMatchMessageCount, // How many messages (conversations × 2) are semantic matches
-      retrievalStrategy: 'hybrid_semantic_first', // For debugging
+      retrievalStrategy: 'session_first_hybrid', // For debugging
     };
 
     // Log retrieval strategy for debugging
     console.log('🔍 Hybrid Retrieval Summary:', {
       primaryDomain,
-      totalMessages: fullHistory.length,
+      sessionMessages: sessionMessageCount,
+      totalStoredMessages: fullHistory.length,
       semanticTop3: semanticMatches.length,
       chronologicalRest: chronologicalHistory.length,
       conversationHistoryLength: conversationHistory.length,
-      order: 'TOP 3 semantic (filtered) → rest chronological (filtered)',
+      order: 'SESSION (immediate) → TOP 3 semantic (relevant) → rest chronological (context)',
     });
 
     // Orchestrate the query with full context
@@ -111,22 +127,41 @@ export async function POST(request: Request) {
     // (already determined at line 31 for history retrieval)
     const responseText = result.combinedSummary || result.responses[0]?.summary || '';
 
-    // Store the conversation in Pinecone
-    try {
-      await storeChatMessage(
-        userId,
-        query,
-        responseText,
-        {
-          category: primaryDomain,
-          persona: 'orchestrator',
-          complexity: result.metadata.complexity,
-          hadBreakdown: result.metadata.usedBreakdown,
-        }
-      );
-    } catch (storageError) {
-      console.error('Failed to store orchestrated chat:', storageError);
-      // Don't fail the request if storage fails
+    // CRITICAL: Don't store error messages in Pinecone - they pollute the vector database!
+    // Check if response contains error indicators
+    const isErrorResponse = !responseText || 
+      responseText.toLowerCase().includes('encountered an issue') ||
+      responseText.toLowerCase().includes('error processing') ||
+      responseText.toLowerCase().includes('please try rephrasing') ||
+      responseText.toLowerCase().includes('api error') ||
+      responseText.toLowerCase().includes('rate limit') ||
+      responseText.toLowerCase().includes('quota exceeded') ||
+      responseText.trim().length < 20; // Very short responses are likely errors
+
+    // Store the conversation in Pinecone ONLY if it's a valid response
+    if (!isErrorResponse) {
+      try {
+        await storeChatMessage(
+          userId,
+          query,
+          responseText,
+          {
+            category: primaryDomain,
+            persona: 'orchestrator',
+            complexity: result.metadata.complexity,
+            hadBreakdown: result.metadata.usedBreakdown,
+          }
+        );
+        console.log('✅ Conversation stored in Pinecone successfully');
+      } catch (storageError) {
+        console.error('Failed to store orchestrated chat:', storageError);
+        // Don't fail the request if storage fails
+      }
+    } else {
+      console.warn('⚠️ Skipping Pinecone storage - Error response detected:', {
+        responsePreview: responseText.substring(0, 100),
+        reason: 'Error messages should not pollute vector database',
+      });
     }
 
     // Auto-store tasks for each agent that generated a breakdown

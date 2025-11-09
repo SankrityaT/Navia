@@ -36,18 +36,39 @@ export async function processFinanceQuery(
 
     // Step 5: Build context for LLM
     
-    // CRITICAL: Full conversation history with semantic relevance markers
-    // First N messages are semantic matches (marked with ⭐)
-    const semanticCount = userContext?.semanticMatchMessageCount || 0;
+    // CRITICAL: Full conversation history with CLEAR section divisions
+    const sessionCount = userContext?.sessionMessageCount || 0;
+    const semanticStartIndex = sessionCount;
+    const semanticEndIndex = sessionCount + (userContext?.semanticMatchMessageCount || 0);
+    const totalHistoryLength = userContext?.recentHistory?.length || 0;
+    
     const recentConversationContext = userContext?.recentHistory && userContext.recentHistory.length > 0
-      ? `\n\n### FULL CONVERSATION HISTORY (${userContext.fullHistoryCount || 0} total messages):\n${userContext.recentHistory
-          .map((msg: any, index: number) => {
-            // First N messages are semantic matches
-            const isSemanticMatch = index < semanticCount;
-            const marker = isSemanticMatch ? '⭐ [HIGHLY RELEVANT] ' : '';
-            return `${marker}${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
-          })
-          .join('\n')}\n### END OF CONVERSATION HISTORY\n\n⭐ IMPORTANT: Messages marked with ⭐ are the most relevant to the current query. Pay special attention to these!\n`
+      ? `\n\n### CONVERSATION HISTORY (${userContext.fullHistoryCount || 0} stored conversations + ${sessionCount} current session messages):
+
+` + (sessionCount > 0 
+        ? `--- 🔥 CURRENT SESSION (${sessionCount} messages) ---
+[MOST IMPORTANT: This is the ONGOING conversation - use this to understand follow-up questions like "tell me more", "is it good?", etc.]
+${userContext.recentHistory.slice(0, sessionCount).map((msg: any) => {
+  return `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
+}).join('\n')}
+--- END CURRENT SESSION ---
+
+` : '') + (semanticEndIndex > semanticStartIndex 
+        ? `--- ⭐ SEMANTICALLY RELEVANT PAST CONVERSATIONS (${semanticEndIndex - semanticStartIndex} messages) ---
+[RELEVANT: These past conversations are semantically similar to the current query]
+${userContext.recentHistory.slice(semanticStartIndex, semanticEndIndex).map((msg: any) => {
+  return `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
+}).join('\n')}
+--- END SEMANTIC MATCHES ---
+
+` : '') + (totalHistoryLength > semanticEndIndex 
+        ? `--- 📋 CHRONOLOGICAL HISTORY (${totalHistoryLength - semanticEndIndex} messages) ---
+[CONTEXT: Recent past conversations for general context]
+${userContext.recentHistory.slice(semanticEndIndex).map((msg: any) => {
+  return `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
+}).join('\n')}
+--- END CHRONOLOGICAL HISTORY ---
+` : '') + `\n### END OF CONVERSATION HISTORY\n`
       : '';
     
     const ragContext = ragSources.length > 0
@@ -78,7 +99,7 @@ export async function processFinanceQuery(
         task: query,
         context: 'Finance task',
         userEFProfile: userContext?.ef_profile,
-      });
+      }, userContext?.recentHistory); // Pass conversation history!
       breakdown = breakdownResult.breakdown;
       breakdownTips = breakdownResult.tips;
     }

@@ -23,58 +23,98 @@ import { retrieveChatHistory } from '../pinecone/chat-history';
  */
 export async function detectIntent(
   query: string, 
-  conversationHistory?: Array<{role: string, content: string}>
+  conversationHistory?: Array<{role: string, content: string}>,
+  sessionMessageCount?: number
 ): Promise<IntentDetection> {
   try {
     // Build conversation context for intent detection
-    // CRITICAL: Include semantic matches (first few messages) + recent messages (last few)
+    // CRITICAL: For follow-up detection, ONLY use session messages (ignore semantic matches from Pinecone)!
     const historyContext = conversationHistory && conversationHistory.length > 0
       ? (() => {
-          // Semantic matches are at the BEGINNING of the array (by design from API route)
-          // We need to determine how many messages are semantic matches
-          // For routing, we want: all semantic matches + last 7 chronological
+          // Smart follow-up detection based on conversation structure (no hardcoded keywords!)
+          // A query is likely a follow-up if:
+          // 1. There's an active session (sessionMessageCount > 0)
+          // 2. The query is short/conversational (< 10 words)
+          // 3. There are recent messages to refer to
           
-          // Estimate: typically 3 conversations × 2 messages = 6 semantic messages
-          // But we'll use a heuristic: first 10 messages OR messages until we've seen enough semantic context
-          const semanticMessages = conversationHistory.slice(0, 6); // Top 3 conversations (6 messages)
-          const chronologicalMessages = conversationHistory.slice(6); // Rest
-          const recentMessages = chronologicalMessages.slice(-7); // Last 7 from chronological
+          const queryWordCount = query.trim().split(/\s+/).length;
+          const hasActiveSession = sessionMessageCount && sessionMessageCount > 0;
+          const isShortQuery = queryWordCount <= 10;
           
-          // Combine: semantic first (for relevance) + recent (for context)
-          const contextForRouting = [...semanticMessages, ...recentMessages];
+          // If short query + active session, likely a follow-up → prioritize session context
+          const likelyFollowUp = hasActiveSession && isShortQuery;
+          
+          // For likely follow-ups: ONLY use session messages (ignore semantic matches from old convos)
+          // For longer/new queries: Use session + semantic context for better understanding
+          const messagesToUse = likelyFollowUp 
+            ? (sessionMessageCount || 6) // Only current session!
+            : Math.min(12, conversationHistory.length); // Session + some semantic/historical
+          
+          const recentMessages = conversationHistory.slice(0, messagesToUse);
           
           console.log('🧭 Orchestrator routing context:', {
             totalHistory: conversationHistory.length,
-            semanticMessages: semanticMessages.length,
-            recentMessages: recentMessages.length,
-            contextForRouting: contextForRouting.length,
+            sessionMessageCount: sessionMessageCount || 'unknown',
+            queryWordCount,
+            likelyFollowUp,
+            messagesToUse,
+            recentForRouting: recentMessages.length,
           });
           
-          return `\n\nCONVERSATION CONTEXT FOR ROUTING (${contextForRouting.length} messages):\n${contextForRouting
-            .map((msg: any, index: number) => {
-              // First 6 are semantic matches
-              const isSemanticMatch = index < semanticMessages.length;
-              const marker = isSemanticMatch ? '⭐ [RELEVANT] ' : '';
-              return `${marker}${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
-            })
-            .join('\n')}\n\n⭐ = Most semantically relevant to current query\n`;
+          // Format with HEAVY emphasis on the most recent exchange
+          let contextStr = '\n\n=== CONVERSATION HISTORY FOR ROUTING ===\n\n';
+          
+          if (likelyFollowUp) {
+            contextStr += '⚠️ LIKELY FOLLOW-UP (short query + active session) - Using ONLY current session context (ignoring old conversations)\n\n';
+          }
+          
+          // Highlight the MOST RECENT exchange (critical for follow-ups!)
+          if (recentMessages.length >= 2) {
+            contextStr += '🔥 MOST RECENT EXCHANGE (CRITICAL FOR FOLLOW-UPS):\n';
+            contextStr += `User: ${recentMessages[0].content}\n`;
+            contextStr += `Navia: ${recentMessages[1].content}\n\n`;
+            
+            // Include a few more for context if available
+            if (recentMessages.length > 2) {
+              contextStr += '📋 Previous context (for reference):\n';
+              for (let i = 2; i < recentMessages.length; i++) {
+                const msg = recentMessages[i];
+                contextStr += `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}\n`;
+              }
+            }
+          } else if (recentMessages.length > 0) {
+            contextStr += 'Recent messages:\n';
+            recentMessages.forEach((msg: any) => {
+              contextStr += `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}\n`;
+            });
+          }
+          
+          contextStr += '\n=== END CONVERSATION HISTORY ===\n';
+          return contextStr;
         })()
       : '';
 
     const prompt = `Analyze this user query and determine routing:
 
-CURRENT QUERY: "${query}"
+🎯 CURRENT QUERY: "${query}"
 ${historyContext}
 
-CRITICAL: Use the conversation context to understand follow-up questions!
-- If user asks "what projects?" after discussing LinkedIn → CAREER domain
-- If user asks "tell me more" → Use context to determine domain
-- If user asks "how do I do that?" → Refer to previous topic
+🚨 CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUESTIONS:
+1. If the query is SHORT (<8 words) or uses words like "which", "that", "it", "them", "more" → CHECK THE MOST RECENT EXCHANGE!
+2. Maintain domain continuity unless user explicitly changes topics
+3. Examples of follow-ups that should STAY in the same domain:
+   - "Which one do you suggest?" after discussing career topics → CAREER
+   - "What about that?" after discussing budgets → FINANCE
+   - "Tell me more" → Use the previous domain
+   - "Is it good?" → Stay in current domain
 
-Intelligently decide:
+4. ONLY switch domains if user introduces NEW keywords (e.g., "Now about my budget..." when previously discussing career)
+
+Your decision:
 1. Which domain(s) this query belongs to (finance/career/daily_task)
 2. Whether the user would benefit from a breakdown/plan (don't over-do it!)
 3. The complexity level of the query
+4. Include reasoning that explains if this is a follow-up and which domain you're maintaining
 
 Respond in JSON format following your schema.`;
 
@@ -126,7 +166,8 @@ export async function orchestrateQuery(
 
   try {
     // Step 1: Detect intent WITH CONVERSATION CONTEXT
-    const intent = await detectIntent(query, userContext?.recentHistory);
+    // Pass sessionMessageCount so orchestrator knows where session ends and semantic history begins
+    const intent = await detectIntent(query, userContext?.recentHistory, userContext?.sessionMessageCount);
     console.log(`Intent detected: ${intent.domains.join(', ')} (confidence: ${intent.confidence})`);
 
     // Step 2: Retrieve chat history for context

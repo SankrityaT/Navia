@@ -128,9 +128,11 @@ Respond in JSON format:
 
 /**
  * Generate a breakdown for a complex task
+ * Now with conversation history support to understand context for follow-up requests
  */
 export async function generateBreakdown(
-  request: BreakdownRequest
+  request: BreakdownRequest,
+  conversationHistory?: Array<{role: string, content: string}>
 ): Promise<BreakdownResponse> {
   try {
     const { task, context, userEFProfile } = request;
@@ -139,25 +141,83 @@ export async function generateBreakdown(
       ? `\n\nUser's EF Profile: ${userEFProfile.join(', ')}\n(Adjust breakdown to accommodate these challenges)`
       : '';
 
+    // CRITICAL: Include conversation history so LLM knows WHAT to break down
+    // When user says "create a plan for this", we need context!
+    const historyContext = conversationHistory && conversationHistory.length > 0
+      ? `\n\nRECENT CONVERSATION (for understanding "this" or "that"):\n${conversationHistory
+          .slice(-6) // Last 6 messages (3 exchanges) for context
+          .map((msg: any) => `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`)
+          .join('\n')}\n`
+      : '';
+
     const prompt = `Please break down this task into manageable micro-steps:
 
 Task: "${task}"
 ${context ? `Context: ${context}` : ''}
+${historyContext}
 ${userProfileInfo}
 
+IMPORTANT: If the task says something like "create a plan for this" or "break that down", use the conversation history to understand what they're referring to. Generate a breakdown for the ACTUAL task they discussed, not a generic plan.
+
 Respond in JSON format with a complete breakdown following your guidelines.`;
+
+    console.log('🔨 Generating breakdown:', {
+      task,
+      hasHistory: !!conversationHistory,
+      historyLength: conversationHistory?.length || 0,
+      context,
+    });
 
     const response = await groqStructuredOutput([
       { role: 'system', content: BREAKDOWN_TOOL_PROMPT + '\n\nYou must respond in valid JSON format.' },
       { role: 'user', content: prompt },
     ]);
 
+    console.log('✅ Raw LLM response received:', {
+      contentLength: response.message.content?.length || 0,
+      firstChars: response.message.content?.substring(0, 100) || 'empty',
+    });
+
     const breakdown: BreakdownResponse = JSON.parse(response.message.content || '{}');
+
+    console.log('✅ Parsed breakdown:', {
+      hasBreakdown: !!breakdown.breakdown,
+      breakdownType: Array.isArray(breakdown.breakdown) ? 'array' : typeof breakdown.breakdown,
+      breakdownLength: breakdown.breakdown?.length || 0,
+      firstStep: breakdown.breakdown?.[0] || null,
+    });
 
     // Ensure required fields exist
     if (!breakdown.breakdown || !Array.isArray(breakdown.breakdown)) {
-      throw new Error('Invalid breakdown format');
+      console.error('❌ Invalid breakdown format:', {
+        breakdown: breakdown.breakdown,
+        fullResponse: breakdown,
+      });
+      throw new Error('Invalid breakdown format: breakdown field is missing or not an array');
     }
+
+    // Validate that breakdown items match expected format (hierarchical with BreakdownStep)
+    const firstItem = breakdown.breakdown[0];
+    const isOldFormat = typeof firstItem === 'string';
+    
+    if (isOldFormat) {
+      console.warn('⚠️ LLM returned old string format instead of hierarchical format. Converting...');
+      // Convert old format to new format
+      breakdown.breakdown = (breakdown.breakdown as any[]).map((step: any) => ({
+        title: typeof step === 'string' ? step : step,
+        timeEstimate: '5-10 min',
+        subSteps: [],
+        isOptional: false,
+        isHard: false,
+      })) as any;
+    }
+
+    console.log('✅ Breakdown generated successfully:', {
+      stepCount: breakdown.breakdown.length,
+      complexity: breakdown.complexity,
+      estimatedTime: breakdown.estimatedTime,
+      tipsCount: breakdown.tips?.length || 0,
+    });
 
     return {
       breakdown: breakdown.breakdown,
@@ -167,14 +227,37 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
       tips: breakdown.tips || [],
     };
   } catch (error) {
-    console.error('Error generating breakdown:', error);
+    console.error('❌ BREAKDOWN GENERATION FAILED:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      task: request.task,
+      hasHistory: !!conversationHistory,
+    });
     
-    // Fallback: simple 3-step breakdown
+    // Fallback: Return hierarchical format (not string array!)
     return {
       breakdown: [
-        'Step 1: Gather any materials or information you need',
-        'Step 2: Complete the main task in small chunks',
-        'Step 3: Review what you\'ve done and celebrate completion',
+        {
+          title: 'Step 1: Gather any materials or information you need',
+          timeEstimate: '5 min',
+          subSteps: [],
+          isOptional: false,
+          isHard: false,
+        },
+        {
+          title: 'Step 2: Complete the main task in small chunks',
+          timeEstimate: '10-15 min',
+          subSteps: [],
+          isOptional: false,
+          isHard: false,
+        },
+        {
+          title: 'Step 3: Review what you\'ve done and celebrate completion',
+          timeEstimate: '2 min',
+          subSteps: [],
+          isOptional: true,
+          isHard: false,
+        },
       ],
       needsBreakdown: true,
       complexity: 5,
