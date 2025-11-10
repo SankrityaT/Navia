@@ -5,7 +5,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, Clock, ThumbsUp, ThumbsDown, Lock } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -21,6 +21,9 @@ interface Message {
   suggestBreakdown?: boolean;
   originalQuery?: string;
   isStreaming?: boolean; // For streaming animation
+  messageId?: string; // DB ID for stored messages
+  userFeedback?: boolean | null; // Current feedback state (true = thumbs up, false = thumbs down, null = no feedback)
+  feedbackLocked?: boolean; // Whether feedback is locked after 2 toggles
 }
 
 interface ChatInterfaceProps {
@@ -37,6 +40,11 @@ interface HistoryItem {
   response: string;
   category: 'finance' | 'career' | 'daily_task';
   created_at: string;
+  user_feedback?: boolean | null;
+  metadata?: {
+    feedbackToggleCount?: number;
+    [key: string]: any;
+  };
 }
 
 export default function ChatInterface({ userContext }: ChatInterfaceProps) {
@@ -60,6 +68,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
+  const [messageFeedback, setMessageFeedback] = useState<Record<string, { value: boolean | null, toggleCount: number }>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -96,6 +105,18 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
       setCurrentMessages(messages);
     }
 
+    // Load feedback state from history
+    const toggleCount = historyItem.metadata?.feedbackToggleCount || 0;
+    const isLocked = toggleCount >= 2;
+    
+    // Update feedback state
+    setMessageFeedback({
+      [historyItem.id]: {
+        value: historyItem.user_feedback ?? null,
+        toggleCount: toggleCount,
+      },
+    });
+
     // Create message objects from history item
     const historicalMessages: Message[] = [
       {
@@ -119,6 +140,9 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         persona: historyItem.category,
         personaIcon: getPersonaIcon(historyItem.category),
         timestamp: new Date(historyItem.created_at),
+        messageId: historyItem.id,
+        userFeedback: historyItem.user_feedback ?? null,
+        feedbackLocked: isLocked,
       },
     ];
 
@@ -194,6 +218,18 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
       // Simulate streaming effect
       const assistantMessageId = (Date.now() + 1).toString();
       const fullContent = data.summary || data.message;
+      const dbMessageId = data.metadata?.messageId; // Get DB message ID for feedback
+      
+      // Initialize feedback state for new message
+      if (dbMessageId) {
+        setMessageFeedback((prev) => ({
+          ...prev,
+          [dbMessageId]: {
+            value: null,
+            toggleCount: 0,
+          },
+        }));
+      }
       
       // Add empty message first
       const assistantMessage: Message = {
@@ -211,6 +247,9 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         suggestBreakdown: data.metadata?.needsBreakdown && (!data.breakdown || data.breakdown.length === 0),
         originalQuery: textToSend,
         isStreaming: true,
+        messageId: dbMessageId, // Add DB message ID
+        userFeedback: null,
+        feedbackLocked: false,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -268,6 +307,108 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, declineMessage]);
+    }
+  };
+
+  const handleFeedback = async (messageId: string, feedback: boolean) => {
+    if (!messageId) return;
+
+    // Get current state
+    const currentState = messageFeedback[messageId] || { value: null, toggleCount: 0 };
+    
+    // Check if locked
+    if (currentState.toggleCount >= 2) {
+      // Show a brief notification (you could use a toast library here)
+      alert('Feedback is locked after 2 changes');
+      return;
+    }
+
+    // Determine new feedback value (toggle if clicking same button)
+    const newFeedback = currentState.value === feedback ? null : feedback;
+
+    // Optimistically update UI
+    const newToggleCount = currentState.value === newFeedback ? currentState.toggleCount : currentState.toggleCount + 1;
+    setMessageFeedback((prev) => ({
+      ...prev,
+      [messageId]: {
+        value: newFeedback,
+        toggleCount: newToggleCount,
+      },
+    }));
+
+    // Update message in state
+    setMessages((prev) => 
+      prev.map((msg) => 
+        msg.messageId === messageId
+          ? { ...msg, userFeedback: newFeedback, feedbackLocked: newToggleCount >= 2 }
+          : msg
+      )
+    );
+
+    try {
+      // Call API to persist feedback
+      const response = await fetch('/api/chat/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId,
+          feedback: newFeedback,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        // Revert on error
+        setMessageFeedback((prev) => ({
+          ...prev,
+          [messageId]: currentState,
+        }));
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.messageId === messageId
+              ? { ...msg, userFeedback: currentState.value, feedbackLocked: currentState.toggleCount >= 2 }
+              : msg
+          )
+        );
+        
+        if (data.locked) {
+          alert('Feedback is locked after 2 changes');
+        } else {
+          alert('Failed to update feedback. Please try again.');
+        }
+      } else {
+        // Update with server response
+        setMessageFeedback((prev) => ({
+          ...prev,
+          [messageId]: {
+            value: data.feedback,
+            toggleCount: data.toggleCount,
+          },
+        }));
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.messageId === messageId
+              ? { ...msg, userFeedback: data.feedback, feedbackLocked: data.locked }
+              : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error updating feedback:', error);
+      // Revert on error
+      setMessageFeedback((prev) => ({
+        ...prev,
+        [messageId]: currentState,
+      }));
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.messageId === messageId
+            ? { ...msg, userFeedback: currentState.value, feedbackLocked: currentState.toggleCount >= 2 }
+            : msg
+        )
+      );
+      alert('Failed to update feedback. Please try again.');
     }
   };
 
@@ -479,6 +620,80 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                       <span className="inline-block w-1.5 h-5 ml-1 bg-[var(--clay-500)] animate-pulse rounded-sm"></span>
                     )}
                   </p>
+
+                  {/* Feedback Section - Enhanced for Neurodivergent Accessibility */}
+                  {message.messageId && !message.isStreaming && (
+                    <div className="mt-6 pt-4 border-t-2 border-[var(--clay-200)]">
+                      <p className="text-sm font-semibold text-[var(--charcoal)]/70 mb-3">
+                        Was this response helpful?
+                      </p>
+                      
+                      <div className="flex items-center gap-3">
+                        {/* Thumbs Up Button */}
+                        <button
+                          onClick={() => handleFeedback(message.messageId!, true)}
+                          disabled={message.feedbackLocked}
+                          className={`
+                            flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm
+                            transition-all duration-200 shadow-sm
+                            ${message.feedbackLocked 
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : 'hover:scale-105 hover:shadow-md active:scale-95'
+                            }
+                            ${message.userFeedback === true
+                              ? 'bg-green-500 text-white border-2 border-green-600 shadow-lg scale-105'
+                              : 'bg-white text-gray-600 border-2 border-gray-300 hover:border-green-400 hover:text-green-600 hover:bg-green-50'
+                            }
+                          `}
+                          aria-label="Mark as helpful"
+                        >
+                          <ThumbsUp className="w-4 h-4" strokeWidth={2.5} />
+                          <span>Helpful</span>
+                        </button>
+                        
+                        {/* Thumbs Down Button */}
+                        <button
+                          onClick={() => handleFeedback(message.messageId!, false)}
+                          disabled={message.feedbackLocked}
+                          className={`
+                            flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm
+                            transition-all duration-200 shadow-sm
+                            ${message.feedbackLocked 
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : 'hover:scale-105 hover:shadow-md active:scale-95'
+                            }
+                            ${message.userFeedback === false
+                              ? 'bg-red-500 text-white border-2 border-red-600 shadow-lg scale-105'
+                              : 'bg-white text-gray-600 border-2 border-gray-300 hover:border-red-400 hover:text-red-600 hover:bg-red-50'
+                            }
+                          `}
+                          aria-label="Mark as not helpful"
+                        >
+                          <ThumbsDown className="w-4 h-4" strokeWidth={2.5} />
+                          <span>Not Helpful</span>
+                        </button>
+
+                        {/* Feedback Status Indicator */}
+                        {message.feedbackLocked ? (
+                          <div className="flex items-center gap-2 ml-2 px-3 py-2 bg-amber-100 border-2 border-amber-300 rounded-lg">
+                            <Lock className="w-4 h-4 text-amber-700" strokeWidth={2.5} />
+                            <span className="text-xs font-bold text-amber-700">Feedback Saved</span>
+                          </div>
+                        ) : message.userFeedback !== null && (
+                          <div className="flex items-center gap-1 ml-2 text-xs text-[var(--charcoal)]/60 font-medium">
+                            <span>
+                              {(() => {
+                                const currentState = messageFeedback[message.messageId!] || { toggleCount: 0 };
+                                const remaining = 2 - currentState.toggleCount;
+                                return remaining === 1 ? '1 change left' : 'Can still change';
+                              })()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+              
               
                   {/* Breakdown suggestion buttons - Enhanced for Accessibility */}
                   {message.suggestBreakdown && !message.breakdown && (
