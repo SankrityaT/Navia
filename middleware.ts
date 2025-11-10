@@ -2,6 +2,28 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { isUserOnboarded } from '@/lib/supabase/operations';
 
+/**
+ * ROUTE PROTECTION SYSTEM
+ * 
+ * This middleware protects ALL routes by default using Clerk authentication.
+ * 
+ * HOW IT WORKS:
+ * 1. Public routes (/, /sign-in, /sign-up) are accessible without login
+ * 2. All other routes require authentication via auth.protect()
+ * 3. Authenticated users must complete onboarding before accessing app
+ * 4. Trying to access /dashboard, /peers, /chat, etc. without login redirects to /sign-in
+ * 
+ * PROTECTED ROUTES (require authentication):
+ * - /dashboard - Main dashboard
+ * - /chat - AI chat interface
+ * - /tasks - Task management
+ * - /peers - Find peer connections
+ * - /connections - View existing connections
+ * - /peers/chat/[id] - Peer chat
+ * - /profile - User profile
+ * - /onboarding - Onboarding flow
+ */
+
 // Public routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
   '/',              // Landing page
@@ -12,13 +34,6 @@ const isPublicRoute = createRouteMatcher([
 // Protected routes that require special handling
 const isOnboardingRoute = createRouteMatcher(['/onboarding']);
 const isApiRoute = createRouteMatcher(['/api(.*)']);
-
-// All other routes are protected by default:
-// - /dashboard
-// - /chat
-// - /tasks
-// - /peers
-// - /peers/connection/[id]
 
 export default clerkMiddleware(async (auth, request) => {
   const { userId } = await auth();

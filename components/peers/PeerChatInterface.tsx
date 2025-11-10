@@ -16,13 +16,15 @@ interface PeerChatInterfaceProps {
   currentUserId: string;
   peerName: string;
   peerRevealed?: boolean;
+  myRevealed?: boolean;
 }
 
 export default function PeerChatInterface({ 
   connection, 
   currentUserId, 
   peerName,
-  peerRevealed = false
+  peerRevealed = false,
+  myRevealed = false
 }: PeerChatInterfaceProps) {
   const connectionId = connection.connection_id;
   const { 
@@ -41,7 +43,6 @@ export default function PeerChatInterface({
   const [isFetching, setIsFetching] = useState(true);
   const [showRevealModal, setShowRevealModal] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
-  const [hasRevealed, setHasRevealed] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -121,7 +122,6 @@ export default function PeerChatInterface({
       const data = await response.json();
 
       if (data.success) {
-        setHasRevealed(true);
         setShowRevealModal(false);
         // Send a system message
         await handleSend(true);
@@ -238,7 +238,7 @@ export default function PeerChatInterface({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!hasRevealed && (
+            {!myRevealed && (
               <button
                 onClick={() => setShowRevealModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--sage-100)] hover:bg-[var(--sage-200)] text-[var(--sage-700)] rounded-lg font-medium transition-all text-xs border border-[var(--sage-300)]"

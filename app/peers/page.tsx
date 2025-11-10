@@ -97,7 +97,7 @@ export default function PeersPage() {
                 Meet others navigating similar post-grad challenges—no masking required
               </p>
             </div>
-            {matches.length > 0 && (
+            {matches.length > 0 && currentIndex < matches.length && (
               <div className="flex items-center gap-2 px-5 py-3 bg-[var(--sand)]/80 backdrop-blur-sm rounded-2xl border border-[var(--clay-300)]/30 shadow-sm">
                 <Users className="w-5 h-5 text-[var(--clay-600)]" strokeWidth={2.5} />
                 <span className="font-semibold text-[var(--charcoal)]">

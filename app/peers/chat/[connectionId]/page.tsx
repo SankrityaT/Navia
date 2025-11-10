@@ -19,6 +19,8 @@ interface ConnectionInfo {
   peer_name: string | null;
   status: string;
   peer_revealed?: boolean;
+  my_revealed?: boolean;
+  is_blocked?: boolean;
 }
 
 export default function PeerChatPage() {
@@ -81,6 +83,33 @@ export default function PeerChatPage() {
     );
   }
 
+  // Check if blocked
+  if (connectionInfo.is_blocked) {
+    return (
+      <AuthenticatedLayout>
+        <div className="min-h-screen bg-[var(--cream)] flex items-center justify-center">
+          <div className="text-center max-w-md p-8">
+            <div className="w-16 h-16 rounded-full bg-[var(--clay-200)] flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🚫</span>
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2">
+              Chat Unavailable
+            </h2>
+            <p className="text-[var(--charcoal)]/70 mb-6">
+              This conversation is no longer accessible.
+            </p>
+            <button
+              onClick={() => router.push('/connections')}
+              className="px-6 py-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-xl font-semibold transition-all"
+            >
+              Back to Connections
+            </button>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    );
+  }
+
   // Use real name if revealed, otherwise anonymous name
   const peerName = connectionInfo.peer_name || generateAnonymousName(connectionInfo.peer_id);
   
@@ -100,6 +129,7 @@ export default function PeerChatPage() {
           currentUserId={currentUserId}
           peerName={peerName}
           peerRevealed={connectionInfo.peer_revealed}
+          myRevealed={connectionInfo.my_revealed}
         />
       </div>
     </AuthenticatedLayout>

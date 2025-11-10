@@ -55,9 +55,19 @@ export async function GET(
 
     // Check if peer has revealed their name
     const peerRevealed = isUser1 ? connection.user2_revealed_name : connection.user1_revealed_name;
+    const myRevealed = isUser1 ? connection.user1_revealed_name : connection.user2_revealed_name;
     const displayName = peerRevealed ? peerProfile?.name : null;
 
-    console.log('✅ [CONNECTION INFO] Connection found');
+    // Check if either user has blocked the other
+    const { data: blockCheck } = await supabase
+      .from('blocked_users')
+      .select('id')
+      .or(`and(blocker_id.eq.${userId},blocked_id.eq.${peerId}),and(blocker_id.eq.${peerId},blocked_id.eq.${userId})`)
+      .limit(1);
+
+    const isBlocked = blockCheck && blockCheck.length > 0;
+
+    console.log('✅ [CONNECTION INFO] Connection found, blocked:', isBlocked);
 
     return NextResponse.json({ 
       connection: {
@@ -67,6 +77,8 @@ export async function GET(
         status: connection.status,
         created_at: connection.created_at,
         peer_revealed: peerRevealed || false,
+        my_revealed: myRevealed || false,
+        is_blocked: isBlocked,
       }
     });
   } catch (error: any) {
