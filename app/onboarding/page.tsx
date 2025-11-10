@@ -45,8 +45,13 @@ export default function OnboardingPage() {
       });
 
       if (!response.ok) {
-        console.error('Failed to save onboarding data');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to save onboarding data:', response.status, errorData);
+        return; // Don't redirect on error
       }
+      
+      // Success - redirect to dashboard
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error('Onboarding error:', error);
     }

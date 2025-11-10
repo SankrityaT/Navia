@@ -13,6 +13,8 @@ export interface Task {
   created_at: string;
   dependencies?: string[];
   due_date?: string;
+  description?: string; // AI-generated task summary
+  breakdown?: string[]; // AI-generated step-by-step breakdown
   metadata?: {
     chat_reference?: string;
     [key: string]: any;

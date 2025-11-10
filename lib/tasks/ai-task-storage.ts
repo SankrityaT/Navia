@@ -226,6 +226,7 @@ function extractTitle(query: string, summary: string): string {
 
 /**
  * Auto-store task if agent generated a breakdown
+ * Stores in both in-memory store AND Pinecone for dashboard/task page visibility
  */
 export async function autoStoreTaskIfNeeded(
   userId: string,
@@ -245,7 +246,59 @@ export async function autoStoreTaskIfNeeded(
     originalQuery
   );
 
+  // Store in memory (for backward compatibility)
   const taskId = await aiTaskStore.storeTask(task);
+  
+  // Also store in Pinecone so it appears on dashboard and tasks page
+  try {
+    const { storeTask } = await import('@/lib/pinecone/operations');
+    const { generateEmbedding } = await import('@/lib/embeddings/client');
+    
+    // Convert AI task to Pinecone Task format
+    const pineconeTask = {
+      user_id: userId,
+      task_id: task.task_id,
+      title: task.title,
+      status: task.status as 'not_started' | 'in_progress' | 'completed',
+      priority: 'medium' as const, // Default priority for AI tasks
+      time_estimate: estimateTimeFromBreakdown(task.breakdown),
+      category: mapDomainToCategory(domain),
+      created_by: 'ai',
+      created_at: task.created_at,
+      description: task.summary,
+      breakdown: task.breakdown,
+    };
+    
+    // Generate embedding for the task
+    const taskText = `Task: ${pineconeTask.title}, category: ${pineconeTask.category}, priority: ${pineconeTask.priority}. ${pineconeTask.description}`;
+    const embedding = await generateEmbedding(taskText);
+    
+    // Store in Pinecone
+    await storeTask(pineconeTask, embedding);
+    
+    console.log(`✅ AI task stored in both memory and Pinecone: ${taskId}`);
+  } catch (error) {
+    console.error('Failed to store AI task in Pinecone:', error);
+    // Don't fail if Pinecone storage fails - task is still in memory
+  }
+  
   return taskId;
+}
+
+/**
+ * Map AI domain to task category
+ */
+function mapDomainToCategory(domain: 'finance' | 'career' | 'daily_task'): 'finance' | 'career' | 'daily_life' {
+  if (domain === 'daily_task') return 'daily_life';
+  return domain;
+}
+
+/**
+ * Estimate time based on number of breakdown steps
+ */
+function estimateTimeFromBreakdown(breakdown: string[]): number {
+  // Rough estimate: 15 minutes per step, capped at 120 minutes
+  const estimate = breakdown.length * 15;
+  return Math.min(estimate, 120);
 }
 
