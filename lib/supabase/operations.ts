@@ -104,6 +104,7 @@ export interface ChatMessage {
   persona: string;
   metadata?: Record<string, any>;
   pinecone_id?: string;
+  is_error?: boolean; // Flag to mark error responses (API failures, rate limits, etc.)
 }
 
 /**
@@ -120,6 +121,7 @@ export async function storeChatMessage(chatMessage: ChatMessage) {
       persona: chatMessage.persona,
       metadata: chatMessage.metadata,
       pinecone_id: chatMessage.pinecone_id,
+      is_error: chatMessage.is_error || false, // Default to false for successful messages
     })
     .select()
     .single();
@@ -133,12 +135,14 @@ export async function storeChatMessage(chatMessage: ChatMessage) {
 }
 
 /**
- * Get chat history for a user
+ * Get chat history for a user (formatted for frontend display)
+ * By default, excludes error messages to keep UI clean
  */
 export async function getChatHistory(
   userId: string,
   limit: number = 50,
-  category?: 'finance' | 'career' | 'daily_task'
+  category?: 'finance' | 'career' | 'daily_task',
+  includeErrors: boolean = false // By default, filter out errors
 ) {
   let query = supabaseAdmin
     .from('chat_messages')
@@ -151,6 +155,11 @@ export async function getChatHistory(
     query = query.eq('category', category);
   }
 
+  // Filter out errors unless explicitly requested
+  if (!includeErrors) {
+    query = query.eq('is_error', false);
+  }
+
   const { data, error } = await query;
 
   if (error) {
@@ -159,6 +168,29 @@ export async function getChatHistory(
   }
 
   return data;
+}
+
+/**
+ * Get formatted chat history for AI context (role + content format)
+ */
+export async function getChatHistoryForAI(
+  userId: string,
+  limit: number = 10,
+  category?: 'finance' | 'career' | 'daily_task'
+): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  const messages = await getChatHistory(userId, limit, category);
+  
+  // Convert to AI format (oldest first for proper conversation flow)
+  const context: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  
+  // Reverse because getChatHistory returns newest first
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    context.push({ role: 'user', content: msg.message });
+    context.push({ role: 'assistant', content: msg.response });
+  }
+  
+  return context;
 }
 
 /**
@@ -205,13 +237,14 @@ export async function deleteOldChatMessages(
 }
 
 /**
- * Get chat statistics for a user
+ * Get chat statistics for a user (excludes error messages)
  */
 export async function getChatStatistics(userId: string) {
   const { data, error } = await supabaseAdmin
     .from('chat_messages')
     .select('category, created_at')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('is_error', false); // Exclude errors from statistics
 
   if (error) {
     console.error('Error getting chat statistics:', error);

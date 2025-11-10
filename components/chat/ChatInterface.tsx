@@ -5,7 +5,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp, ExternalLink, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -31,6 +31,14 @@ interface ChatInterfaceProps {
   };
 }
 
+interface HistoryItem {
+  id: string;
+  message: string;
+  response: string;
+  category: 'finance' | 'career' | 'daily_task';
+  created_at: string;
+}
+
 export default function ChatInterface({ userContext }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -47,15 +55,91 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [currentPersona, setCurrentPersona] = useState<string>('daily_tasks');
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [chatHistory, setChatHistory] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
+  const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Fetch chat history on mount
+  const fetchChatHistory = async () => {
+    try {
+      setIsLoadingHistory(true);
+      const response = await fetch('/api/chat/history?limit=5');
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.chatHistory || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    fetchChatHistory();
+  }, []);
+
+  const handleViewHistory = (historyItem: HistoryItem) => {
+    // Save current messages if not already viewing history
+    if (!viewingHistoryId) {
+      setCurrentMessages(messages);
+    }
+
+    // Create message objects from history item
+    const historicalMessages: Message[] = [
+      {
+        id: '1',
+        role: 'assistant',
+        content: "Hi! I'm Navia, your AI executive function coach. 💚\n\nI'm here to support you with career planning, managing finances, organizing daily tasks, and more—without any masking required. Just tell me what's on your mind, and we'll figure it out together.",
+        persona: 'daily_tasks',
+        personaIcon: '✅',
+        timestamp: new Date(),
+      },
+      {
+        id: `history-user-${historyItem.id}`,
+        role: 'user',
+        content: historyItem.message,
+        timestamp: new Date(historyItem.created_at),
+      },
+      {
+        id: `history-assistant-${historyItem.id}`,
+        role: 'assistant',
+        content: historyItem.response,
+        persona: historyItem.category,
+        personaIcon: getPersonaIcon(historyItem.category),
+        timestamp: new Date(historyItem.created_at),
+      },
+    ];
+
+    setMessages(historicalMessages);
+    setViewingHistoryId(historyItem.id);
+    setCurrentPersona(historyItem.category);
+  };
+
+  const handleBackToCurrentChat = () => {
+    setMessages(currentMessages.length > 0 ? currentMessages : [
+      {
+        id: '1',
+        role: 'assistant',
+        content: "Hi! I'm Navia, your AI executive function coach. 💚\n\nI'm here to support you with career planning, managing finances, organizing daily tasks, and more—without any masking required. Just tell me what's on your mind, and we'll figure it out together.",
+        persona: 'daily_tasks',
+        personaIcon: '✅',
+        timestamp: new Date(),
+      },
+    ]);
+    setViewingHistoryId(null);
+  };
 
   const handleSend = async (messageText?: string, forceBreakdown?: boolean) => {
     const textToSend = messageText || input;
@@ -151,6 +235,9 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
           msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
         )
       );
+
+      // Refresh chat history after successful message
+      fetchChatHistory();
     } catch (error) {
       console.error('Chat error:', error);
       setIsTyping(false);
@@ -203,11 +290,118 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
     return labels[persona] || 'Daily Tasks';
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, { bg: string; text: string; border: string }> = {
+      finance: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
+      career: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+      daily_task: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+    };
+    return colors[category] || colors.daily_task;
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white/80 backdrop-blur-sm rounded-[2rem] border-2 border-[var(--clay-200)] shadow-xl hover:shadow-2xl transition-all duration-300">
-      {/* Header */}
-      <div className="px-6 py-5 border-b-2 border-[var(--clay-200)]">
+    <div className="flex h-full gap-4">
+      {/* Sidebar - Chat History */}
+      <div
+        className={`${
+          isSidebarOpen ? 'w-80' : 'w-0'
+        } transition-all duration-300 ease-in-out overflow-hidden`}
+      >
+        <div className="h-full bg-white/80 backdrop-blur-sm rounded-[2rem] border-2 border-[var(--clay-200)] shadow-lg p-4 flex flex-col">
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-[var(--clay-200)]">
+            <h3 className="text-lg font-bold text-[var(--charcoal)] flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Recent Chats
+            </h3>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-7 h-7 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-lg shadow-md flex items-center justify-center transition-all hover:shadow-lg active:scale-95"
+              aria-label="Close sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" strokeWidth={3} />
+            </button>
+          </div>
+
+          {/* History List */}
+          <div className="flex-1 overflow-y-auto space-y-2">
+            {isLoadingHistory ? (
+              <div className="flex items-center justify-center h-full text-[var(--charcoal)]/60">
+                <Loader2 className="w-5 h-5 animate-spin" />
+              </div>
+            ) : chatHistory.length === 0 ? (
+              <div className="text-center text-sm text-[var(--charcoal)]/60 py-8">
+                No chat history yet.
+                <br />
+                Start a conversation!
+              </div>
+            ) : (
+              chatHistory.map((item) => {
+                const colors = getCategoryColor(item.category);
+                const isActive = viewingHistoryId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleViewHistory(item)}
+                    className={`p-3 rounded-xl border-2 transition-all cursor-pointer group ${
+                      isActive
+                        ? 'bg-[var(--clay-100)] border-[var(--clay-500)] shadow-md'
+                        : 'bg-white border-[var(--clay-200)] hover:border-[var(--clay-400)] hover:shadow-md'
+                    }`}
+                  >
+                    {/* Category Badge */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm">{getPersonaIcon(item.category)}</span>
+                      <span className={`px-2 py-0.5 ${colors.bg} ${colors.text} text-xs font-bold rounded-md`}>
+                        {getPersonaLabel(item.category)}
+                      </span>
+                      <span className="text-xs text-[var(--charcoal)]/50 ml-auto">
+                        {formatTimeAgo(item.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Message Preview */}
+                    <p className={`text-sm line-clamp-2 transition-colors ${
+                      isActive
+                        ? 'text-[var(--charcoal)] font-medium'
+                        : 'text-[var(--charcoal)] group-hover:text-[var(--clay-600)]'
+                    }`}>
+                      {item.message}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chat Interface */}
+      <div className="flex-1 flex flex-col h-full bg-white/80 backdrop-blur-sm rounded-[2rem] border-2 border-[var(--clay-200)] shadow-xl hover:shadow-2xl transition-all duration-300">
+        {/* Header */}
+        <div className="px-6 py-5 border-b-2 border-[var(--clay-200)]">
         <div className="flex items-center gap-3 mb-3">
+          {!isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="w-10 h-10 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-lg shadow-md flex items-center justify-center transition-all hover:shadow-lg active:scale-95"
+              aria-label="Open chat history"
+            >
+              <ChevronRight className="w-5 h-5" strokeWidth={3} />
+            </button>
+          )}
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md">
             <MessageCircle className="w-6 h-6 text-white" strokeWidth={2.5} />
           </div>
@@ -219,12 +413,39 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-[var(--charcoal)]/70 font-medium">Current mode:</span>
+          <span className="text-sm text-[var(--charcoal)]/70 font-medium">
+            {viewingHistoryId ? 'Viewing:' : 'Current mode:'}
+          </span>
           <span className="px-3 py-1.5 bg-gradient-to-r from-[var(--clay-100)] to-[var(--clay-200)] text-[var(--clay-700)] rounded-full text-sm font-semibold border border-[var(--clay-300)]">
             {getPersonaLabel(currentPersona)}
           </span>
+          {viewingHistoryId && (
+            <span className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-xs font-bold border border-amber-300">
+              📜 History
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Back to Current Chat Banner */}
+      {viewingHistoryId && (
+        <div className="px-6 py-3 bg-gradient-to-r from-amber-50 to-orange-50 border-b-2 border-amber-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-amber-800 font-medium">
+                📜 You're viewing a past conversation
+              </span>
+            </div>
+            <button
+              onClick={handleBackToCurrentChat}
+              className="px-4 py-2 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" strokeWidth={3} />
+              Back to Current Chat
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
@@ -515,31 +736,48 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
 
       {/* Input - Enhanced for Accessibility */}
       <div className="px-6 py-6 border-t-2 border-[var(--clay-200)] bg-[var(--sand)]/30">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
-            placeholder="Type your message here..."
-            className="flex-1 px-5 py-4 text-base border-2 border-[var(--clay-300)] rounded-2xl focus:ring-4 focus:ring-[var(--clay-400)]/30 focus:border-[var(--clay-500)] text-[var(--charcoal)] placeholder:text-[var(--charcoal)]/50 transition-all duration-200 bg-white font-medium shadow-sm"
-            disabled={isLoading}
-            aria-label="Message input"
-          />
-          <button
-            onClick={() => handleSend()}
-            disabled={isLoading || !input.trim()}
-            className="px-7 py-4 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-2xl font-bold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 min-w-[100px]"
-            aria-label="Send message"
-          >
-            <Send className="w-5 h-5" strokeWidth={2.5} />
-            <span className="text-sm">Send</span>
-          </button>
-        </div>
-        <p className="text-xs text-[var(--charcoal)]/60 mt-3 font-medium">
-          💡 Tip: Press Enter to send your message
-        </p>
+        {viewingHistoryId ? (
+          <div className="flex items-center justify-center gap-3 px-5 py-4 bg-amber-50 border-2 border-amber-200 rounded-2xl">
+            <span className="text-sm text-amber-800 font-medium">
+              📜 Return to current chat to send messages
+            </span>
+            <button
+              onClick={handleBackToCurrentChat}
+              className="px-4 py-2 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-lg font-bold text-xs transition-all shadow-md hover:shadow-lg active:scale-95"
+            >
+              Back to Current Chat
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
+                placeholder="Type your message here..."
+                className="flex-1 px-5 py-4 text-base border-2 border-[var(--clay-300)] rounded-2xl focus:ring-4 focus:ring-[var(--clay-400)]/30 focus:border-[var(--clay-500)] text-[var(--charcoal)] placeholder:text-[var(--charcoal)]/50 transition-all duration-200 bg-white font-medium shadow-sm"
+                disabled={isLoading}
+                aria-label="Message input"
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={isLoading || !input.trim()}
+                className="px-7 py-4 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] hover:from-[var(--clay-600)] hover:to-[var(--clay-700)] text-white rounded-2xl font-bold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 min-w-[100px]"
+                aria-label="Send message"
+              >
+                <Send className="w-5 h-5" strokeWidth={2.5} />
+                <span className="text-sm">Send</span>
+              </button>
+            </div>
+            <p className="text-xs text-[var(--charcoal)]/60 mt-3 font-medium">
+              💡 Tip: Press Enter to send your message
+            </p>
+          </>
+        )}
       </div>
+    </div>
     </div>
   );
 }

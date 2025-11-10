@@ -112,11 +112,34 @@ export async function POST(request: Request) {
     const result = await orchestrateQuery(userId, query, enhancedContext);
 
     if (!result.success) {
+      // Store error in database for analytics/debugging, but mark as error
+      const errorMessage = 'I encountered an issue processing your question. That\'s okay - sometimes technology has its own executive function challenges! Please try rephrasing your question about tasks, organization, or productivity.';
+      
+      try {
+        const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
+        await storeInSupabase({
+          user_id: userId,
+          message: query,
+          response: errorMessage,
+          category: primaryDomain,
+          persona: 'orchestrator',
+          metadata: {
+            error: true,
+            errorType: 'orchestration_failure',
+            ...result.metadata,
+          },
+          is_error: true, // Mark as error - will be hidden from UI
+        });
+        console.log(`⚠️ Error chat stored for analytics (hidden from UI) for user ${userId}`);
+      } catch (storageError) {
+        console.error('Failed to store error chat:', storageError);
+      }
+
       return NextResponse.json(
         {
           success: false,
           error: 'Failed to process query',
-          message: 'I encountered an issue processing your question. Please try rephrasing or breaking it into smaller parts.',
+          message: errorMessage,
           metadata: result.metadata,
         },
         { status: 500 }

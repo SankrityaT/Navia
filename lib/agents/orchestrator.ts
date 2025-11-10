@@ -210,7 +210,7 @@ export async function orchestrateQuery(
       }
     }
 
-    // Step 5: If no responses, return error
+    // Step 5: If no responses OR all responses have errors, return error
     if (responses.length === 0) {
       return {
         success: false,
@@ -220,6 +220,21 @@ export async function orchestrateQuery(
           executionTime: Date.now() - startTime,
           usedBreakdown: false,
           error: 'All agents failed to process query',
+        },
+      };
+    }
+
+    // Check if all responses contain errors
+    const allResponsesHaveErrors = responses.every((r) => r.metadata?.error);
+    if (allResponsesHaveErrors) {
+      return {
+        success: false,
+        responses,
+        metadata: {
+          domainsInvolved: intent.domains,
+          executionTime: Date.now() - startTime,
+          usedBreakdown: false,
+          error: 'Agent processing failed',
         },
       };
     }
