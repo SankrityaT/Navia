@@ -10,7 +10,7 @@ const supabase = createClient(
 
 export async function GET(
   request: Request,
-  { params }: { params: { connectionId: string } }
+  { params }: { params: Promise<{ connectionId: string }> }
 ) {
   console.log('🔗 [CONNECTION INFO] Fetching connection...');
   
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { connectionId } = params;
+    const { connectionId } = await params;
     console.log('📝 [CONNECTION INFO] Connection ID:', connectionId);
 
     // Fetch connection

@@ -11,7 +11,7 @@ const supabase = createClient(
 // GET: Fetch messages for a connection
 export async function GET(
   request: Request,
-  { params }: { params: { connectionId: string } }
+  { params }: { params: Promise<{ connectionId: string }> }
 ) {
   console.log('💬 [MESSAGES] Fetching messages...');
   
@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { connectionId } = params;
+    const { connectionId } = await params;
     console.log('📝 [MESSAGES] Connection ID:', connectionId);
 
     // Verify user is part of this connection
@@ -67,7 +67,7 @@ export async function GET(
 // POST: Send a message
 export async function POST(
   request: Request,
-  { params }: { params: { connectionId: string } }
+  { params }: { params: Promise<{ connectionId: string }> }
 ) {
   console.log('📤 [SEND MESSAGE] Sending message...');
   
@@ -78,7 +78,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { connectionId } = params;
+    const { connectionId } = await params;
     const { content } = await request.json();
 
     if (!content || !content.trim()) {

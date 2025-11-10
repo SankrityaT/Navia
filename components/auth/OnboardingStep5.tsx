@@ -96,10 +96,10 @@ export default function OnboardingStep5({ onNext, onBack, onSkip }: Step5Props) 
           className="text-3xl md:text-4xl font-serif font-bold text-[var(--charcoal)] mb-3"
           style={{fontFamily: 'var(--font-fraunces)'}}
         >
-          Help us find your perfect match
+          Connect with your people
         </h2>
         <p className="text-[var(--charcoal)]/70 text-lg">
-          Share your interests and what you're looking for (or skip to use smart defaults)
+          Share your interests and what you're looking for in an accountability partner (or skip to use smart defaults)
         </p>
       </div>
 

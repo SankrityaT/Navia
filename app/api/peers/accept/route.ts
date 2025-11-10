@@ -28,11 +28,11 @@ export async function POST(request: Request) {
     console.log('📝 [ACCEPT CONNECTION] Connection ID:', connectionId);
     console.log('🎯 [ACCEPT CONNECTION] My goals:', myGoals);
 
-    // Update connection status to accepted in Supabase
+    // Update connection status to active in Supabase
     const { data, error } = await supabase
       .from('peer_connections')
       .update({
-        status: 'accepted',
+        status: 'active',
         accepted_at: new Date().toISOString(),
         user2_goals: myGoals, // Assuming user2 is the one accepting
       })
