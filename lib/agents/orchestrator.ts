@@ -1,7 +1,7 @@
 // Main Orchestrator
 // Routes queries to appropriate agents and coordinates multi-agent responses
 
-import { groqStructuredOutput } from '../groq/client';
+import { groqStructuredOutput, GROQ_MODELS } from '../groq/client';
 import { ORCHESTRATOR_INTENT_PROMPT } from './prompts';
 import {
   IntentDetection,
@@ -15,33 +15,117 @@ import {
 import { processFinanceQuery } from './finance';
 import { processCareerQuery } from './career';
 import { processDailyTaskQuery } from './daily-task';
-import { containsBreakdownKeywords } from './breakdown';
 import { retrieveChatHistory } from '../pinecone/chat-history';
 
 /**
  * Detect user intent and determine which agent(s) to route to
+ * LLM-driven intent detection with conversation context
  */
-export async function detectIntent(query: string): Promise<IntentDetection> {
+export async function detectIntent(
+  query: string, 
+  conversationHistory?: Array<{role: string, content: string}>,
+  sessionMessageCount?: number
+): Promise<IntentDetection> {
   try {
-    const hasBreakdownKeywords = containsBreakdownKeywords(query);
+    // Build conversation context for intent detection
+    // CRITICAL: For follow-up detection, ONLY use session messages (ignore semantic matches from Pinecone)!
+    const historyContext = conversationHistory && conversationHistory.length > 0
+      ? (() => {
+          // Smart follow-up detection based on conversation structure (no hardcoded keywords!)
+          // A query is likely a follow-up if:
+          // 1. There's an active session (sessionMessageCount > 0)
+          // 2. The query is short/conversational (< 10 words)
+          // 3. There are recent messages to refer to
+          
+          const queryWordCount = query.trim().split(/\s+/).length;
+          const hasActiveSession = sessionMessageCount && sessionMessageCount > 0;
+          const isShortQuery = queryWordCount <= 10;
+          
+          // If short query + active session, likely a follow-up → prioritize session context
+          const likelyFollowUp = hasActiveSession && isShortQuery;
+          
+          // For likely follow-ups: ONLY use session messages (ignore semantic matches from old convos)
+          // For longer/new queries: Use session + semantic context for better understanding
+          const messagesToUse = likelyFollowUp 
+            ? (sessionMessageCount || 6) // Only current session!
+            : Math.min(12, conversationHistory.length); // Session + some semantic/historical
+          
+          const recentMessages = conversationHistory.slice(0, messagesToUse);
+          
+          console.log('🧭 Orchestrator routing context:', {
+            totalHistory: conversationHistory.length,
+            sessionMessageCount: sessionMessageCount || 'unknown',
+            queryWordCount,
+            likelyFollowUp,
+            messagesToUse,
+            recentForRouting: recentMessages.length,
+          });
+          
+          // Format with HEAVY emphasis on the most recent exchange
+          let contextStr = '\n\n=== CONVERSATION HISTORY FOR ROUTING ===\n\n';
+          
+          if (likelyFollowUp) {
+            contextStr += '⚠️ LIKELY FOLLOW-UP (short query + active session) - Using ONLY current session context (ignoring old conversations)\n\n';
+          }
+          
+          // Highlight the MOST RECENT exchange (critical for follow-ups!)
+          if (recentMessages.length >= 2) {
+            contextStr += '🔥 MOST RECENT EXCHANGE (CRITICAL FOR FOLLOW-UPS):\n';
+            contextStr += `User: ${recentMessages[0].content}\n`;
+            contextStr += `Navia: ${recentMessages[1].content}\n\n`;
+            
+            // Include a few more for context if available
+            if (recentMessages.length > 2) {
+              contextStr += '📋 Previous context (for reference):\n';
+              for (let i = 2; i < recentMessages.length; i++) {
+                const msg = recentMessages[i];
+                contextStr += `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}\n`;
+              }
+            }
+          } else if (recentMessages.length > 0) {
+            contextStr += 'Recent messages:\n';
+            recentMessages.forEach((msg: any) => {
+              contextStr += `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}\n`;
+            });
+          }
+          
+          contextStr += '\n=== END CONVERSATION HISTORY ===\n';
+          return contextStr;
+        })()
+      : '';
 
     const prompt = `Analyze this user query and determine routing:
 
-Query: "${query}"
+🎯 CURRENT QUERY: "${query}"
+${historyContext}
+
+🚨 CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUESTIONS:
+1. If the query is SHORT (<8 words) or uses words like "which", "that", "it", "them", "more" → CHECK THE MOST RECENT EXCHANGE!
+2. Maintain domain continuity unless user explicitly changes topics
+3. Examples of follow-ups that should STAY in the same domain:
+   - "Which one do you suggest?" after discussing career topics → CAREER
+   - "What about that?" after discussing budgets → FINANCE
+   - "Tell me more" → Use the previous domain
+   - "Is it good?" → Stay in current domain
+
+4. ONLY switch domains if user introduces NEW keywords (e.g., "Now about my budget..." when previously discussing career)
+
+Your decision:
+1. Which domain(s) this query belongs to (finance/career/daily_task)
+2. Whether the user would benefit from a breakdown/plan (don't over-do it!)
+3. The complexity level of the query
+4. Include reasoning that explains if this is a follow-up and which domain you're maintaining
 
 Respond in JSON format following your schema.`;
 
     const response = await groqStructuredOutput([
-      { role: 'system', content: ORCHESTRATOR_INTENT_PROMPT + '\n\nYou must respond in valid JSON format.' },
+      { role: 'system', content: ORCHESTRATOR_INTENT_PROMPT + '\n\nYou must respond in valid JSON format. Always consider conversation context for routing follow-up questions.' },
       { role: 'user', content: prompt },
-    ]);
+    ], {
+      model: GROQ_MODELS.LLAMA_4_SCOUT // Main model for all agents
+    });
 
     const detection: IntentDetection = JSON.parse(response.message.content || '{}');
-
-    // Override needsBreakdown if keywords detected
-    if (hasBreakdownKeywords) {
-      detection.needsBreakdown = true;
-    }
 
     // Ensure at least one domain
     if (!detection.domains || detection.domains.length === 0) {
@@ -81,8 +165,9 @@ export async function orchestrateQuery(
   const startTime = Date.now();
 
   try {
-    // Step 1: Detect intent
-    const intent = await detectIntent(query);
+    // Step 1: Detect intent WITH CONVERSATION CONTEXT
+    // Pass sessionMessageCount so orchestrator knows where session ends and semantic history begins
+    const intent = await detectIntent(query, userContext?.recentHistory, userContext?.sessionMessageCount);
     console.log(`Intent detected: ${intent.domains.join(', ')} (confidence: ${intent.confidence})`);
 
     // Step 2: Retrieve chat history for context
@@ -140,14 +225,19 @@ export async function orchestrateQuery(
     }
 
     // Step 6: Combine responses if multiple agents were used
-    const combinedSummary = responses.length > 1
-      ? combineMultiAgentResponses(responses)
+    const isMultiAgent = responses.length > 1;
+    
+    // CRITICAL: If there's a breakdown, check if we should skip multi-agent sections
+    const hasBreakdown = responses.some(r => r.breakdown && r.breakdown.length > 0);
+    
+    const combinedSummary = isMultiAgent
+      ? combineMultiAgentResponses(responses, hasBreakdown)
       : responses[0].summary;
 
-    // Step 7: Combine breakdowns if multiple
-    const allBreakdowns = responses
-      .filter((r) => r.breakdown && r.breakdown.length > 0)
-      .flatMap((r) => r.breakdown!);
+    // Step 7: Take breakdown from PRIMARY agent only (not all agents!)
+    // CRITICAL: Only use the first agent's breakdown to avoid overwhelming users
+    const primaryBreakdown = responses.find((r) => r.breakdown && r.breakdown.length > 0)?.breakdown;
+    const primaryBreakdownTips = responses.find((r) => r.breakdown && r.breakdown.length > 0)?.breakdownTips;
 
     // Step 8: Combine all resources and sources
     const allResources = responses
@@ -170,32 +260,37 @@ export async function orchestrateQuery(
     const needsBreakdown = responses.some(
       (r) => r.metadata?.needsBreakdown === true && (!r.breakdown || r.breakdown.length === 0)
     );
+    
+    const usedBreakdown = !!(primaryBreakdown && primaryBreakdown.length > 0);
 
     console.log('🎯 Orchestrator decision:', {
+      isMultiAgent,
       agentNeedsBreakdown: responses.map(r => ({
         domain: r.domain,
         needsBreakdown: r.metadata?.needsBreakdown,
         hasBreakdown: !!(r.breakdown && r.breakdown.length > 0)
       })),
+      primaryBreakdownSteps: primaryBreakdown?.length || 0,
       finalNeedsBreakdown: needsBreakdown,
-      hasBreakdown: allBreakdowns.length > 0,
+      usedBreakdown,
     });
 
     return {
       success: true,
       responses,
-      combinedSummary: responses.length > 1 ? combinedSummary : undefined,
-      breakdown: allBreakdowns.length > 0 ? allBreakdowns : undefined,
-      allSources: allSources.slice(0, 8),
-      allResources: allResources.slice(0, 10),
+      combinedSummary: isMultiAgent ? combinedSummary : undefined,
+      breakdown: primaryBreakdown, // Only primary agent's breakdown
+      breakdownTips: primaryBreakdownTips, // Tips from primary agent
+      resources: allResources.slice(0, 10),
+      sources: allSources.slice(0, 8),
       metadata: {
         domainsInvolved: intent.domains,
         executionTime,
-        usedBreakdown: allBreakdowns.length > 0,
+        usedBreakdown,
         needsBreakdown, // CRITICAL: Include this for frontend button detection!
         confidence: intent.confidence,
         complexity: intent.complexity,
-        multiAgent: responses.length > 1,
+        multiAgent: isMultiAgent,
       },
     };
 
@@ -218,7 +313,7 @@ export async function orchestrateQuery(
 /**
  * Combine multiple agent responses into a coherent summary
  */
-function combineMultiAgentResponses(responses: AIResponse[]): string {
+function combineMultiAgentResponses(responses: AIResponse[], hasBreakdown: boolean = false): string {
   if (responses.length === 0) return '';
   if (responses.length === 1) return responses[0].summary;
 
@@ -228,14 +323,62 @@ function combineMultiAgentResponses(responses: AIResponse[]): string {
     daily_task: '✅ Task Management Guidance',
   };
 
-  const sections = responses
+  // Phrases to remove from individual summaries (they're redundant in multi-agent context)
+  const redundantPhrases = [
+    /I've created a step-by-step plan below.*?\.?$/gim,
+    /I've created a step-by-step plan to help you.*?\.?$/gim,
+    /I've created a plan below.*?\.?$/gim,
+    /See the step-by-step plan below.*?\.?$/gim,
+  ];
+
+  // Filter out empty, error, or useless responses
+  const meaningfulResponses = responses.filter((response) => {
+    const summary = response.summary.trim();
+    
+    // Filter out empty responses
+    if (!summary || summary === '---' || summary === '') return false;
+    
+    // Filter out error messages
+    if (summary.toLowerCase().includes('encountered an issue') || 
+        summary.toLowerCase().includes('error processing') ||
+        summary.toLowerCase().includes('please try rephrasing')) return false;
+    
+    // Filter out very short non-meaningful responses (< 10 chars)
+    if (summary.length < 10) return false;
+    
+    return true;
+  });
+
+  // If only one meaningful response remains, return it directly
+  if (meaningfulResponses.length === 1) {
+    return meaningfulResponses[0].summary;
+  }
+
+  // If no meaningful responses, return a fallback
+  if (meaningfulResponses.length === 0) {
+    return "I've analyzed your question. Let me provide you with a structured plan to help you achieve your goal.";
+  }
+
+  // CRITICAL: If there's a breakdown, don't show "Career Guidance:" / "Finance Guidance:" sections!
+  // Just return a simple intro - the breakdown will be displayed separately in the UI
+  if (hasBreakdown) {
+    return "I've created a step-by-step plan to help you achieve your goal.";
+  }
+
+  const sections = meaningfulResponses
     .map((response) => {
       const label = domainLabels[response.domain];
-      return `${label}:\n${response.summary}`;
+      // Strip out mentions of "step-by-step plan" from individual summaries
+      let cleanedSummary = response.summary;
+      redundantPhrases.forEach(phrase => {
+        cleanedSummary = cleanedSummary.replace(phrase, '').trim();
+      });
+      
+      return `${label}:\n${cleanedSummary}`;
     })
     .join('\n\n---\n\n');
 
-  const intro = responses.length === 2
+  const intro = meaningfulResponses.length === 2
     ? `I've analyzed your question from multiple perspectives. Here's comprehensive guidance:`
     : `Your question touches on several areas. Here's what I can help with:`;
 

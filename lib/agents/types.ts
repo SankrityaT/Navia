@@ -44,7 +44,8 @@ export interface AgentContext {
 export interface AIResponse {
   domain: AgentDomain;
   summary: string;
-  breakdown?: string[];
+  breakdown?: BreakdownStep[];  // Hierarchical steps with sub-steps
+  breakdownTips?: string[];  // Tips for completing the breakdown
   resources?: ResourceLink[];
   sources?: SourceReference[];
   metadata?: {
@@ -77,14 +78,26 @@ export interface SourceReference {
 }
 
 /**
+ * Individual step in a breakdown (with sub-steps)
+ */
+export interface BreakdownStep {
+  title: string;  // Main step description
+  timeEstimate?: string;  // e.g., "5 min"
+  subSteps?: string[];  // Optional sub-steps for this main step
+  isOptional?: boolean;  // Can be skipped without blocking progress
+  isHard?: boolean;  // Flag for steps users find difficult (phone calls, asking for help, etc.)
+}
+
+/**
  * Task breakdown from breakdown tool
  */
 export interface TaskBreakdown {
-  breakdown: string[];
+  breakdown: BreakdownStep[];  // Hierarchical steps with sub-steps
   needsBreakdown: boolean;
   complexity: number;
   estimatedTime?: string;
   reasoning?: string;
+  tips?: string[];  // Helpful tips for completing the task
 }
 
 /**
@@ -115,9 +128,10 @@ export interface OrchestrationResult {
   success: boolean;
   responses: AIResponse[];
   combinedSummary?: string;
-  breakdown?: string[];
-  allSources?: SourceReference[];
-  allResources?: ResourceLink[];
+  breakdown?: BreakdownStep[];  // Hierarchical breakdown from primary agent only
+  breakdownTips?: string[];  // Tips from primary agent
+  resources?: ResourceLink[];  // Changed from allResources for consistency
+  sources?: SourceReference[];  // Changed from allSources for consistency
   metadata: {
     domainsInvolved: AgentDomain[];
     executionTime: number;
@@ -165,7 +179,7 @@ export interface BreakdownRequest {
  * Breakdown response
  */
 export interface BreakdownResponse {
-  breakdown: string[];
+  breakdown: BreakdownStep[];  // Hierarchical steps with sub-steps
   needsBreakdown: boolean;
   complexity: number;
   estimatedTime?: string;

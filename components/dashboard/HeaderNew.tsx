@@ -19,13 +19,13 @@ export default function Header({ userName }: HeaderProps) {
       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--clay-300)] rounded-full blur-[100px] opacity-20"></div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-6">
-        <div>
-          <h1 className="text-3xl lg:text-4xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-            {greeting()}, {userName}
-          </h1>
+              <div>
+                <h1 className="text-3xl lg:text-4xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  {greeting()}, {userName}
+                </h1>
           <p className="text-sm text-[var(--charcoal)]/60 font-medium mt-1">
-            Let's make today productive
-          </p>
+                  Let's make today productive
+                </p>
         </div>
       </div>
     </header>
