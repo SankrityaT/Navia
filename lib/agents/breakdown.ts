@@ -225,11 +225,27 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
       breakdown.breakdown = (breakdown.breakdown as any[]).map((step: any) => ({
         title: typeof step === 'string' ? step : step,
         timeEstimate: '5-10 min',
-        subSteps: [],
+        subSteps: ['Break this step into smaller actions'], // Provide at least one sub-step
         isOptional: false,
         isHard: false,
       })) as any;
     }
+
+    // CRITICAL: Ensure every step has subSteps (neurodivergent users need concrete actions)
+    breakdown.breakdown = breakdown.breakdown.map((step: any) => {
+      if (!step.subSteps || step.subSteps.length === 0) {
+        console.warn(`⚠️ Step "${step.title}" has no subSteps - adding default sub-steps`);
+        // Generate helpful default sub-steps based on the step title
+        const stepTitle = step.title || 'Complete this step';
+        step.subSteps = [
+          `Start by reading through what needs to be done for: ${stepTitle}`,
+          'Break it into 2-3 smaller actions you can take',
+          'Complete each action one at a time',
+          'Check that you\'ve finished everything needed',
+        ];
+      }
+      return step;
+    });
 
     console.log('✅ Breakdown generated successfully:', {
       stepCount: breakdown.breakdown.length,
@@ -287,8 +303,13 @@ Respond in JSON format with a complete breakdown following your guidelines.`;
         {
           title: 'Step 3: Complete the task and review your work',
           timeEstimate: '5 min',
-          subSteps: [],
-          isOptional: true,
+          subSteps: [
+            'Finish the main task you started',
+            'Read through what you created or completed',
+            'Check for any errors or things you want to change',
+            'Save your work if needed',
+          ],
+          isOptional: false,
           isHard: false,
         },
       ],

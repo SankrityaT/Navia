@@ -18,31 +18,77 @@ import { processDailyTaskQuery } from './daily-task';
 import { retrieveChatHistory } from '../pinecone/chat-history';
 
 /**
+ * Helper function to detect if query is a follow-up and extract recent questions
+ */
+function detectFollowUp(
+  query: string,
+  sessionMessageCount?: number,
+  conversationHistory?: Array<{role: string, content: string}>
+): { isFollowUp: boolean; recentQuestions: Array<{role: string, content: string}> } {
+  const queryLower = query.toLowerCase().trim();
+  const queryWordCount = queryLower.split(/\s+/).length;
+  const hasActiveSession = sessionMessageCount && sessionMessageCount > 0;
+  
+  // Check for pronouns that indicate follow-up
+  const followUpPronouns = ['these', 'that', 'it', 'one', 'them', 'this', 'those'];
+  const hasPronoun = followUpPronouns.some(pronoun => 
+    new RegExp(`\\b${pronoun}\\b`, 'i').test(queryLower)
+  );
+  
+  // Check for follow-up phrases
+  const followUpPhrases = [
+    'anything else',
+    'what about',
+    'tell me more',
+    'is there more',
+    'what else',
+    'how about',
+    'can you suggest',
+    'which one',
+    'is it good',
+    'is that good'
+  ];
+  const hasFollowUpPhrase = followUpPhrases.some(phrase => queryLower.includes(phrase));
+  
+  // Follow-up detection: short query OR has pronoun/phrase + active session
+  const isShortQuery = queryWordCount < 8;
+  const isFollowUp = hasActiveSession && (isShortQuery || hasPronoun || hasFollowUpPhrase);
+  
+  // Extract last 2-4 messages (last 1-2 question-answer pairs) when follow-up detected
+  let recentQuestions: Array<{role: string, content: string}> = [];
+  if (isFollowUp && conversationHistory && conversationHistory.length > 0) {
+    // Get last 4 messages (2 user + 2 assistant = 2 question-answer pairs)
+    const lastMessages = conversationHistory.slice(0, Math.min(4, conversationHistory.length));
+    recentQuestions = lastMessages;
+  }
+  
+  return { isFollowUp, recentQuestions };
+}
+
+/**
  * Detect user intent and determine which agent(s) to route to
  * LLM-driven intent detection with conversation context
+ * Returns intent detection with follow-up information
  */
 export async function detectIntent(
   query: string, 
   conversationHistory?: Array<{role: string, content: string}>,
   sessionMessageCount?: number
-): Promise<IntentDetection> {
+): Promise<IntentDetection & { isLikelyFollowUp?: boolean; recentQuestions?: Array<{role: string, content: string}> }> {
   try {
+    // Detect follow-up using helper function
+    const { isFollowUp, recentQuestions } = detectFollowUp(query, sessionMessageCount, conversationHistory);
+    
     // Build conversation context for intent detection
     // CRITICAL: For follow-up detection, ONLY use session messages (ignore semantic matches from Pinecone)!
     const historyContext = conversationHistory && conversationHistory.length > 0
       ? (() => {
-          // Smart follow-up detection based on conversation structure (no hardcoded keywords!)
-          // A query is likely a follow-up if:
-          // 1. There's an active session (sessionMessageCount > 0)
-          // 2. The query is short/conversational (< 10 words)
-          // 3. There are recent messages to refer to
-          
           const queryWordCount = query.trim().split(/\s+/).length;
           const hasActiveSession = sessionMessageCount && sessionMessageCount > 0;
           const isShortQuery = queryWordCount <= 10;
           
-          // If short query + active session, likely a follow-up → prioritize session context
-          const likelyFollowUp = hasActiveSession && isShortQuery;
+          // Enhanced follow-up detection (now using helper function)
+          const likelyFollowUp = isFollowUp;
           
           // For likely follow-ups: ONLY use session messages (ignore semantic matches from old convos)
           // For longer/new queries: Use session + semantic context for better understanding
@@ -52,11 +98,17 @@ export async function detectIntent(
           
           const recentMessages = conversationHistory.slice(0, messagesToUse);
           
-          console.log('🧭 Orchestrator routing context:', {
-            totalHistory: conversationHistory.length,
-            sessionMessageCount: sessionMessageCount || 'unknown',
+          // Log detailed follow-up detection info
+          console.log('🔍 Follow-up Detection:', {
+            query: query.substring(0, 50),
             queryWordCount,
-            likelyFollowUp,
+            hasActiveSession,
+            isFollowUp,
+            recentQuestionsCount: recentQuestions.length,
+            recentQuestions: recentQuestions.map(q => ({
+              role: q.role,
+              content: q.content.substring(0, 50)
+            })),
             messagesToUse,
             recentForRouting: recentMessages.length,
           });
@@ -65,7 +117,16 @@ export async function detectIntent(
           let contextStr = '\n\n=== CONVERSATION HISTORY FOR ROUTING ===\n\n';
           
           if (likelyFollowUp) {
-            contextStr += '⚠️ LIKELY FOLLOW-UP (short query + active session) - Using ONLY current session context (ignoring old conversations)\n\n';
+            contextStr += '⚠️ LIKELY FOLLOW-UP DETECTED - Using ONLY current session context (ignoring old conversations)\n\n';
+            
+            // Show recent questions prominently if available
+            if (recentQuestions.length > 0) {
+              contextStr += '🔥 MOST RECENT QUESTIONS (ANSWER BASED ON THESE):\n';
+              recentQuestions.forEach((msg, idx) => {
+                contextStr += `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}\n`;
+              });
+              contextStr += '\n';
+            }
           }
           
           // Highlight the MOST RECENT exchange (critical for follow-ups!)
@@ -139,6 +200,8 @@ Respond in JSON format following your schema.`;
       needsBreakdown: detection.needsBreakdown || false,
       complexity: detection.complexity || 5,
       reasoning: detection.reasoning || 'Intent detected',
+      isLikelyFollowUp: isFollowUp,
+      recentQuestions: recentQuestions,
     };
   } catch (error) {
     console.error('Intent detection error:', error);
@@ -150,6 +213,8 @@ Respond in JSON format following your schema.`;
       needsBreakdown: false,
       complexity: 5,
       reasoning: 'Error in intent detection, defaulting to daily task agent',
+      isLikelyFollowUp: false,
+      recentQuestions: [],
     };
   }
 }
