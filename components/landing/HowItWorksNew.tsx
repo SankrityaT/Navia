@@ -1,5 +1,4 @@
-// Animated roadmap with bento grid cards connected by animated dots
-// Zigzag flow: left → bottom-right → bottom-left → bottom-right
+// Creative vertical timeline with numbered circles and flowing design
 // Warm-organic aesthetic with terracotta palette
 
 'use client';
@@ -25,145 +24,134 @@ export default function HowItWorks() {
           </p>
         </div>
 
-        {/* Animated Roadmap with Bento Cards */}
-        <div className="relative">
+        {/* Creative Vertical Timeline */}
+        <div className="relative max-w-4xl mx-auto">
+          {/* Vertical Line */}
+          <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[var(--clay-300)] via-[var(--clay-400)] to-[var(--clay-300)] opacity-30"></div>
           
-          {/* Step 1 - Top Left */}
-          <div className="flex justify-start mb-16 md:mb-20">
-            <div className="relative group max-w-md">
-              {/* Card */}
-              <div className="bg-gradient-to-br from-[var(--clay-100)] via-[var(--sand)] to-[var(--clay-200)] p-10 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-500">
-                    <UserPlus className="w-8 h-8 text-[var(--cream)]" strokeWidth={2.5} />
+          {/* Step 1 */}
+          <div className="relative mb-20">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              {/* Number Circle - Left */}
+              <div className="md:w-1/2 flex justify-end">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-2xl border-4 border-white z-10 relative">
+                    <span className="text-3xl font-serif font-bold text-white" style={{fontFamily: 'var(--font-fraunces)'}}>1</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--clay-600)] mb-2 uppercase tracking-wider">STEP 1</div>
-                    <h3 className="text-2xl md:text-3xl font-serif font-bold text-[var(--charcoal)] mb-4" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  <div className="absolute inset-0 rounded-full bg-[var(--clay-500)] blur-xl opacity-40 animate-pulse"></div>
+                </div>
+              </div>
+              
+              {/* Content Card - Right */}
+              <div className="md:w-1/2">
+                <div className="group bg-white p-8 rounded-2xl border-2 border-[var(--clay-200)] hover:border-[var(--clay-400)] hover:shadow-2xl transition-all duration-500">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center">
+                      <UserPlus className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
                       Create Your Profile
                     </h3>
-                    <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Share what feels comfortable. Tell us about your challenges, your goals, and what kind of support would be helpful for you.
-                    </p>
                   </div>
+                  <p className="text-[var(--charcoal)]/70 leading-relaxed">
+                    Share what feels comfortable. Tell us about your challenges, your goals, and what kind of support would be helpful for you.
+                  </p>
                 </div>
               </div>
-              
             </div>
           </div>
 
-          {/* Connecting Line 1 - Curved path to Step 2 */}
-          <svg className="hidden md:block absolute top-[180px] left-0 w-full h-[180px] pointer-events-none" style={{zIndex: 1}}>
-            <path
-              d="M 420 40 Q 520 90, 680 140"
-              stroke="var(--clay-400)"
-              strokeWidth="3"
-              fill="none"
-              strokeDasharray="8 8"
-              opacity="0.4"
-              className="animate-dash"
-            />
-          </svg>
-
-          {/* Step 2 - Middle Right */}
-          <div className="flex justify-end mb-16 md:mb-20">
-            <div className="relative group max-w-md">
-              {/* Card */}
-              <div className="bg-gradient-to-br from-[var(--sage-400)]/20 via-[var(--sand)] to-[var(--sage-500)]/30 p-10 rounded-[2rem] border-2 border-[var(--sage-500)]/30 hover:border-[var(--sage-600)]/50 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--sage-500)] to-[var(--moss-600)] flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-500">
-                    <Brain className="w-8 h-8 text-[var(--cream)]" strokeWidth={2.5} />
+          {/* Step 2 */}
+          <div className="relative mb-20">
+            <div className="flex flex-col md:flex-row-reverse items-center gap-8">
+              {/* Number Circle - Right */}
+              <div className="md:w-1/2 flex justify-start">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] flex items-center justify-center shadow-2xl border-4 border-white z-10 relative">
+                    <span className="text-3xl font-serif font-bold text-white" style={{fontFamily: 'var(--font-fraunces)'}}>2</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--sage-600)] mb-2 uppercase tracking-wider">STEP 2</div>
-                    <h3 className="text-2xl md:text-3xl font-serif font-bold text-[var(--charcoal)] mb-4" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  <div className="absolute inset-0 rounded-full bg-[var(--sage-500)] blur-xl opacity-40 animate-pulse" style={{animationDelay: '0.5s'}}></div>
+                </div>
+              </div>
+              
+              {/* Content Card - Left */}
+              <div className="md:w-1/2">
+                <div className="group bg-white p-8 rounded-2xl border-2 border-[var(--sage-200)] hover:border-[var(--sage-400)] hover:shadow-2xl transition-all duration-500">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] flex items-center justify-center">
+                      <Brain className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
                       Explore Your Patterns
                     </h3>
-                    <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Gentle prompts help you notice energy changes, what drains you, and the environments that feel supportive. No judgment—just curious reflection.
-                    </p>
                   </div>
+                  <p className="text-[var(--charcoal)]/70 leading-relaxed">
+                    Gentle prompts help you notice energy changes, what drains you, and the environments that feel supportive. No judgment—just curious reflection.
+                  </p>
                 </div>
               </div>
-              
             </div>
           </div>
 
-          {/* Connecting Line 2 - Curved path to Step 3 */}
-          <svg className="hidden md:block absolute top-[440px] left-0 w-full h-[180px] pointer-events-none" style={{zIndex: 1}}>
-            <path
-              d="M 680 40 Q 520 90, 420 140"
-              stroke="var(--clay-400)"
-              strokeWidth="3"
-              fill="none"
-              strokeDasharray="8 8"
-              opacity="0.4"
-              className="animate-dash"
-              style={{animationDelay: '0.3s'}}
-            />
-          </svg>
-
-          {/* Step 3 - Bottom Left */}
-          <div className="flex justify-start mb-16 md:mb-20">
-            <div className="relative group max-w-md">
-              {/* Card */}
-              <div className="bg-gradient-to-br from-[var(--clay-200)]/40 via-[var(--sand)] to-[var(--clay-300)]/50 p-10 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--moss-500)] to-[var(--moss-600)] flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-500">
-                    <Sparkles className="w-8 h-8 text-[var(--cream)]" strokeWidth={2.5} />
+          {/* Step 3 */}
+          <div className="relative mb-20">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              {/* Number Circle - Left */}
+              <div className="md:w-1/2 flex justify-end">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--moss-500)] to-[var(--moss-600)] flex items-center justify-center shadow-2xl border-4 border-white z-10 relative">
+                    <span className="text-3xl font-serif font-bold text-white" style={{fontFamily: 'var(--font-fraunces)'}}>3</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--moss-600)] mb-2 uppercase tracking-wider">STEP 3</div>
-                    <h3 className="text-2xl md:text-3xl font-serif font-bold text-[var(--charcoal)] mb-4" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  <div className="absolute inset-0 rounded-full bg-[var(--moss-500)] blur-xl opacity-40 animate-pulse" style={{animationDelay: '1s'}}></div>
+                </div>
+              </div>
+              
+              {/* Content Card - Right */}
+              <div className="md:w-1/2">
+                <div className="group bg-white p-8 rounded-2xl border-2 border-[var(--moss-200)] hover:border-[var(--moss-400)] hover:shadow-2xl transition-all duration-500">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--moss-500)] to-[var(--moss-600)] flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
                       Get Personalized Support
                     </h3>
-                    <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      Receive personalized suggestions, task breakdowns, and strategies to help you navigate daily challenges in ways that work for you.
-                    </p>
                   </div>
+                  <p className="text-[var(--charcoal)]/70 leading-relaxed">
+                    Receive personalized suggestions, task breakdowns, and strategies to help you navigate daily challenges in ways that work for you.
+                  </p>
                 </div>
               </div>
-              
-              {/* Connection dot at bottom-right of Step 3 */}
-              <div className="hidden md:block absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[var(--clay-500)] shadow-sm" style={{transform: 'translate(50%, 50%)'}}></div>
             </div>
           </div>
 
-          {/* Connecting Line 3 - Curved S-path from Step 3 to Step 4 */}
-          <svg className="hidden md:block absolute top-[680px] left-0 w-full h-[200px] pointer-events-none" style={{zIndex: 1}}>
-            <path
-              d="M 420 20 Q 500 60, 550 100 T 680 160"
-              stroke="var(--clay-400)"
-              strokeWidth="2.5"
-              fill="none"
-              strokeDasharray="8 8"
-              opacity="0.5"
-              className="animate-dash"
-              style={{animationDelay: '0.6s'}}
-            />
-          </svg>
-
-          {/* Step 4 - Bottom Right */}
-          <div className="flex justify-end">
-            <div className="relative group max-w-md">
-              {/* Connection dot at top-left of Step 4 */}
-              <div className="hidden md:block absolute top-0 left-0 w-2 h-2 rounded-full bg-[var(--clay-500)] shadow-sm" style={{transform: 'translate(-50%, -50%)'}}></div>
-              
-              {/* Card */}
-              <div className="bg-gradient-to-br from-[var(--clay-300)]/30 via-[var(--sand)] to-[var(--clay-400)]/40 p-10 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
-                <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-700)] flex items-center justify-center shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-500">
-                    <TrendingUp className="w-8 h-8 text-[var(--cream)]" strokeWidth={2.5} />
+          {/* Step 4 */}
+          <div className="relative">
+            <div className="flex flex-col md:flex-row-reverse items-center gap-8">
+              {/* Number Circle - Right */}
+              <div className="md:w-1/2 flex justify-start">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-700)] flex items-center justify-center shadow-2xl border-4 border-white z-10 relative">
+                    <span className="text-3xl font-serif font-bold text-white" style={{fontFamily: 'var(--font-fraunces)'}}>4</span>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--clay-600)] mb-2 uppercase tracking-wider">STEP 4</div>
-                    <h3 className="text-2xl md:text-3xl font-serif font-bold text-[var(--charcoal)] mb-4" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  <div className="absolute inset-0 rounded-full bg-[var(--clay-600)] blur-xl opacity-40 animate-pulse" style={{animationDelay: '1.5s'}}></div>
+                </div>
+              </div>
+              
+              {/* Content Card - Left */}
+              <div className="md:w-1/2">
+                <div className="group bg-white p-8 rounded-2xl border-2 border-[var(--clay-200)] hover:border-[var(--clay-400)] hover:shadow-2xl transition-all duration-500">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-700)] flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
                       Track Your Progress
                     </h3>
-                    <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                      See your progress over time. Celebrate small wins, adjust what's working, and build confidence—all at your own pace.
-                    </p>
                   </div>
+                  <p className="text-[var(--charcoal)]/70 leading-relaxed">
+                    See your progress over time. Celebrate small wins, adjust what's working, and build confidence—all at your own pace.
+                  </p>
                 </div>
               </div>
             </div>
@@ -181,17 +169,6 @@ export default function HowItWorks() {
         </div>
       </div>
 
-      {/* CSS for animated dashed line */}
-      <style jsx>{`
-        @keyframes dash {
-          to {
-            stroke-dashoffset: -16;
-          }
-        }
-        .animate-dash {
-          animation: dash 1s linear infinite;
-        }
-      `}</style>
     </section>
   );
 }

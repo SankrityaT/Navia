@@ -379,16 +379,7 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                     <>
                       <CheckCircle2 className="w-16 h-16 text-[var(--sage-500)] mx-auto mb-4 animate-bounce" strokeWidth={2} />
                       <p className="text-lg font-semibold text-[var(--charcoal)] mb-2">All caught up! 🎉</p>
-                      <p className="text-sm text-[var(--charcoal)]/60 mb-4">You've completed all your tasks for today.</p>
-                      <button 
-                        className="px-6 py-3 bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-                        aria-label="Add new task"
-                      >
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4" />
-                          Ask AI for suggestions
-                        </span>
-                      </button>
+                      <p className="text-sm text-[var(--charcoal)]/60">You've completed all your tasks for today.</p>
                     </>
                   ) : (
                     <>
