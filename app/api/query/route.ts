@@ -97,6 +97,7 @@ export async function POST(request: Request) {
     ];
 
     // Build enhanced context with hybrid retrieval
+    // Include follow-up detection info from quick intent detection
     const enhancedContext = {
       ...userContext,
       recentHistory: conversationHistory, // SESSION + semantic + chronological (clean: only role + content)
@@ -105,6 +106,8 @@ export async function POST(request: Request) {
       semanticMatchCount: semanticMatches.length, // How many conversations are semantic matches
       semanticMatchMessageCount, // How many messages (conversations × 2) are semantic matches
       retrievalStrategy: 'session_first_hybrid', // For debugging
+      isLikelyFollowUp: quickIntent.isLikelyFollowUp || false, // Follow-up detection flag
+      recentQuestions: quickIntent.recentQuestions || [], // Last 2-4 messages for follow-up context
     };
 
     // Log retrieval strategy for debugging
@@ -115,6 +118,8 @@ export async function POST(request: Request) {
       semanticTop3: semanticMatches.length,
       chronologicalRest: chronologicalHistory.length,
       conversationHistoryLength: conversationHistory.length,
+      isLikelyFollowUp: quickIntent.isLikelyFollowUp,
+      recentQuestionsCount: quickIntent.recentQuestions?.length || 0,
       order: 'SESSION (immediate) → TOP 3 semantic (relevant) → rest chronological (context)',
     });
 

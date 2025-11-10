@@ -962,10 +962,10 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl p-4 ${
+                    className={`max-w-[80%] ${
                       message.role === 'user'
-                        ? 'bg-[#C77A4C] text-white shadow-sm'
-                        : 'bg-white shadow-sm border border-[#E8E0D0]'
+                        ? 'rounded-2xl p-4 bg-[#C77A4C] text-white shadow-sm'
+                        : 'p-4'
                     }`}
                   >
                     {/* Category badge removed - icon is already in tab header */}
@@ -1007,36 +1007,36 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                     {/* Breakdown */}
                     {message.breakdown && message.breakdown.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="font-semibold text-sm text-gray-700 mb-2">
+                        <div className="font-semibold text-lg text-gray-700 mb-4">
                           📋 Task Breakdown:
                         </div>
-                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+                        <div className="space-y-4">
                           {message.breakdown.map((step, idx) => {
                             // Handle both string format (old) and object format (new)
                             if (typeof step === 'string') {
-                              return <li key={idx}>{step}</li>;
+                              return <div key={idx} className="text-lg text-gray-600">{step}</div>;
                             } else if (step && typeof step === 'object' && 'title' in step) {
                               // New format with title, timeEstimate, etc.
                               const breakdownStep = step as BreakdownStep;
                               return (
-                                <li key={idx} className="mb-2">
-                                  <div className="font-medium text-gray-800">{breakdownStep.title}</div>
+                                <div key={idx} className="mb-4">
+                                  <div className="font-semibold text-lg text-gray-800 mb-1">{breakdownStep.title}</div>
                                   {breakdownStep.timeEstimate && (
-                                    <span className="text-xs text-gray-500 ml-1">({breakdownStep.timeEstimate})</span>
+                                    <span className="text-base text-gray-500 ml-1">({breakdownStep.timeEstimate})</span>
                                   )}
                                   {breakdownStep.subSteps && breakdownStep.subSteps.length > 0 && (
-                                    <ul className="list-disc list-inside ml-4 mt-1 space-y-1 text-xs text-gray-500">
+                                    <ul className="list-disc list-inside ml-6 mt-2 space-y-2 text-base text-gray-600">
                                       {breakdownStep.subSteps.map((subStep, subIdx) => (
                                         <li key={subIdx}>{subStep}</li>
                                       ))}
                                     </ul>
                                   )}
-                                </li>
+                                </div>
                               );
                             }
                             return null;
                           })}
-                        </ol>
+                        </div>
                       </div>
                     )}
 
@@ -1139,7 +1139,8 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                     )}
 
                     {/* Was this response helpful? - MOVED TO BOTTOM */}
-                    {message.role === 'assistant' && !message.isStreaming && (
+                    {/* Hide feedback for welcome/intro message */}
+                    {message.role === 'assistant' && !message.isStreaming && !message.content.includes("I'm Navia, your AI executive function coach") && (
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <div className="text-sm text-gray-600 mb-3">
                           Was this response helpful?

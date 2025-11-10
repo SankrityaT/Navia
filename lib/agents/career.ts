@@ -44,10 +44,24 @@ export async function processCareerQuery(
     const semanticEndIndex = sessionCount + (userContext?.semanticMatchMessageCount || 0);
     const totalHistoryLength = userContext?.recentHistory?.length || 0;
     
+    // Check if this is a follow-up and get recent questions
+    const isLikelyFollowUp = userContext?.isLikelyFollowUp || false;
+    const recentQuestions = userContext?.recentQuestions || [];
+    
     const recentConversationContext = userContext?.recentHistory && userContext.recentHistory.length > 0
       ? `\n\n### CONVERSATION HISTORY (${userContext.fullHistoryCount || 0} stored conversations + ${sessionCount} current session messages):
 
-` + (sessionCount > 0 
+` + (isLikelyFollowUp && recentQuestions.length > 0
+        ? `🔥🔥🔥 MOST RECENT QUESTIONS (ANSWER THIS FOLLOW-UP BASED ON THESE EXACT QUESTIONS) 🔥🔥🔥
+[CRITICAL: The current query is a follow-up. Answer based on the MOST RECENT questions shown below, NOT earlier context.
+If the follow-up uses pronouns like "these", "that", "it", refer to the immediately preceding assistant response.
+Maintain topic continuity: if the last question was about documents, answer about documents.]
+${recentQuestions.map((msg: any) => {
+  return `${msg.role === 'user' ? 'User' : 'Navia'}: ${msg.content}`;
+}).join('\n')}
+--- END MOST RECENT QUESTIONS ---
+
+` : '') + (sessionCount > 0 
         ? `--- 🔥 CURRENT SESSION (${sessionCount} messages) ---
 [MOST IMPORTANT: This is the ONGOING conversation - use this to understand follow-up questions like "tell me more", "is it good?", etc.]
 ${userContext.recentHistory.slice(0, sessionCount).map((msg: any) => {
