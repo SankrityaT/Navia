@@ -15,11 +15,21 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { query, userContext, sessionMessages = [] } = body;
+    const { query, userContext, sessionMessages = [], session_id } = body;
+    
+    // Import Supabase operations at the top (used in both error and success paths)
+    const { storeChatMessage: storeInSupabase, generateSessionTitle, getChatHistory: getSupabaseHistory } = await import('@/lib/supabase/operations');
 
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
         { error: 'Query is required and must be a string' },
+        { status: 400 }
+      );
+    }
+
+    if (!session_id || typeof session_id !== 'string') {
+      return NextResponse.json(
+        { error: 'Session ID is required' },
         { status: 400 }
       );
     }
@@ -39,11 +49,11 @@ export async function POST(request: Request) {
     
     console.log(`🎯 Primary domain for history retrieval: ${primaryDomain}`);
     
-    // Step 2: Get top 3 semantically relevant messages FILTERED by domain
-    const semanticMatches = await retrieveRelevantContext(userId, query, primaryDomain, 3);
+    // Step 2: Get top 3 semantically relevant messages FILTERED by domain AND session
+    const semanticMatches = await retrieveRelevantContext(userId, query, primaryDomain, 3, session_id);
     
-    // Step 3: Get ALL chat history for that domain (time-based, newest first)
-    const fullHistory = await retrieveChatHistory(userId, 1000, primaryDomain);
+    // Step 3: Get ALL chat history for that domain AND session (time-based, newest first)
+    const fullHistory = await retrieveChatHistory(userId, 1000, primaryDomain, session_id);
     
     // Step 4: Remove semantic matches from full history to avoid duplicates
     const semanticTimestamps = new Set(semanticMatches.map(m => m.timestamp));
@@ -108,6 +118,14 @@ export async function POST(request: Request) {
       order: 'SESSION (immediate) → TOP 3 semantic (relevant) → rest chronological (context)',
     });
 
+    // Determine if first message in session by checking Supabase (source of truth)
+    // This needs to happen BEFORE orchestrator call so it's available for both error and success paths
+    const existingSessionMessages = await getSupabaseHistory(userId, 1, undefined, false, session_id);
+    const isFirstMessage = existingSessionMessages.length === 0;
+    const sessionTitle = isFirstMessage ? generateSessionTitle(query, primaryDomain) : undefined;
+    
+    console.log(`🔍 Session check: ${session_id}, existing messages: ${existingSessionMessages.length}, isFirstMessage: ${isFirstMessage}`);
+
     // Orchestrate the query with full context
     const result = await orchestrateQuery(userId, query, enhancedContext);
 
@@ -116,7 +134,6 @@ export async function POST(request: Request) {
       const errorMessage = 'I encountered an issue processing your question. That\'s okay - sometimes technology has its own executive function challenges! Please try rephrasing your question about tasks, organization, or productivity.';
       
       try {
-        const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
         await storeInSupabase({
           user_id: userId,
           message: query,
@@ -129,8 +146,11 @@ export async function POST(request: Request) {
             ...result.metadata,
           },
           is_error: true, // Mark as error - will be hidden from UI
+          session_id, // Track session
+          session_title: sessionTitle, // Title if first message
+          is_first_message: isFirstMessage,
         });
-        console.log(`⚠️ Error chat stored for analytics (hidden from UI) for user ${userId}`);
+        console.log(`⚠️ Error chat stored for analytics (hidden from UI) for user ${userId}, session ${session_id}`);
       } catch (storageError) {
         console.error('Failed to store error chat:', storageError);
       }
@@ -162,10 +182,11 @@ export async function POST(request: Request) {
       responseText.trim().length < 20; // Very short responses are likely errors
 
     // Store the conversation in BOTH Supabase (primary) and Pinecone (semantic search)
+    let supabaseMessageId: string | undefined;
     try {
       const timestamp = Date.now();
       const pineconeId = `chat_${userId}_${timestamp}`;
-
+      
       // 1. Store in Pinecone ONLY if it's a valid response (not an error)
       if (!isErrorResponse) {
         await storeChatMessage(
@@ -177,9 +198,10 @@ export async function POST(request: Request) {
             persona: 'orchestrator',
             complexity: result.metadata.complexity,
             hadBreakdown: result.metadata.usedBreakdown,
+            session_id, // Track session in Pinecone
           }
         );
-        console.log('✅ Conversation stored in Pinecone successfully');
+        console.log(`✅ Conversation stored in Pinecone successfully for session ${session_id}`);
       } else {
         console.warn('⚠️ Skipping Pinecone storage - Error response detected:', {
           responsePreview: responseText.substring(0, 100),
@@ -188,8 +210,7 @@ export async function POST(request: Request) {
       }
 
       // 2. ALWAYS store in Supabase as primary database (even if Pinecone was skipped)
-      const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
-      await storeInSupabase({
+      const storedMessage = await storeInSupabase({
         user_id: userId,
         message: query,
         response: responseText,
@@ -203,9 +224,15 @@ export async function POST(request: Request) {
         },
         pinecone_id: !isErrorResponse ? pineconeId : undefined, // Only link to Pinecone if stored there
         is_error: false, // Explicitly mark as successful
+        session_id, // Track session
+        session_title: sessionTitle, // Title if first message
+        is_first_message: isFirstMessage, // Flag first message
       });
 
-      console.log(`✅ Chat stored in Supabase for user ${userId}`);
+      // Capture the Supabase message UUID for feedback tracking
+      supabaseMessageId = storedMessage?.id;
+
+      console.log(`✅ Chat stored in Supabase for user ${userId} (message_id: ${supabaseMessageId})`);
     } catch (storageError) {
       console.error('Failed to store chat:', storageError);
       // Don't fail the request if storage fails
@@ -253,6 +280,10 @@ export async function POST(request: Request) {
         ...result.metadata,
         userId,
         timestamp: Date.now(),
+        sessionId: session_id, // Return session ID
+        sessionTitle: isFirstMessage ? sessionTitle : undefined, // Return title if first message
+        isFirstMessage, // Flag if first message
+        messageId: supabaseMessageId, // Supabase UUID for feedback tracking
       },
     };
     

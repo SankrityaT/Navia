@@ -105,6 +105,9 @@ export interface ChatMessage {
   metadata?: Record<string, any>;
   pinecone_id?: string;
   is_error?: boolean; // Flag to mark error responses (API failures, rate limits, etc.)
+  session_id: string; // Session identifier for grouping conversations
+  session_title?: string; // AI-generated or keyword-based session title
+  is_first_message?: boolean; // Flag to identify session starter
 }
 
 /**
@@ -121,7 +124,10 @@ export async function storeChatMessage(chatMessage: ChatMessage) {
       persona: chatMessage.persona,
       metadata: chatMessage.metadata,
       pinecone_id: chatMessage.pinecone_id,
-      is_error: chatMessage.is_error || false, // Default to false for successful messages
+      is_error: chatMessage.is_error || false,
+      session_id: chatMessage.session_id, // Session tracking
+      session_title: chatMessage.session_title, // Session title
+      is_first_message: chatMessage.is_first_message || false, // Track first message
     })
     .select()
     .single();
@@ -137,12 +143,14 @@ export async function storeChatMessage(chatMessage: ChatMessage) {
 /**
  * Get chat history for a user (formatted for frontend display)
  * By default, excludes error messages to keep UI clean
+ * Can filter by session_id for session-specific context
  */
 export async function getChatHistory(
   userId: string,
   limit: number = 50,
   category?: 'finance' | 'career' | 'daily_task',
-  includeErrors: boolean = false // By default, filter out errors
+  includeErrors: boolean = false, // By default, filter out errors
+  session_id?: string // Optional: Filter by specific session
 ) {
   let query = supabaseAdmin
     .from('chat_messages')
@@ -153,6 +161,11 @@ export async function getChatHistory(
 
   if (category) {
     query = query.eq('category', category);
+  }
+
+  // Filter by session if provided (for session-specific context)
+  if (session_id) {
+    query = query.eq('session_id', session_id);
   }
 
   // Filter out errors unless explicitly requested
@@ -279,4 +292,164 @@ export async function getChatStatistics(userId: string) {
     byCategory,
     recentActivity,
   };
+}
+
+// ============================================
+// SESSION MANAGEMENT OPERATIONS
+// ============================================
+
+export interface ChatSession {
+  session_id: string;
+  session_title: string;
+  message_count: number;
+  last_message_at: string;
+  category: 'finance' | 'career' | 'daily_task';
+  first_message: string;
+}
+
+/**
+ * Get list of chat sessions for a user (for sidebar display)
+ */
+export async function getChatSessions(
+  userId: string,
+  limit: number = 10
+): Promise<ChatSession[]> {
+  // Get all distinct sessions by grouping by session_id
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .select('session_id, session_title, category, message, created_at')
+    .eq('user_id', userId)
+    .eq('is_error', false)
+    .order('created_at', { ascending: true }); // Get oldest first to find first message
+
+  if (error) {
+    console.error('Error getting chat sessions:', error);
+    throw error;
+  }
+
+  // Group by session_id and get the first message of each session
+  const sessionMap = new Map<string, any>();
+  
+  for (const msg of data) {
+    if (!sessionMap.has(msg.session_id)) {
+      sessionMap.set(msg.session_id, msg);
+    }
+  }
+
+  // Convert to array and sort by most recent
+  const uniqueSessions = Array.from(sessionMap.values())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
+
+  // Get message counts for each session
+  const sessions: ChatSession[] = [];
+  
+  for (const session of uniqueSessions) {
+    const { count } = await supabaseAdmin
+      .from('chat_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('session_id', session.session_id)
+      .eq('is_error', false);
+
+    sessions.push({
+      session_id: session.session_id,
+      session_title: session.session_title || 'New Chat',
+      message_count: count || 0,
+      last_message_at: session.created_at,
+      category: session.category,
+      first_message: session.message,
+    });
+  }
+
+  return sessions;
+}
+
+/**
+ * Get all messages for a specific session
+ */
+export async function getSessionMessages(
+  userId: string,
+  session_id: string
+) {
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('session_id', session_id)
+    .eq('is_error', false)
+    .order('created_at', { ascending: true }); // Oldest first for display
+
+  if (error) {
+    console.error('Error getting session messages:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Generate session title from first message using keywords
+ */
+export function generateSessionTitle(firstMessage: string, category: string): string {
+  // Clean the message
+  const cleaned = firstMessage.toLowerCase().trim();
+  
+  // Extract keywords based on common patterns
+  const keywords: string[] = [];
+  
+  // Common question starters to remove
+  const removePatterns = [
+    'how do i', 'how can i', 'how to', 'can you', 'could you',
+    'help me', 'i need', 'i want', 'tell me', 'what is', 'what are',
+    'explain', 'show me'
+  ];
+  
+  let processed = cleaned;
+  removePatterns.forEach(pattern => {
+    processed = processed.replace(pattern, '');
+  });
+  
+  // Get first 4-5 meaningful words
+  const words = processed
+    .split(' ')
+    .filter(word => word.length > 2 && !['the', 'and', 'for', 'with'].includes(word))
+    .slice(0, 4);
+  
+  let title = words.join(' ');
+  
+  // Capitalize first letter of each word
+  title = title.split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  
+  // DON'T add emoji here - it's already shown in the tab icon
+  // Emoji rendering is handled by the frontend getCategoryIcon() function
+  
+  // Limit length
+  if (title.length > 40) {
+    title = title.substring(0, 37) + '...';
+  }
+  
+  return title || 'New Chat';
+}
+
+/**
+ * Update session title
+ */
+export async function updateSessionTitle(
+  userId: string,
+  session_id: string,
+  title: string
+) {
+  const { error } = await supabaseAdmin
+    .from('chat_messages')
+    .update({ session_title: title })
+    .eq('user_id', userId)
+    .eq('session_id', session_id);
+
+  if (error) {
+    console.error('Error updating session title:', error);
+    throw error;
+  }
 }

@@ -25,11 +25,23 @@ export async function processFinanceQuery(
   try {
     const { userId, query, userContext } = context;
 
+    console.log('💰 Finance Agent received:', {
+      query: query.substring(0, 100),
+      contextLength: userContext?.recentHistory?.length || 0,
+      sessionMessageCount: userContext?.sessionMessageCount || 0,
+      hasUserContext: !!userContext,
+    });
+
     // Step 1: Retrieve relevant knowledge from Pinecone
     const ragSources = await retrieveFinanceSources(query, 5);
     
     // Step 2: Determine specific finance topic and fetch external resources
     const externalResources = await fetchRelevantFinanceResources(query);
+    
+    console.log('💰 Finance Agent fetched:', {
+      ragSourcesCount: ragSources.length,
+      externalResourcesCount: externalResources.length,
+    });
     
     // Note: Chat history is now passed via userContext.recentHistory from API route
     // (domain-filtered, top 3 semantic + rest chronological)
@@ -230,6 +242,14 @@ Respond in JSON format following your schema.`;
         externalResourcesFound: externalResources.length,
       },
     };
+    
+    console.log('💰 Finance Agent returning:', {
+      summaryLength: finalResponse.summary.length,
+      resourcesCount: finalResponse.resources?.length || 0,
+      sourcesCount: finalResponse.sources?.length || 0,
+      hasBreakdown: !!finalBreakdown,
+      shouldShowResources,
+    });
     
     // Only add breakdown if it exists and has content
     if (finalBreakdown && finalBreakdown.length > 0) {
