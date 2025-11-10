@@ -15,12 +15,14 @@ interface PeerChatInterfaceProps {
   connection: PeerConnection;
   currentUserId: string;
   peerName: string;
+  peerRevealed?: boolean;
 }
 
 export default function PeerChatInterface({ 
   connection, 
   currentUserId, 
-  peerName 
+  peerName,
+  peerRevealed = false
 }: PeerChatInterfaceProps) {
   const connectionId = connection.connection_id;
   const { 
@@ -121,8 +123,10 @@ export default function PeerChatInterface({
       if (data.success) {
         setHasRevealed(true);
         setShowRevealModal(false);
-        // Optionally send a system message
+        // Send a system message
         await handleSend(true);
+        // Refresh the page to show updated name
+        window.location.reload();
       } else {
         alert('Failed to reveal name. Please try again.');
       }
@@ -220,8 +224,13 @@ export default function PeerChatInterface({
               {peerName.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-[var(--charcoal)] truncate">
+              <h2 className="text-lg font-semibold text-[var(--charcoal)] truncate flex items-center gap-2">
                 {peerName}
+                {peerRevealed && (
+                  <span className="text-xs px-2 py-0.5 bg-[var(--sage-100)] text-[var(--sage-700)] rounded-full font-medium">
+                    Real Name
+                  </span>
+                )}
               </h2>
               <p className="text-xs text-[var(--charcoal)]/60">
                 Accountability Partner

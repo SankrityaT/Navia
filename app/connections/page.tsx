@@ -15,7 +15,7 @@ import { Users, MessageCircle, Calendar, CheckCircle, Clock, Sparkles } from 'lu
 interface Connection {
   id: string;
   peer_id: string;
-  peer_name: string;
+  peer_name: string | null;
   peer_bio: string;
   neurotype: string[];
   shared_struggles: string[];
@@ -23,6 +23,7 @@ interface Connection {
   created_at: string;
   last_checkin?: string;
   initiated_by?: string;
+  peer_revealed?: boolean;
 }
 
 export default function ConnectionsPage() {
@@ -88,8 +89,12 @@ export default function ConnectionsPage() {
 
   const acceptedConnections = connections.filter(c => c.status === 'active');
   // Only show pending requests that were sent TO me (not ones I sent)
+  // AND exclude anyone I'm already connected with
+  const acceptedPeerIds = new Set(acceptedConnections.map(c => c.peer_id));
   const pendingConnections = connections.filter(c => 
-    c.status === 'pending' && c.initiated_by !== currentUserId
+    c.status === 'pending' && 
+    c.initiated_by !== currentUserId &&
+    !acceptedPeerIds.has(c.peer_id) // Don't show pending if already connected
   );
 
   if (loading) {
@@ -133,7 +138,7 @@ export default function ConnectionsPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                          {generateAnonymousName(connection.peer_id)}
+                          {connection.peer_name || generateAnonymousName(connection.peer_id)}
                         </h3>
                         <p className="text-sm text-[var(--charcoal)]/60 italic">{connection.peer_bio}</p>
                       </div>
@@ -184,14 +189,14 @@ export default function ConnectionsPage() {
                   >
                     {/* Avatar */}
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center text-[var(--cream)] font-bold text-lg flex-shrink-0 shadow-md">
-                      {generateAnonymousName(connection.peer_id).charAt(0)}
+                      {(connection.peer_name || generateAnonymousName(connection.peer_id)).charAt(0)}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between mb-1">
                         <h3 className="text-lg font-semibold text-[var(--charcoal)] truncate">
-                          {generateAnonymousName(connection.peer_id)}
+                          {connection.peer_name || generateAnonymousName(connection.peer_id)}
                         </h3>
                         <span className="text-xs text-[var(--charcoal)]/50 ml-2 flex-shrink-0">
                           {new Date(connection.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -246,7 +251,7 @@ export default function ConnectionsPage() {
       {/* Connection Request Modal */}
       {selectedRequest && (
         <ConnectionRequestModal
-          peerName={generateAnonymousName(selectedRequest.peer_id)}
+          peerName={selectedRequest.peer_name || generateAnonymousName(selectedRequest.peer_id)}
           peerBio={selectedRequest.peer_bio}
           sharedStruggles={selectedRequest.shared_struggles}
           onAccept={handleAcceptConnection}
@@ -259,7 +264,7 @@ export default function ConnectionsPage() {
       <ConnectionSuccessDialog
         isOpen={showSuccessDialog}
         onClose={() => setShowSuccessDialog(false)}
-        peerName={acceptedConnectionId ? generateAnonymousName(connections.find(c => c.id === acceptedConnectionId)?.peer_id || '') : ''}
+        peerName={acceptedConnectionId ? (connections.find(c => c.id === acceptedConnectionId)?.peer_name || generateAnonymousName(connections.find(c => c.id === acceptedConnectionId)?.peer_id || '')) : ''}
         connectionId={acceptedConnectionId || undefined}
       />
     </AuthenticatedLayout>

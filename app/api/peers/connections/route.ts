@@ -30,7 +30,9 @@ export async function GET() {
         last_checkin,
         user1_id,
         user2_id,
-        initiated_by
+        initiated_by,
+        user1_revealed_name,
+        user2_revealed_name
       `)
       .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
       .order('created_at', { ascending: false });
@@ -70,10 +72,15 @@ export async function GET() {
           .filter(([_, v]) => v)
           .map(([k]) => k);
 
+        // Determine if peer has revealed their name
+        const isUser1 = conn.user1_id === userId;
+        const peerRevealed = isUser1 ? conn.user2_revealed_name : conn.user1_revealed_name;
+        const displayName = peerRevealed ? peerProfile.name : null;
+
         return {
           id: conn.id,
           peer_id: peerId,
-          peer_name: peerProfile.name,
+          peer_name: displayName, // null if not revealed, real name if revealed
           peer_bio: `${peerProfile.current_goal?.replace(/_/g, ' ')}. ${neurotypesArray.join(', ')} navigating post-grad life.`,
           neurotype: neurotypesArray,
           shared_struggles: efChallengesArray,
@@ -81,6 +88,7 @@ export async function GET() {
           created_at: conn.created_at,
           last_checkin: conn.last_checkin,
           initiated_by: conn.initiated_by,
+          peer_revealed: peerRevealed || false,
         };
       })
     );

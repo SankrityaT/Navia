@@ -16,8 +16,9 @@ interface Message {
 
 interface ConnectionInfo {
   peer_id: string;
-  peer_name: string;
+  peer_name: string | null;
   status: string;
+  peer_revealed?: boolean;
 }
 
 export default function PeerChatPage() {
@@ -80,7 +81,8 @@ export default function PeerChatPage() {
     );
   }
 
-  const peerName = generateAnonymousName(connectionInfo.peer_id);
+  // Use real name if revealed, otherwise anonymous name
+  const peerName = connectionInfo.peer_name || generateAnonymousName(connectionInfo.peer_id);
   
   // Create a connection object for PeerChatInterface
   const connection = {
@@ -97,6 +99,7 @@ export default function PeerChatPage() {
           connection={connection as any}
           currentUserId={currentUserId}
           peerName={peerName}
+          peerRevealed={connectionInfo.peer_revealed}
         />
       </div>
     </AuthenticatedLayout>

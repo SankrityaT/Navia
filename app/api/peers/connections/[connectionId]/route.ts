@@ -44,6 +44,7 @@ export async function GET(
 
     // Get peer ID (the other user in the connection)
     const peerId = connection.user1_id === userId ? connection.user2_id : connection.user1_id;
+    const isUser1 = connection.user1_id === userId;
 
     // Fetch peer profile
     const { data: peerProfile } = await supabase
@@ -52,15 +53,20 @@ export async function GET(
       .eq('clerk_user_id', peerId)
       .single();
 
+    // Check if peer has revealed their name
+    const peerRevealed = isUser1 ? connection.user2_revealed_name : connection.user1_revealed_name;
+    const displayName = peerRevealed ? peerProfile?.name : null;
+
     console.log('✅ [CONNECTION INFO] Connection found');
 
     return NextResponse.json({ 
       connection: {
         id: connection.id,
         peer_id: peerId,
-        peer_name: peerProfile?.name || 'Peer',
+        peer_name: displayName, // null if not revealed, real name if revealed
         status: connection.status,
         created_at: connection.created_at,
+        peer_revealed: peerRevealed || false,
       }
     });
   } catch (error: any) {

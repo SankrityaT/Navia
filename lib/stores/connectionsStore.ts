@@ -73,9 +73,16 @@ export const useConnectionsStore = create<ConnectionsState>((set, get) => ({
           connections: state.connections.map(conn =>
             conn.id === connectionId ? { ...conn, status: 'active' as const } : conn
           ),
-          showSuccessDialog: true,
-          successMessage: 'Connection accepted! You can now message each other.',
         }));
+        
+        // Delay showing success dialog to prevent UI crash
+        setTimeout(() => {
+          set({
+            showSuccessDialog: true,
+            successMessage: 'Connection accepted! You can now message each other.',
+          });
+        }, 300);
+        
         return true;
       }
       return false;
