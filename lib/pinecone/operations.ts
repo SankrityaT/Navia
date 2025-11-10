@@ -53,10 +53,35 @@ export async function updateTaskStatus(
 ) {
   const index = getIndex();
   
-  // TODO: Implement update logic - Pinecone requires fetch + upsert
-  // 1. Fetch existing vector
-  // 2. Update metadata
-  // 3. Upsert with same vector
+  try {
+    // Fetch existing record to get the vector and metadata
+    const fetchResponse = await index.fetch([taskId]);
+    const record = fetchResponse.records[taskId];
+    
+    if (!record) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+    
+    // Update metadata with new status
+    const updatedMetadata = {
+      ...record.metadata,
+      status,
+    };
+    
+    // Upsert with same vector but updated metadata
+    await index.upsert([
+      {
+        id: taskId,
+        values: record.values,
+        metadata: updatedMetadata as any,
+      },
+    ]);
+    
+    console.log(`✅ Updated task ${taskId} status to: ${status}`);
+  } catch (error) {
+    console.error(`Failed to update task ${taskId}:`, error);
+    throw error;
+  }
 }
 
 // Delete task

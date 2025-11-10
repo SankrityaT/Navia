@@ -3,7 +3,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Task } from '@/lib/types';
 import { Clock, Circle, CheckCircle2, Timer, MoreHorizontal, GripVertical } from 'lucide-react';
 import TaskModal from './TaskModal';
@@ -15,12 +16,33 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
+  useDraggable,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { useSortable } from '@dnd-kit/sortable';
 
 interface KanbanViewProps {
   tasks: Task[];
+}
+
+// Droppable Column Component
+function DroppableColumn({ 
+  id, 
+  children 
+}: { 
+  id: string; 
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id });
+  
+  return (
+    <div
+      ref={setNodeRef}
+      className="space-y-4 flex-1 min-h-[200px] p-2 rounded-2xl transition-colors"
+    >
+      {children}
+    </div>
+  );
 }
 
 // Draggable Task Card Component
@@ -30,13 +52,11 @@ function DraggableTaskCard({ task, onClick }: { task: Task; onClick: () => void 
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: task.task_id });
+  } = useDraggable({ id: task.task_id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
   };
 
@@ -79,6 +99,7 @@ function DraggableTaskCard({ task, onClick }: { task: Task; onClick: () => void 
         <button
           {...attributes}
           {...listeners}
+          suppressHydrationWarning
           className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing mt-1"
         >
           <GripVertical className="w-4 h-4 text-[var(--charcoal)]/40" strokeWidth={2} />
@@ -115,9 +136,15 @@ function DraggableTaskCard({ task, onClick }: { task: Task; onClick: () => void 
 }
 
 export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
+  const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Sync tasks when initialTasks changes (e.g., after page refresh)
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -131,7 +158,7 @@ export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
     setActiveId(event.active.id as string);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -139,16 +166,46 @@ export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
 
     const taskId = active.id as string;
     const newStatus = over.id as Task['status'];
+    
+    // Find the task to get its old status
+    const taskToUpdate = tasks.find(t => t.task_id === taskId);
+    if (!taskToUpdate || taskToUpdate.status === newStatus) return;
 
-    // Update task status
+    const oldStatus = taskToUpdate.status;
+
+    // Optimistic update - immediately update UI
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task.task_id === taskId ? { ...task, status: newStatus } : task
       )
     );
 
-    // TODO: Call API to update task in Supabase
-    console.log(`Task ${taskId} moved to ${newStatus}`);
+    // Call API to update task status in Pinecone
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId, status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+      
+      console.log(`✅ Task ${taskId} status updated: ${oldStatus} → ${newStatus}`);
+      
+      // Keep the optimistic update - task stays in new column
+      // No refresh needed, state is already updated
+    } catch (error) {
+      console.error('❌ Failed to update task status:', error);
+      
+      // Revert on error
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.task_id === taskId ? { ...task, status: oldStatus } : task
+        )
+      );
+    }
   };
   
   const columns = [
@@ -264,12 +321,7 @@ export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
               </div>
 
               {/* Drop Zone */}
-              <div
-                id={column.status}
-                className="space-y-4 flex-1 min-h-[200px] p-2 rounded-2xl transition-colors"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {}}
-              >
+              <DroppableColumn id={column.status}>
                 {columnTasks.map((task) => (
                   <DraggableTaskCard
                     key={task.task_id}
@@ -283,7 +335,7 @@ export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
                     Drag tasks here
                   </div>
                 )}
-              </div>
+              </DroppableColumn>
             </div>
           );
         })}

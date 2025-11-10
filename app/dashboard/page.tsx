@@ -1,11 +1,62 @@
 // FRONTEND: Main dashboard page with warm-organic aesthetic
-// TODO: Fetch tasks from API
-// TODO: Get user info from Clerk
+// Fetches real data from API endpoints
 
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Header from '@/components/dashboard/HeaderNew';
 import Dashboard from '@/components/dashboard/DashboardNew';
+import { Task } from '@/lib/types';
+
+async function fetchTasks(userId: string): Promise<Task[]> {
+  try {
+    console.log('🔍 [LIVE DATA] Fetching tasks from Pinecone for user:', userId);
+    
+    // Import the operations directly instead of making HTTP call
+    const { queryTasks } = await import('@/lib/pinecone/operations');
+    const { generateEmbedding } = await import('@/lib/embeddings/client');
+    
+    // Generate query embedding
+    const queryText = `Get all tasks for user ${userId}`;
+    const embedding = await generateEmbedding(queryText);
+    
+    // Query tasks directly from Pinecone
+    const results = await queryTasks(userId, embedding, {}, 50);
+    
+    // Transform Pinecone results to Task objects
+    const tasks = results.map((match: any) => match.metadata as Task).filter(Boolean);
+    
+    console.log(`✅ [LIVE DATA] Fetched ${tasks.length} tasks from Pinecone:`, tasks.map(t => t.title));
+    
+    return tasks;
+  } catch (error) {
+    console.error('❌ [LIVE DATA] Error fetching tasks:', error);
+    return [];
+  }
+}
+
+function computeGoals(tasks: Task[]) {
+  // Compute dynamic goals based on task categories
+  const careerTasks = tasks.filter(t => t.category === 'career');
+  const financeTasks = tasks.filter(t => t.category === 'finance');
+  
+  const careerCompleted = careerTasks.filter(t => t.status === 'completed').length;
+  const financeCompleted = financeTasks.filter(t => t.status === 'completed').length;
+  
+  return [
+    { 
+      name: 'Career Goals', 
+      completed: careerCompleted, 
+      total: careerTasks.length || 1, 
+      color: 'bg-clay-600' 
+    },
+    { 
+      name: 'Financial Goals', 
+      completed: financeCompleted, 
+      total: financeTasks.length || 1, 
+      color: 'bg-sage-600' 
+    },
+  ];
+}
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -16,55 +67,26 @@ export default async function DashboardPage() {
   const user = await currentUser();
   const userName = user?.firstName || user?.username || 'there';
 
-  // TODO: Fetch real data from API
-  const mockTasks = [
-    {
-      user_id: userId,
-      task_id: 'task_1',
-      title: 'Update resume with recent projects',
-      status: 'in_progress' as const,
-      priority: 'high' as const,
-      time_estimate: 45,
-      category: 'career' as const,
-      created_by: 'system',
-      created_at: new Date().toISOString(),
-    },
-    {
-      user_id: userId,
-      task_id: 'task_2',
-      title: 'Research 5 companies in your field',
-      status: 'not_started' as const,
-      priority: 'medium' as const,
-      time_estimate: 30,
-      category: 'career' as const,
-      created_by: 'system',
-      created_at: new Date().toISOString(),
-    },
-  ];
-
-  const mockQuickWins = [
-    {
-      user_id: userId,
-      task_id: 'quick_1',
-      title: 'Check LinkedIn messages',
-      status: 'not_started' as const,
-      priority: 'low' as const,
-      time_estimate: 5,
-      category: 'career' as const,
-      created_by: 'system',
-      created_at: new Date().toISOString(),
-    },
-  ];
-
-  const mockGoals = [
-    { name: 'Job Search', completed: 6, total: 40, color: 'bg-blue-600' },
-    { name: 'Financial Independence', completed: 3, total: 15, color: 'bg-green-600' },
-  ];
+  // Fetch real tasks from API
+  const allTasks = await fetchTasks(userId);
+  
+  // Separate quick wins (tasks with time_estimate <= 10 minutes)
+  const quickWins = allTasks.filter(task => 
+    task.time_estimate && task.time_estimate <= 10
+  );
+  
+  // Regular tasks (exclude quick wins)
+  const tasks = allTasks.filter(task => 
+    !task.time_estimate || task.time_estimate > 10
+  );
+  
+  // Compute goals dynamically from tasks
+  const goals = computeGoals(allTasks);
 
   return (
     <>
       <Header userName={userName} />
-      <Dashboard tasks={mockTasks} quickWins={mockQuickWins} goals={mockGoals} />
+      <Dashboard tasks={tasks} quickWins={quickWins} goals={goals} />
     </>
   );
 }
