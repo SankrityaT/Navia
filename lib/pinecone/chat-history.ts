@@ -43,6 +43,7 @@ export async function storeChatMessage(
     persona: string;
     complexity?: number;
     hadBreakdown?: boolean;
+    session_id?: string; // Session identifier for filtering
   }
 ): Promise<void> {
   try {
@@ -54,7 +55,7 @@ export async function storeChatMessage(
     const vector = await generateEmbedding(textToEmbed);
 
     // Store in Pinecone
-    const { category, persona, complexity, hadBreakdown } = metadata;
+    const { category, persona, complexity, hadBreakdown, session_id } = metadata;
 
     const cleanMetadata: Record<string, any> = {
       userId,
@@ -75,6 +76,10 @@ export async function storeChatMessage(
       cleanMetadata.hadBreakdown = hadBreakdown;
     }
 
+    if (session_id) {
+      cleanMetadata.session_id = session_id; // Track session for filtering
+    }
+
     await index.upsert([
       {
         id: generateChatId(userId, timestamp),
@@ -83,7 +88,7 @@ export async function storeChatMessage(
       },
     ]);
 
-    console.log(`Stored chat message for user ${userId} in category ${category}`);
+    console.log(`Stored chat message for user ${userId} in category ${category}, session ${session_id || 'none'}`);
   } catch (error) {
     console.error('Error storing chat message:', error);
     throw error;
@@ -92,11 +97,13 @@ export async function storeChatMessage(
 
 /**
  * Retrieve recent chat history for a user
+ * Can filter by session_id for session-specific context
  */
 export async function retrieveChatHistory(
   userId: string,
   limit: number = 10,
-  category?: 'finance' | 'career' | 'daily_task'
+  category?: 'finance' | 'career' | 'daily_task',
+  session_id?: string // Optional: Filter by specific session
 ): Promise<ChatMessage[]> {
   try {
     const index = getIndex();
@@ -107,6 +114,9 @@ export async function retrieveChatHistory(
     const filter: any = { userId };
     if (category) {
       filter.category = category;
+    }
+    if (session_id) {
+      filter.session_id = session_id; // Filter by session
     }
 
     const queryResponse = await index.query({
@@ -142,12 +152,14 @@ export async function retrieveChatHistory(
 
 /**
  * Retrieve relevant chat context using semantic search
+ * Can filter by session_id for session-specific context
  */
 export async function retrieveRelevantContext(
   userId: string,
   query: string,
   category?: 'finance' | 'career' | 'daily_task',
-  limit: number = 5
+  limit: number = 5,
+  session_id?: string // Optional: Filter by specific session
 ): Promise<ChatMessage[]> {
   try {
     const index = getIndex();
@@ -159,6 +171,9 @@ export async function retrieveRelevantContext(
     const filter: any = { userId };
     if (category) {
       filter.category = category;
+    }
+    if (session_id) {
+      filter.session_id = session_id; // Filter by session
     }
 
     // Query Pinecone for semantically similar past conversations

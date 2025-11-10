@@ -170,8 +170,15 @@ export async function orchestrateQuery(
     const intent = await detectIntent(query, userContext?.recentHistory, userContext?.sessionMessageCount);
     console.log(`Intent detected: ${intent.domains.join(', ')} (confidence: ${intent.confidence})`);
 
-    // Step 2: Retrieve chat history for context
-    const chatHistory = await retrieveChatHistory(userId, 5);
+    // Step 2: Use the hybrid context already built (session + semantic + chronological)
+    // DON'T fetch from Pinecone again - we already have the perfect context!
+    const chatHistory = userContext?.recentHistory || [];
+    
+    console.log('📦 Context passed to agents:', {
+      contextLength: chatHistory.length,
+      sessionMessageCount: userContext?.sessionMessageCount,
+      source: 'hybrid (session + semantic + chronological)',
+    });
 
     // Step 3: Build agent context
     const agentContext: AgentContext = {
