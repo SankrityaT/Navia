@@ -37,7 +37,7 @@ export async function groqChatCompletion(
   const {
     model = GROQ_MODELS.LLAMA_4_SCOUT,
     temperature = 0.7,
-    max_tokens = 2048,
+    max_tokens = 8192, // Increased from 2048 to allow complete responses (lists, breakdowns, etc.)
     response_format,
   } = options;
 
@@ -79,7 +79,7 @@ export async function groqStreamChat(
   const {
     model = GROQ_MODELS.LLAMA_4_SCOUT,
     temperature = 0.7,
-    max_tokens = 2048,
+    max_tokens = 8192, // Increased from 2048 to match groqChatCompletion
   } = options;
 
   const client = getGroqClient();

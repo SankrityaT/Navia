@@ -1,15 +1,21 @@
 // API Route: Chat Message Feedback
-// Handles thumbs up/down feedback for AI responses
+// Handles thumbs up/down feedback for AI responses with toggle count tracking
 
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { updateChatMessageFeedback } from '@/lib/supabase/operations';
 
 /**
- * POST: Update feedback for a chat message
+ * POST /api/chat/feedback
+ * 
+ * Store user feedback (helpful/not helpful) for a chat message
+ * Allows 2 total selections (first click + one change), then locks feedback
+ * 
  * Body:
- *   - messageId: UUID of the chat message
- *   - feedback: boolean (true = thumbs up, false = thumbs down, null = remove)
+ * {
+ *   message_id: string (Supabase UUID),
+ *   feedback: boolean (true = helpful, false = not helpful, null = remove)
+ * }
  */
 export async function POST(request: Request) {
   try {
@@ -19,25 +25,28 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { messageId, feedback } = body;
+    const { message_id, feedback } = body;
 
-    // Validate input
-    if (!messageId || typeof messageId !== 'string') {
+    // Validate inputs
+    if (!message_id || typeof message_id !== 'string') {
       return NextResponse.json(
-        { error: 'messageId is required and must be a string' },
+        { error: 'Message ID is required and must be a string' },
         { status: 400 }
       );
     }
 
+    // Allow boolean or null (to remove feedback)
     if (feedback !== null && typeof feedback !== 'boolean') {
       return NextResponse.json(
-        { error: 'feedback must be a boolean or null' },
+        { error: 'Feedback must be a boolean (true = helpful, false = not helpful) or null (to remove)' },
         { status: 400 }
       );
     }
 
-    // Update feedback in database
-    const result = await updateChatMessageFeedback(messageId, userId, feedback);
+    console.log(`📊 Updating feedback: message_id=${message_id}, feedback=${feedback === null ? 'null (remove)' : feedback ? 'helpful' : 'not helpful'}, user=${userId}`);
+
+    // Update feedback with toggle count tracking
+    const result = await updateChatMessageFeedback(message_id, userId, feedback);
 
     if (!result.success) {
       return NextResponse.json(
@@ -51,6 +60,8 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`✅ Feedback updated: message ${message_id}, toggleCount: ${result.toggleCount}, locked: ${result.locked}`);
+
     return NextResponse.json({
       success: true,
       feedback: result.feedback,
@@ -59,7 +70,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Feedback API error:', error);
+    console.error('❌ Feedback API error:', error);
     
     // Handle specific error messages
     if (error.message === 'Message not found') {
@@ -71,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to update feedback' },
+      { error: 'Failed to update feedback', success: false },
       { status: 500 }
     );
   }
