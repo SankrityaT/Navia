@@ -13,6 +13,7 @@ import {
   Leaf,
   Sparkles
 } from 'lucide-react';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -71,6 +72,7 @@ export default function Navbar() {
               <Sparkles className="w-3.5 h-3.5 text-[var(--sage-600)]" strokeWidth={2.5} />
               <span className="text-xs font-medium text-[var(--charcoal)]">Neurodivergent-affirming</span>
             </div>
+            <NotificationBell />
             <UserButton 
               afterSignOutUrl="/"
               appearance={{

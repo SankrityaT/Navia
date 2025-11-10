@@ -72,6 +72,7 @@ export async function GET() {
 
         return {
           id: conn.id,
+          peer_id: peerId,
           peer_name: peerProfile.name,
           peer_bio: `${peerProfile.current_goal?.replace(/_/g, ' ')}. ${neurotypesArray.join(', ')} navigating post-grad life.`,
           neurotype: neurotypesArray,

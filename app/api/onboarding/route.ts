@@ -57,7 +57,28 @@ export async function POST(request: Request) {
       },
     });
 
-    // Save to Supabase
+    // Get smart defaults for interests, seeking, and offers (calculated before Supabase save)
+    const neurotypesArray = Object.entries(neurotypes)
+      .filter(([_, v]) => v)
+      .map(([k]) => k);
+    
+    const efChallengesArray = Object.entries(ef_challenges)
+      .filter(([_, v]) => v)
+      .map(([k]) => k);
+
+    const smartDefaults = getSmartDefaults({
+      current_goal: primaryGoal,
+      ef_challenges: efChallengesArray,
+      neurotype: neurotypesArray,
+      job_field,
+    });
+
+    // Use custom interests/seeking if provided, otherwise use smart defaults
+    const finalInterests = interests && interests.length > 0 ? interests : smartDefaults.interests;
+    const finalSeeking = seeking && seeking.length > 0 ? seeking : smartDefaults.seeking;
+    const finalOffers = smartDefaults.offers;
+
+    // Save to Supabase with ALL fields
     try {
       await upsertUserProfile({
         clerk_user_id: userId,
@@ -68,7 +89,11 @@ export async function POST(request: Request) {
         other_neurotype,
         ef_challenges,
         current_goal,
+        current_goals: goalsArray,
         job_field,
+        interests: finalInterests,
+        seeking: finalSeeking,
+        offers: finalOffers,
         onboarded: true,
         onboarded_at: new Date().toISOString(),
       });
@@ -127,14 +152,6 @@ They benefit from structured guidance, breakdown of complex tasks, and supportiv
 
     // Store peer profile for matching
     try {
-      const neurotypesArray = Object.entries(neurotypes)
-        .filter(([_, v]) => v)
-        .map(([k]) => k);
-      
-      const efChallengesArray = Object.entries(ef_challenges)
-        .filter(([_, v]) => v)
-        .map(([k]) => k);
-
       // Calculate months post-grad from graduation_timeline
       const now = new Date();
       let monthsPostGrad = 0;
@@ -161,18 +178,7 @@ They benefit from structured guidance, breakdown of complex tasks, and supportiv
         }
       }
 
-      // Get smart defaults for interests, seeking, and offers
-      const smartDefaults = getSmartDefaults({
-        current_goal: primaryGoal,
-        ef_challenges: efChallengesArray,
-        neurotype: neurotypesArray,
-        job_field,
-      });
-
-      // Use custom interests/seeking if provided, otherwise use smart defaults
-      const finalInterests = interests && interests.length > 0 ? interests : smartDefaults.interests;
-      const finalSeeking = seeking && seeking.length > 0 ? seeking : smartDefaults.seeking;
-
+      // Use the already calculated smart defaults from above
       const peerProfileData = {
         user_id: userId,
         name: userName,
@@ -183,7 +189,7 @@ They benefit from structured guidance, breakdown of complex tasks, and supportiv
         career_field: job_field || undefined,
         interests: finalInterests,
         seeking: finalSeeking,
-        offers: smartDefaults.offers,
+        offers: finalOffers,
         bio: `${goalsArray.map((g: string) => g.replace(/_/g, ' ')).join(', ')}. ${neurotypesArray.join(', ')} navigating post-grad life.`,
         match_preferences: {
           similar_struggles: true,

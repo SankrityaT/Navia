@@ -43,7 +43,11 @@ export default function PeersPage() {
       if (data.success) {
         // Show success message briefly, then move to next card
         setTimeout(() => {
-          nextCard();
+          if (currentIndex < matches.length - 1) {
+            setCurrentIndex(currentIndex + 1);
+          } else {
+            setCurrentIndex(matches.length);
+          }
           setIsConnecting(false);
         }, 1000);
       } else {
@@ -59,12 +63,12 @@ export default function PeersPage() {
 
   const handlePass = (userId: string) => {
     console.log('Pass on:', userId);
-    nextCard();
-  };
-
-  const nextCard = () => {
+    // Move to next card immediately
     if (currentIndex < matches.length - 1) {
       setCurrentIndex(currentIndex + 1);
+    } else {
+      // Reached the end, show empty state
+      setCurrentIndex(matches.length);
     }
   };
 
@@ -109,12 +113,12 @@ export default function PeersPage() {
           {isLoading ? (
             <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-[var(--clay-300)]/30 p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--clay-500)] mx-auto mb-4"></div>
-              <p className="text-[var(--charcoal)]/70">Finding your matches...</p>
+              <p className="text-[var(--charcoal)]/70">Finding potential connections...</p>
             </div>
           ) : error ? (
             <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-red-300/40 p-12 text-center max-w-md">
               <Users className="w-16 h-16 text-red-400 mx-auto mb-4" />
-              <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>Unable to load matches</h3>
+              <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>Unable to load connections</h3>
               <p className="text-[var(--charcoal)]/70 mb-4">{error}</p>
               <button
                 onClick={() => usePeersStore.getState().fetchMatches()}
@@ -148,24 +152,25 @@ export default function PeersPage() {
           ) : matches.length === 0 ? (
             <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-[var(--clay-300)]/30 p-12 text-center max-w-md">
               <Users className="w-16 h-16 text-[var(--clay-400)] mx-auto mb-4" />
-              <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>No matches yet</h3>
+              <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>No one available yet</h3>
               <p className="text-[var(--charcoal)]/70 mb-6">
                 We're still finding people with similar experiences. Check back soon!
               </p>
             </div>
           ) : currentIndex >= matches.length ? (
             <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-3xl shadow-xl border border-[var(--clay-300)]/30 p-12 text-center max-w-md">
+              <Users className="w-16 h-16 text-[var(--clay-400)] mx-auto mb-4" />
               <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-4" style={{fontFamily: 'var(--font-fraunces)'}}>
-                You've seen all matches!
+                You've reviewed everyone!
               </h3>
               <p className="text-[var(--charcoal)]/70 mb-6">
-                Check back later for new connections
+                Check back later for new people, or take another look—sometimes a second chance leads to great connections.
               </p>
               <button
                 onClick={() => setCurrentIndex(0)}
                 className="px-6 py-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-2xl font-semibold transition-all duration-300 shadow-lg"
               >
-                Review Matches
+                Review Again
               </button>
             </div>
           ) : (

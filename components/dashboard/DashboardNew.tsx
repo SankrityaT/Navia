@@ -388,8 +388,8 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                       <p className="text-sm text-[var(--charcoal)]/60">Try a different filter or add new tasks.</p>
                     </>
                   )}
-                </div>
-              ) : (
+                  </div>
+                ) : (
                 <div className="space-y-3">
                   {todayTasks.map((task, index) => (
                     <div
@@ -438,7 +438,7 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                     </div>
                   ))}
                 </div>
-              )}
+                )}
             </div>
 
             {/* Goal Progress Card - AI Predictions */}

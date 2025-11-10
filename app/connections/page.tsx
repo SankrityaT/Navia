@@ -7,15 +7,19 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
 import ConnectionRequestModal from '@/components/peers/ConnectionRequestModal';
+import ConnectionSuccessDialog from '@/components/peers/ConnectionSuccessDialog';
+import { useConnectionsStore } from '@/lib/stores/connectionsStore';
+import { generateAnonymousName } from '@/lib/utils/anonymousNames';
 import { Users, MessageCircle, Calendar, CheckCircle, Clock, Sparkles } from 'lucide-react';
 
 interface Connection {
   id: string;
+  peer_id: string;
   peer_name: string;
   peer_bio: string;
   neurotype: string[];
   shared_struggles: string[];
-  status: 'pending' | 'accepted';
+  status: 'pending' | 'active' | 'paused' | 'ended';
   created_at: string;
   last_checkin?: string;
   initiated_by?: string;
@@ -23,15 +27,25 @@ interface Connection {
 
 export default function ConnectionsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<Connection | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [acceptedConnectionId, setAcceptedConnectionId] = useState<string | null>(null);
+  
+  const { 
+    connections, 
+    isLoading: loading, 
+    currentUserId,
+    showSuccessDialog,
+    fetchConnections, 
+    acceptConnection, 
+    declineConnection,
+    setCurrentUserId,
+    setShowSuccessDialog
+  } = useConnectionsStore();
 
   useEffect(() => {
     fetchCurrentUser();
     fetchConnections();
-  }, []);
+  }, [fetchConnections]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -45,62 +59,34 @@ export default function ConnectionsPage() {
     }
   };
 
-  const fetchConnections = async () => {
-    try {
-      const response = await fetch('/api/peers/connections');
-      const data = await response.json();
-      
-      if (data.connections) {
-        setConnections(data.connections);
-      }
-    } catch (error) {
-      console.error('Error fetching connections:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAcceptConnection = async (myGoals: string[]) => {
+  const handleAcceptConnection = async () => {
     if (!selectedRequest) return;
     
-    try {
-      const response = await fetch('/api/peers/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connectionId: selectedRequest.id,
-          myGoals,
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Refresh connections
-        await fetchConnections();
-        setSelectedRequest(null);
-        alert('Connection accepted! You can now message each other.');
-      } else {
-        alert('Failed to accept connection. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error accepting connection:', error);
-      alert('Something went wrong. Please try again.');
+    const success = await acceptConnection(selectedRequest.id);
+    if (success) {
+      setAcceptedConnectionId(selectedRequest.id);
+      setSelectedRequest(null);
+    } else {
+      alert('Failed to accept connection. Please try again.');
     }
   };
 
   const handleDeclineConnection = async () => {
     if (!selectedRequest) return;
     
-    // TODO: Implement decline endpoint
-    setSelectedRequest(null);
+    const success = await declineConnection(selectedRequest.id);
+    if (success) {
+      setSelectedRequest(null);
+    } else {
+      alert('Failed to decline connection. Please try again.');
+    }
   };
 
   const formatLabel = (key: string) => {
     return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const acceptedConnections = connections.filter(c => c.status === 'accepted');
+  const acceptedConnections = connections.filter(c => c.status === 'active');
   // Only show pending requests that were sent TO me (not ones I sent)
   const pendingConnections = connections.filter(c => 
     c.status === 'pending' && c.initiated_by !== currentUserId
@@ -125,17 +111,10 @@ export default function ConnectionsPage() {
         
         <div className="relative z-10 max-w-6xl mx-auto px-4 py-8">
           {/* Header */}
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--sage-100)] rounded-full mb-4">
-              <Users className="w-4 h-4 text-[var(--sage-600)]" />
-              <span className="text-sm text-[var(--sage-700)] font-medium">Your Network</span>
-            </div>
-            <h1 className="text-4xl font-serif font-bold text-[var(--charcoal)] mb-3" style={{fontFamily: 'var(--font-fraunces)'}}>
-              My Connections
+          <div className="mb-6">
+            <h1 className="text-3xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
+              Connections
             </h1>
-            <p className="text-[var(--charcoal)]/70 text-lg">
-              Your accountability partners and peer support network
-            </p>
           </div>
 
           {/* Pending Connections */}
@@ -154,7 +133,7 @@ export default function ConnectionsPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                          {connection.peer_name}
+                          {generateAnonymousName(connection.peer_id)}
                         </h3>
                         <p className="text-sm text-[var(--charcoal)]/60 italic">{connection.peer_bio}</p>
                       </div>
@@ -188,81 +167,57 @@ export default function ConnectionsPage() {
             </div>
           )}
 
-          {/* Active Connections */}
+          {/* Active Connections - Modern DM Style */}
           {acceptedConnections.length > 0 ? (
             <div>
-              <h2 className="text-2xl font-serif font-bold text-[var(--charcoal)] mb-4 flex items-center gap-2">
-                <CheckCircle className="w-6 h-6 text-[var(--sage-600)]" />
-                Active Connections ({acceptedConnections.length})
+              <h2 className="text-xl font-semibold text-[var(--charcoal)] mb-4 px-2">
+                Messages
               </h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {acceptedConnections.map((connection) => (
+              <div className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[var(--clay-300)]/30 overflow-hidden">
+                {acceptedConnections.map((connection, index) => (
                   <div
                     key={connection.id}
-                    className="bg-[var(--sand)]/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[var(--clay-300)]/30 p-6 hover:shadow-xl transition-all cursor-pointer"
                     onClick={() => router.push(`/peers/chat/${connection.id}`)}
+                    className={`flex items-center gap-4 p-4 hover:bg-[var(--stone)]/50 cursor-pointer transition-all ${
+                      index !== acceptedConnections.length - 1 ? 'border-b border-[var(--clay-300)]/20' : ''
+                    }`}
                   >
-                    <div className="mb-4">
-                      <h3 className="text-xl font-serif font-bold text-[var(--charcoal)] mb-1" style={{fontFamily: 'var(--font-fraunces)'}}>
-                        {connection.peer_name}
-                      </h3>
-                      <p className="text-sm text-[var(--charcoal)]/60 italic line-clamp-2">{connection.peer_bio}</p>
+                    {/* Avatar */}
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center text-[var(--cream)] font-bold text-lg flex-shrink-0 shadow-md">
+                      {generateAnonymousName(connection.peer_id).charAt(0)}
                     </div>
 
-                    {connection.neurotype.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex flex-wrap gap-1">
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between mb-1">
+                        <h3 className="text-lg font-semibold text-[var(--charcoal)] truncate">
+                          {generateAnonymousName(connection.peer_id)}
+                        </h3>
+                        <span className="text-xs text-[var(--charcoal)]/50 ml-2 flex-shrink-0">
+                          {new Date(connection.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-[var(--charcoal)]/60 truncate">
+                        {connection.shared_struggles.length > 0 
+                          ? `Working on: ${connection.shared_struggles.slice(0, 2).map(s => formatLabel(s)).join(', ')}`
+                          : connection.peer_bio
+                        }
+                      </p>
+                      
+                      {connection.neurotype.length > 0 && (
+                        <div className="flex gap-1 mt-2">
                           {connection.neurotype.slice(0, 2).map((type) => (
-                            <span key={type} className="px-2 py-1 bg-[var(--clay-50)] text-[var(--clay-700)] text-xs rounded-lg">
+                            <span key={type} className="px-2 py-0.5 bg-[var(--sage-100)] text-[var(--sage-700)] text-xs rounded-full">
                               {formatLabel(type)}
                             </span>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {connection.shared_struggles.length > 0 && (
-                      <div className="mb-4">
-                        <p className="text-xs text-[var(--charcoal)]/60 mb-2">We both work on:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {connection.shared_struggles.slice(0, 2).map((struggle) => (
-                            <span key={struggle} className="px-2 py-1 bg-[var(--sage-50)] text-[var(--sage-700)] text-xs rounded-lg">
-                              {formatLabel(struggle)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {connection.last_checkin && (
-                      <div className="flex items-center gap-2 text-xs text-[var(--charcoal)]/60 mb-3">
-                        <Calendar className="w-3 h-3" />
-                        Last check-in: {new Date(connection.last_checkin).toLocaleDateString()}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/peers/chat/${connection.id}`);
-                        }}
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] rounded-xl text-sm font-semibold transition-all"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Message
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/peers/checkin/${connection.id}`);
-                        }}
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-[var(--sage-500)] hover:bg-[var(--sage-600)] text-[var(--cream)] rounded-xl text-sm font-semibold transition-all"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Check-in
-                      </button>
+                      )}
                     </div>
+
+                    {/* Chevron */}
+                    <MessageCircle className="w-5 h-5 text-[var(--charcoal)]/30 flex-shrink-0" />
                   </div>
                 ))}
               </div>
@@ -291,7 +246,7 @@ export default function ConnectionsPage() {
       {/* Connection Request Modal */}
       {selectedRequest && (
         <ConnectionRequestModal
-          peerName={selectedRequest.peer_name}
+          peerName={generateAnonymousName(selectedRequest.peer_id)}
           peerBio={selectedRequest.peer_bio}
           sharedStruggles={selectedRequest.shared_struggles}
           onAccept={handleAcceptConnection}
@@ -299,6 +254,14 @@ export default function ConnectionsPage() {
           onClose={() => setSelectedRequest(null)}
         />
       )}
+
+      {/* Success Dialog */}
+      <ConnectionSuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
+        peerName={acceptedConnectionId ? generateAnonymousName(connections.find(c => c.id === acceptedConnectionId)?.peer_id || '') : ''}
+        connectionId={acceptedConnectionId || undefined}
+      />
     </AuthenticatedLayout>
   );
 }

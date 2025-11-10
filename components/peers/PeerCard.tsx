@@ -125,7 +125,7 @@ export default function PeerCard({ peer, matchScore, matchReasons, onConnect, on
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-5 h-5 text-[var(--sage-600)]" strokeWidth={2.5} />
-              <h4 className="text-sm font-bold text-[var(--charcoal)] uppercase tracking-wide">{peer.name} Offers</h4>
+              <h4 className="text-sm font-bold text-[var(--charcoal)] uppercase tracking-wide">{anonymousName} Offers</h4>
             </div>
             <div className="flex flex-wrap gap-2">
               {peer.offers.map((offer) => (
@@ -145,7 +145,7 @@ export default function PeerCard({ peer, matchScore, matchReasons, onConnect, on
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Heart className="w-5 h-5 text-[var(--clay-500)]" strokeWidth={2.5} />
-              <h4 className="text-sm font-bold text-[var(--charcoal)] uppercase tracking-wide">{peer.name} Needs</h4>
+              <h4 className="text-sm font-bold text-[var(--charcoal)] uppercase tracking-wide">{anonymousName} Needs</h4>
             </div>
             <div className="flex flex-wrap gap-2">
               {peer.seeking.map((need) => (

@@ -104,6 +104,7 @@ export interface ChatMessage {
   persona: string;
   metadata?: Record<string, any>;
   pinecone_id?: string;
+  is_error?: boolean; // Flag to mark error responses (API failures, rate limits, etc.)
 }
 
 /**
@@ -120,6 +121,7 @@ export async function storeChatMessage(chatMessage: ChatMessage) {
       persona: chatMessage.persona,
       metadata: chatMessage.metadata,
       pinecone_id: chatMessage.pinecone_id,
+      is_error: chatMessage.is_error || false, // Default to false for successful messages
     })
     .select()
     .single();
@@ -133,22 +135,29 @@ export async function storeChatMessage(chatMessage: ChatMessage) {
 }
 
 /**
- * Get chat history for a user
+ * Get chat history for a user (formatted for frontend display)
+ * By default, excludes error messages to keep UI clean
  */
 export async function getChatHistory(
   userId: string,
   limit: number = 50,
-  category?: 'finance' | 'career' | 'daily_task'
+  category?: 'finance' | 'career' | 'daily_task',
+  includeErrors: boolean = false // By default, filter out errors
 ) {
   let query = supabaseAdmin
     .from('chat_messages')
-    .select('*')
+    .select('id, user_id, message, response, category, persona, metadata, pinecone_id, is_error, user_feedback, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (category) {
     query = query.eq('category', category);
+  }
+
+  // Filter out errors unless explicitly requested
+  if (!includeErrors) {
+    query = query.eq('is_error', false);
   }
 
   const { data, error } = await query;
@@ -159,6 +168,29 @@ export async function getChatHistory(
   }
 
   return data;
+}
+
+/**
+ * Get formatted chat history for AI context (role + content format)
+ */
+export async function getChatHistoryForAI(
+  userId: string,
+  limit: number = 10,
+  category?: 'finance' | 'career' | 'daily_task'
+): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  const messages = await getChatHistory(userId, limit, category);
+  
+  // Convert to AI format (oldest first for proper conversation flow)
+  const context: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  
+  // Reverse because getChatHistory returns newest first
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    context.push({ role: 'user', content: msg.message });
+    context.push({ role: 'assistant', content: msg.response });
+  }
+  
+  return context;
 }
 
 /**
@@ -205,13 +237,14 @@ export async function deleteOldChatMessages(
 }
 
 /**
- * Get chat statistics for a user
+ * Get chat statistics for a user (excludes error messages)
  */
 export async function getChatStatistics(userId: string) {
   const { data, error } = await supabaseAdmin
     .from('chat_messages')
     .select('category, created_at')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('is_error', false); // Exclude errors from statistics
 
   if (error) {
     console.error('Error getting chat statistics:', error);
@@ -245,5 +278,83 @@ export async function getChatStatistics(userId: string) {
     totalChats: data.length,
     byCategory,
     recentActivity,
+  };
+}
+
+/**
+ * Update user feedback for a chat message
+ * Tracks toggle count and enforces 2-toggle maximum
+ */
+export async function updateChatMessageFeedback(
+  messageId: string,
+  userId: string,
+  feedback: boolean | null
+) {
+  // First, verify the message belongs to the user
+  const { data: message, error: fetchError } = await supabaseAdmin
+    .from('chat_messages')
+    .select('user_id, metadata, user_feedback')
+    .eq('id', messageId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching message:', fetchError);
+    throw new Error('Message not found');
+  }
+
+  if (message.user_id !== userId) {
+    throw new Error('Unauthorized: Cannot update feedback for another user\'s message');
+  }
+
+  // Get current toggle count from metadata
+  const currentMetadata = message.metadata || {};
+  const currentToggleCount = currentMetadata.feedbackToggleCount || 0;
+  const currentFeedback = message.user_feedback;
+
+  // Check if feedback is actually changing (not the same value)
+  const isChanging = currentFeedback !== feedback;
+  
+  // Calculate new toggle count
+  let newToggleCount = currentToggleCount;
+  if (isChanging) {
+    newToggleCount = currentToggleCount + 1;
+  }
+
+  // Enforce 2-toggle maximum
+  if (newToggleCount > 2) {
+    return {
+      success: false,
+      locked: true,
+      message: 'Feedback is locked after 2 changes',
+      toggleCount: currentToggleCount,
+    };
+  }
+
+  // Update the message with new feedback and toggle count
+  const updatedMetadata = {
+    ...currentMetadata,
+    feedbackToggleCount: newToggleCount,
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .update({
+      user_feedback: feedback,
+      metadata: updatedMetadata,
+    })
+    .eq('id', messageId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating feedback:', error);
+    throw error;
+  }
+
+  return {
+    success: true,
+    locked: newToggleCount >= 2,
+    toggleCount: newToggleCount,
+    feedback: feedback,
   };
 }
