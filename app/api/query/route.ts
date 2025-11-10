@@ -161,9 +161,13 @@ export async function POST(request: Request) {
       responseText.toLowerCase().includes('quota exceeded') ||
       responseText.trim().length < 20; // Very short responses are likely errors
 
-    // Store the conversation in Pinecone ONLY if it's a valid response
-    if (!isErrorResponse) {
-      try {
+    // Store the conversation in BOTH Supabase (primary) and Pinecone (semantic search)
+    try {
+      const timestamp = Date.now();
+      const pineconeId = `chat_${userId}_${timestamp}`;
+
+      // 1. Store in Pinecone ONLY if it's a valid response (not an error)
+      if (!isErrorResponse) {
         await storeChatMessage(
           userId,
           query,
@@ -176,15 +180,35 @@ export async function POST(request: Request) {
           }
         );
         console.log('✅ Conversation stored in Pinecone successfully');
-      } catch (storageError) {
-        console.error('Failed to store orchestrated chat:', storageError);
-        // Don't fail the request if storage fails
+      } else {
+        console.warn('⚠️ Skipping Pinecone storage - Error response detected:', {
+          responsePreview: responseText.substring(0, 100),
+          reason: 'Error messages should not pollute vector database',
+        });
       }
-    } else {
-      console.warn('⚠️ Skipping Pinecone storage - Error response detected:', {
-        responsePreview: responseText.substring(0, 100),
-        reason: 'Error messages should not pollute vector database',
+
+      // 2. ALWAYS store in Supabase as primary database (even if Pinecone was skipped)
+      const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
+      await storeInSupabase({
+        user_id: userId,
+        message: query,
+        response: responseText,
+        category: primaryDomain,
+        persona: 'orchestrator',
+        metadata: {
+          complexity: result.metadata.complexity,
+          hadBreakdown: result.metadata.usedBreakdown,
+          domains: result.metadata.domainsInvolved,
+          executionTime: result.metadata.executionTime,
+        },
+        pinecone_id: !isErrorResponse ? pineconeId : undefined, // Only link to Pinecone if stored there
+        is_error: false, // Explicitly mark as successful
       });
+
+      console.log(`✅ Chat stored in Supabase for user ${userId}`);
+    } catch (storageError) {
+      console.error('Failed to store chat:', storageError);
+      // Don't fail the request if storage fails
     }
 
     // Auto-store tasks for each agent that generated a breakdown
