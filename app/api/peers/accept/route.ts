@@ -20,22 +20,30 @@ export async function POST(request: Request) {
 
     const { connectionId, myGoals } = await request.json();
     
-    if (!connectionId || !myGoals) {
+    if (!connectionId) {
       console.log('❌ [ACCEPT CONNECTION] Missing required fields');
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     console.log('📝 [ACCEPT CONNECTION] Connection ID:', connectionId);
-    console.log('🎯 [ACCEPT CONNECTION] My goals:', myGoals);
+    if (myGoals) {
+      console.log('🎯 [ACCEPT CONNECTION] My goals:', myGoals);
+    }
 
     // Update connection status to active in Supabase
+    const updateData: any = {
+      status: 'active',
+      accepted_at: new Date().toISOString(),
+    };
+    
+    // Only add goals if provided
+    if (myGoals) {
+      updateData.user2_goals = myGoals;
+    }
+
     const { data, error } = await supabase
       .from('peer_connections')
-      .update({
-        status: 'active',
-        accepted_at: new Date().toISOString(),
-        user2_goals: myGoals, // Assuming user2 is the one accepting
-      })
+      .update(updateData)
       .eq('id', connectionId)
       .select()
       .single();
