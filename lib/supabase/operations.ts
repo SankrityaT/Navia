@@ -146,7 +146,7 @@ export async function getChatHistory(
 ) {
   let query = supabaseAdmin
     .from('chat_messages')
-    .select('*')
+    .select('id, user_id, message, response, category, persona, metadata, pinecone_id, is_error, user_feedback, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -278,5 +278,83 @@ export async function getChatStatistics(userId: string) {
     totalChats: data.length,
     byCategory,
     recentActivity,
+  };
+}
+
+/**
+ * Update user feedback for a chat message
+ * Tracks toggle count and enforces 2-toggle maximum
+ */
+export async function updateChatMessageFeedback(
+  messageId: string,
+  userId: string,
+  feedback: boolean | null
+) {
+  // First, verify the message belongs to the user
+  const { data: message, error: fetchError } = await supabaseAdmin
+    .from('chat_messages')
+    .select('user_id, metadata, user_feedback')
+    .eq('id', messageId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching message:', fetchError);
+    throw new Error('Message not found');
+  }
+
+  if (message.user_id !== userId) {
+    throw new Error('Unauthorized: Cannot update feedback for another user\'s message');
+  }
+
+  // Get current toggle count from metadata
+  const currentMetadata = message.metadata || {};
+  const currentToggleCount = currentMetadata.feedbackToggleCount || 0;
+  const currentFeedback = message.user_feedback;
+
+  // Check if feedback is actually changing (not the same value)
+  const isChanging = currentFeedback !== feedback;
+  
+  // Calculate new toggle count
+  let newToggleCount = currentToggleCount;
+  if (isChanging) {
+    newToggleCount = currentToggleCount + 1;
+  }
+
+  // Enforce 2-toggle maximum
+  if (newToggleCount > 2) {
+    return {
+      success: false,
+      locked: true,
+      message: 'Feedback is locked after 2 changes',
+      toggleCount: currentToggleCount,
+    };
+  }
+
+  // Update the message with new feedback and toggle count
+  const updatedMetadata = {
+    ...currentMetadata,
+    feedbackToggleCount: newToggleCount,
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .update({
+      user_feedback: feedback,
+      metadata: updatedMetadata,
+    })
+    .eq('id', messageId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating feedback:', error);
+    throw error;
+  }
+
+  return {
+    success: true,
+    locked: newToggleCount >= 2,
+    toggleCount: newToggleCount,
+    feedback: feedback,
   };
 }

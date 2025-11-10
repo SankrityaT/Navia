@@ -162,6 +162,7 @@ export async function POST(request: Request) {
       responseText.trim().length < 20; // Very short responses are likely errors
 
     // Store the conversation in BOTH Supabase (primary) and Pinecone (semantic search)
+    let storedMessage: any = null;
     try {
       const timestamp = Date.now();
       const pineconeId = `chat_${userId}_${timestamp}`;
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
 
       // 2. ALWAYS store in Supabase as primary database (even if Pinecone was skipped)
       const { storeChatMessage: storeInSupabase } = await import('@/lib/supabase/operations');
-      await storeInSupabase({
+      storedMessage = await storeInSupabase({
         user_id: userId,
         message: query,
         response: responseText,
@@ -200,6 +201,7 @@ export async function POST(request: Request) {
           hadBreakdown: result.metadata.usedBreakdown,
           domains: result.metadata.domainsInvolved,
           executionTime: result.metadata.executionTime,
+          feedbackToggleCount: 0, // Initialize feedback toggle count
         },
         pinecone_id: !isErrorResponse ? pineconeId : undefined, // Only link to Pinecone if stored there
         is_error: false, // Explicitly mark as successful
@@ -253,6 +255,7 @@ export async function POST(request: Request) {
         ...result.metadata,
         userId,
         timestamp: Date.now(),
+        messageId: storedMessage?.id, // Include message ID for feedback
       },
     };
     
