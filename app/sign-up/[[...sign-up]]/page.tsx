@@ -111,7 +111,7 @@ export default function SignUpPage() {
               {/* Clerk Sign Up Component with Custom Styling */}
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border-2 border-[var(--clay-200)]">
                 <SignUp 
-                  fallbackRedirectUrl="/onboarding"
+                  fallbackRedirectUrl="/onboarding-v2"
                   signInUrl="/sign-in"
                   appearance={{
                     elements: {
