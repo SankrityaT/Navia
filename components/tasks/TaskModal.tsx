@@ -28,11 +28,11 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case 'career':
-        return { label: 'Career', icon: '💼' };
+        return { label: 'Career', icon: '📈' };
       case 'finance':
-        return { label: 'Finance', icon: '💰' };
+        return { label: 'Finance', icon: '💵' };
       case 'daily_life':
-        return { label: 'Daily Life', icon: '✅' };
+        return { label: 'Daily Life', icon: '🏠' };
       case 'social':
         return { label: 'Social', icon: '👥' };
       default:

@@ -76,10 +76,6 @@ export default function Hero() {
                 Get Started
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
               </Link>
-              <button className="inline-flex items-center gap-3 bg-[var(--sand)] hover:bg-[var(--stone)] text-[var(--charcoal)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60">
-                <Shield className="w-5 h-5" strokeWidth={2.5} />
-                Privacy First
-              </button>
             </div>
 
             {/* Trust Indicators */}

@@ -34,7 +34,7 @@ export default function Problem() {
               The Support Cliff
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              All the accommodations and structure that helped you succeed suddenly disappear at graduation.
+              All support suddenly disappears at graduation.
             </p>
           </div>
 
@@ -46,7 +46,7 @@ export default function Problem() {
               Navigating Expectations
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              Managing job interviews and workplace demands while handling executive function challenges takes a toll on your energy and well-being.
+              Job interviews and workplace demands drain your energy.
             </p>
           </div>
 
@@ -58,7 +58,7 @@ export default function Problem() {
               Burnout & Overwhelm
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              Without the right support, even simple tasks can feel impossible, leading to cycles of burnout.
+              Simple tasks feel impossible without support.
             </p>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function Problem() {
               "You've worked so hard to get here."
             </p>
             <p className="text-lg md:text-xl text-[var(--charcoal)]/70 max-w-3xl mx-auto leading-relaxed font-light">
-              You deserve support that doesn't end with a diploma. Navia is here to help you navigate what comes next—at your own pace, in your own way.
+              Support shouldn't end at graduation. We're here to help—at your pace, your way.
             </p>
           </div>
         </div>

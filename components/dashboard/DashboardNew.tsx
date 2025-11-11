@@ -4,7 +4,7 @@
 'use client';
 
 import { Task } from '@/lib/types';
-import { CheckCircle2, Circle, Clock, TrendingUp, Target, Zap, Calendar, Filter, Sparkles, AlertCircle, Plus } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, BarChart3, Compass, Sparkle, Calendar, Filter, Activity, AlertCircle, Plus, Lightbulb } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import TaskCreationModal from './TaskCreationModal';
 
@@ -290,30 +290,23 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--cream)] via-[var(--sand)] to-[var(--clay-50)] relative overflow-hidden">
-      {/* Floating decorative blobs - z-index controlled */}
-      <div className="absolute top-20 right-10 w-72 h-72 bg-[var(--clay-200)] rounded-full blur-[120px] opacity-20 pointer-events-none -z-0"></div>
-      <div className="absolute bottom-20 left-10 w-64 h-64 bg-[var(--sage-300)] rounded-full blur-[100px] opacity-15 pointer-events-none -z-0"></div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Bento Grid Layout - Responsive */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-          
-          {/* Left Column - Main Content (8 cols) */}
-          <div className="lg:col-span-8 space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-[var(--cream)] relative">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        {/* Single Column Layout */}
+        <div className="space-y-8">
             
             {/* Today's Focus Card - AI Integration Point */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] p-4 sm:p-6 lg:p-8 border-2 border-[var(--clay-200)] shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[var(--clay-200)] shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md flex-shrink-0">
-                    <Target className="w-6 h-6 text-white" strokeWidth={2.5} />
+                  <div className="w-10 h-10 rounded-lg bg-[var(--clay-400)] flex items-center justify-center flex-shrink-0">
+                    <Compass className="w-5 h-5 text-white" strokeWidth={2} />
                   </div>
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
+                    <h2 className="text-lg font-semibold text-[var(--charcoal)]">
                       Today's Focus
                     </h2>
-                    <p className="text-sm text-[var(--charcoal)]/60">AI-prioritized tasks</p>
+                    <p className="text-sm text-[var(--charcoal)]/50 mt-0.5">AI-prioritized tasks</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -321,10 +314,10 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                   <div className="flex gap-2">
                     <button
                       onClick={() => setFilter('all')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium ${
                         filter === 'all'
-                          ? 'bg-[var(--clay-500)] text-white shadow-md'
-                          : 'bg-[var(--sand)] text-[var(--charcoal)]/70 hover:bg-[var(--stone)]'
+                          ? 'bg-[var(--clay-400)] text-white'
+                          : 'bg-[var(--stone)] text-[var(--charcoal)]/70'
                       }`}
                       aria-label="Show all tasks"
                     >
@@ -332,10 +325,10 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                     </button>
                     <button
                       onClick={() => setFilter('career')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium ${
                         filter === 'career'
-                          ? 'bg-[var(--clay-500)] text-white shadow-md'
-                          : 'bg-[var(--sand)] text-[var(--charcoal)]/70 hover:bg-[var(--stone)]'
+                          ? 'bg-[var(--clay-400)] text-white'
+                          : 'bg-[var(--stone)] text-[var(--charcoal)]/70'
                       }`}
                       aria-label="Show career tasks"
                     >
@@ -343,10 +336,10 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                     </button>
                     <button
                       onClick={() => setFilter('finance')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium ${
                         filter === 'finance'
-                          ? 'bg-[var(--clay-500)] text-white shadow-md'
-                          : 'bg-[var(--sand)] text-[var(--charcoal)]/70 hover:bg-[var(--stone)]'
+                          ? 'bg-[var(--clay-400)] text-white'
+                          : 'bg-[var(--stone)] text-[var(--charcoal)]/70'
                       }`}
                       aria-label="Show finance tasks"
                     >
@@ -355,14 +348,14 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                   </div>
                   <button
                     onClick={() => setIsTaskModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--clay-400)] text-white rounded-lg text-xs font-medium"
                     aria-label="Add new task"
                   >
                     <Plus className="w-4 h-4" strokeWidth={2.5} />
                     <span className="hidden sm:inline">Add Task</span>
                   </button>
-                  <div className="px-4 py-2 bg-gradient-to-r from-[var(--sage-100)] to-[var(--sage-200)] rounded-full border border-[var(--sage-300)]">
-                    <span className="text-sm font-semibold text-[var(--sage-700)]">
+                  <div className="px-4 py-2 bg-[var(--sage-100)] rounded-full">
+                    <span className="text-sm font-medium text-[var(--sage-700)]">
                       {todayTasks.length} tasks
                     </span>
                   </div>
@@ -377,39 +370,38 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                 <div className="text-center py-12">
                   {filter === 'all' ? (
                     <>
-                      <CheckCircle2 className="w-16 h-16 text-[var(--sage-500)] mx-auto mb-4 animate-bounce" strokeWidth={2} />
+                      <CheckCircle2 className="w-12 h-12 text-[var(--sage-500)] mx-auto mb-4" strokeWidth={2} />
                       <p className="text-lg font-semibold text-[var(--charcoal)] mb-2">All caught up! 🎉</p>
                       <p className="text-sm text-[var(--charcoal)]/60">You've completed all your tasks for today.</p>
                     </>
                   ) : (
                     <>
-                      <AlertCircle className="w-16 h-16 text-[var(--clay-400)] mx-auto mb-4" strokeWidth={2} />
+                      <AlertCircle className="w-12 h-12 text-[var(--clay-400)] mx-auto mb-4" strokeWidth={2} />
                       <p className="text-lg font-semibold text-[var(--charcoal)] mb-2">No {filter} tasks</p>
                       <p className="text-sm text-[var(--charcoal)]/60">Try a different filter or add new tasks.</p>
                     </>
                   )}
                   </div>
                 ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {todayTasks.map((task, index) => (
                     <div
                       key={task.task_id}
-                      className="group flex items-start gap-4 p-4 bg-white rounded-xl border-2 border-[var(--clay-200)] hover:border-[var(--clay-400)] hover:shadow-md transition-all duration-300 animate-fade-in-up"
-                      style={{ animationDelay: `${index * 50}ms` }}
+                      className="flex items-start gap-4 p-5 bg-[var(--sand)] rounded-2xl border border-[var(--clay-200)]"
                     >
                       <button 
                         onClick={() => handleToggleTask(task.task_id)}
-                        className="mt-0.5 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] rounded-full p-1 transition-transform hover:scale-110 active:scale-95"
+                        className="mt-0.5 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--clay-400)] rounded-full"
                         aria-label={task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}
                       >
                         {task.status === 'completed' ? (
                           <CheckCircle2 className="w-5 h-5 text-[var(--sage-600)]" strokeWidth={2.5} />
                         ) : (
-                          <Circle className="w-5 h-5 text-[var(--clay-400)] group-hover:text-[var(--clay-600)]" strokeWidth={2.5} />
+                          <Circle className="w-5 h-5 text-[var(--clay-400)]" strokeWidth={2} />
                         )}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <h3 className={`font-semibold mb-1 ${task.status === 'completed' ? 'text-[var(--charcoal)]/50 line-through' : 'text-[var(--charcoal)]'}`}>
+                        <h3 className={`font-medium mb-2 ${task.status === 'completed' ? 'text-[var(--charcoal)]/50 line-through' : 'text-[var(--charcoal)]'}`}>
                           {task.title}
                         </h3>
                         <div className="flex items-center gap-3 text-xs text-[var(--charcoal)]/60 flex-wrap">
@@ -418,7 +410,7 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                             task.category === 'finance' ? 'bg-[var(--sage-100)]' :
                             'bg-[var(--stone)]'
                           }`}>
-                            {task.category === 'career' ? '💼' : task.category === 'finance' ? '💰' : '✅'} {task.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {task.category === 'career' ? '📈' : task.category === 'finance' ? '💵' : '🏠'} {task.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                           {task.time_estimate && (
                             <span className="flex items-center gap-1">
@@ -441,17 +433,124 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                 )}
             </div>
 
-            {/* Goal Progress Card - AI Predictions */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] p-4 sm:p-6 lg:p-8 border-2 border-[var(--clay-200)] shadow-lg hover:shadow-xl transition-all duration-300">
+            {/* Combined Stats & Quick Wins Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Today's Stats - Compact */}
+              <div className="bg-white rounded-3xl p-6 border border-[var(--clay-200)] shadow-sm">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-lg bg-[var(--clay-400)] flex items-center justify-center flex-shrink-0">
+                    <Activity className="w-5 h-5 text-white" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--charcoal)]">
+                    Today's Stats
+                  </h3>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-[var(--sand)] rounded-xl">
+                    <p className="text-xs text-[var(--charcoal)]/60">Completion Rate</p>
+                    <div className="text-2xl font-semibold text-[var(--charcoal)]">
+                      {completionRate}%
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-[var(--sand)] rounded-xl">
+                    <p className="text-xs text-[var(--charcoal)]/60">Completed</p>
+                    <div className="text-2xl font-semibold text-[var(--charcoal)]">
+                      {completedToday}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-[var(--sand)] rounded-xl">
+                    <p className="text-xs text-[var(--charcoal)]/60">Remaining</p>
+                    <div className="text-2xl font-semibold text-[var(--charcoal)]">
+                      {todayTasks.length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Wins - Compact */}
+              <div className="bg-white rounded-3xl p-6 border border-[var(--clay-200)] shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--sage-500)] flex items-center justify-center flex-shrink-0">
+                      <Sparkle className="w-5 h-5 text-white" strokeWidth={2} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-[var(--charcoal)]">
+                        Quick Wins
+                      </h3>
+                      <p className="text-xs text-[var(--charcoal)]/50 mt-0.5">
+                        Easiest tasks
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-400 rounded-full">
+                    <span className="text-base">🔥</span>
+                    <span className="text-sm font-semibold text-white">{completedToday}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {intelligentQuickWins.slice(0, 3).map((task, index) => (
+                    <div
+                      key={task.task_id}
+                      className="flex items-start gap-3 p-3 bg-[var(--sand)] rounded-xl"
+                    >
+                      <button
+                        onClick={() => handleToggleQuickWin(task.task_id)}
+                        className="mt-0.5 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--sage-500)] rounded-full"
+                        aria-label={task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}
+                      >
+                        {task.status === 'completed' ? (
+                          <CheckCircle2 className="w-5 h-5 text-[var(--sage-600)]" strokeWidth={2.5} />
+                        ) : (
+                          <Circle className="w-5 h-5 text-[var(--clay-400)]" strokeWidth={2} />
+                        )}
+                      </button>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${
+                          task.status === 'completed' 
+                            ? 'text-[var(--charcoal)]/50 line-through' 
+                            : 'text-[var(--charcoal)]'
+                        }`}>
+                          {task.title}
+                        </p>
+                        {task.time_estimate && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Clock className="w-3 h-3 text-[var(--charcoal)]/50" strokeWidth={2} />
+                            <span className="text-xs text-[var(--charcoal)]/50">{task.time_estimate}m</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {intelligentQuickWins.length === 0 && (
+                    <div className="text-center py-6">
+                      <div className="text-3xl mb-2">🎯</div>
+                      <p className="text-sm font-medium text-[var(--charcoal)]/60">All caught up!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Goal Progress Card - Simplified */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[var(--clay-200)] shadow-sm">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] flex items-center justify-center shadow-md flex-shrink-0">
-                  <TrendingUp className="w-6 h-6 text-white" strokeWidth={2.5} />
+                <div className="w-10 h-10 rounded-lg bg-[var(--sage-500)] flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 text-white" strokeWidth={2} />
                 </div>
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  <h2 className="text-lg font-semibold text-[var(--charcoal)]">
                     Goal Progress
                   </h2>
-                  <p className="text-sm text-[var(--charcoal)]/60">AI-powered forecasting</p>
+                  <p className="text-sm text-[var(--charcoal)]/50 mt-0.5">AI-powered forecasting</p>
                 </div>
               </div>
 
@@ -505,304 +604,25 @@ export default function Dashboard({ tasks: initialTasks, quickWins: initialQuick
                 })}
               </div>
             </div>
-          </div>
-
-          {/* Right Column - Sidebar (4 cols) */}
-          <div className="lg:col-span-4 flex flex-col gap-4 sm:gap-6">
-            
-            {/* Stats Card */}
-            <div className="bg-gradient-to-br from-[var(--clay-200)] via-[var(--sand)] to-[var(--clay-100)] rounded-[2rem] p-4 sm:p-6 border-2 border-[var(--clay-300)]/40 shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md flex-shrink-0">
-                  <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
-                </div>
-                <h3 className="text-lg sm:text-xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                  Today's Stats
-                </h3>
-              </div>
-              
-              <div className="space-y-2.5">
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-[var(--clay-200)] min-h-[72px] flex flex-col justify-center hover:shadow-md transition-shadow">
-                  <div className="text-2xl sm:text-3xl font-serif font-bold text-[var(--charcoal)] mb-0.5 leading-none" style={{fontFamily: 'var(--font-fraunces)'}}>
-                    {completionRate}%
-                  </div>
-                  <p className="text-xs text-[var(--charcoal)]/70 leading-tight">Completion Rate</p>
-                </div>
-                
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-[var(--clay-200)] min-h-[72px] flex flex-col justify-center hover:shadow-md transition-shadow">
-                  <div className="text-2xl sm:text-3xl font-serif font-bold text-[var(--charcoal)] mb-0.5 leading-none" style={{fontFamily: 'var(--font-fraunces)'}}>
-                    {completedToday}
-                  </div>
-                  <p className="text-xs text-[var(--charcoal)]/70 leading-tight">Tasks Completed</p>
-                </div>
-                
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-[var(--clay-200)] min-h-[72px] flex flex-col justify-center hover:shadow-md transition-shadow">
-                  <div className="text-2xl sm:text-3xl font-serif font-bold text-[var(--charcoal)] mb-0.5 leading-none" style={{fontFamily: 'var(--font-fraunces)'}}>
-                    {todayTasks.length}
-                  </div>
-                  <p className="text-xs text-[var(--charcoal)]/70 leading-tight">Tasks Remaining</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Wins - Ultra Gamified & Visually Stunning */}
-            <div className="bg-gradient-to-br from-[var(--sage-400)]/20 via-white to-[var(--sage-300)]/20 rounded-[2rem] p-4 sm:p-6 border-2 border-[var(--sage-400)]/30 shadow-lg hover:shadow-xl transition-all duration-300 flex-grow relative overflow-hidden">
-              {/* Animated Background Particles */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--sage-400)]/10 rounded-full blur-3xl animate-pulse"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-[var(--sage-500)]/10 rounded-full blur-2xl animate-pulse delay-700"></div>
-              
-              {/* Soothing Popup Notification */}
-              {showQuickWinPopup && (() => {
-                const popupData = JSON.parse(quickWinPopupMessage);
-                return (
-                  <div className="absolute inset-4 flex items-center justify-center z-50 animate-in fade-in zoom-in duration-300">
-                    <div className={`relative bg-gradient-to-br ${popupData.color} rounded-xl p-4 sm:p-5 shadow-2xl border-2 border-white/50 backdrop-blur-sm max-w-[240px] w-full`}>
-                      {/* Glow Effect */}
-                      <div className="absolute inset-0 rounded-xl bg-white/20 blur-lg"></div>
-                      
-                      {/* Content */}
-                      <div className="relative text-center">
-                        {/* Emoji */}
-                        <div className="text-4xl mb-2 animate-bounce">
-                          {popupData.emoji}
-                        </div>
-                        
-                        {/* Message */}
-                        <p className="text-lg font-black text-white mb-1.5 drop-shadow-lg leading-tight">
-                          {popupData.text}
-                        </p>
-                        
-                        {/* Subtitle */}
-                        <p className="text-xs text-white/90 font-medium">
-                          Quick Win completed! 🎯
-                        </p>
-                        
-                        {/* Decorative Elements */}
-                        <div className="flex justify-center gap-1 mt-2.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"></div>
-                          <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse delay-100"></div>
-                          <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse delay-200"></div>
-                        </div>
-                      </div>
-                      
-                      {/* Sparkles */}
-                      <div className="absolute -top-1 -right-1 text-xl animate-spin-slow">✨</div>
-                      <div className="absolute -bottom-1 -left-1 text-xl animate-spin-slow delay-500">💫</div>
-                    </div>
-                  </div>
-                );
-              })()}
-              
-              <div className="relative z-10">
-                {/* Header with Progress Ring */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] flex items-center justify-center shadow-md flex-shrink-0 animate-pulse">
-                        <Zap className="w-6 h-6 text-white" strokeWidth={2.5} />
-                      </div>
-                      {/* Pulsing Ring */}
-                      <div className="absolute inset-0 rounded-xl border-2 border-[var(--sage-500)] animate-ping opacity-20"></div>
-                    </div>
-                    <div>
-                      <h3 className="text-lg sm:text-xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                        Quick Wins ⚡
-                      </h3>
-                      <p className="text-xs text-[var(--sage-600)] font-semibold">
-                        Top 3 Easiest Tasks
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Streak Counter - Bigger */}
-                  <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105">
-                      <span className="text-2xl">🔥</span>
-                      <span className="text-lg font-black text-white">{completedToday}</span>
-                    </div>
-                    <p className="text-[10px] text-[var(--charcoal)]/60 mt-1 font-medium">today</p>
-                  </div>
-                </div>
-                
-                {/* Tasks with Ranking Medals */}
-                <div className="space-y-3">
-                  {intelligentQuickWins.map((task, index) => {
-                    const isCelebrating = celebratingTaskId === task.task_id;
-                    const medals = ['🥇', '🥈', '🥉'];
-                    const rankColors = [
-                      'from-yellow-400 to-yellow-500',
-                      'from-gray-300 to-gray-400', 
-                      'from-orange-400 to-orange-500'
-                    ];
-                    
-                    return (
-                      <div
-                        key={task.task_id}
-                        className={`group relative rounded-2xl transition-all duration-500 ${
-                          isCelebrating 
-                            ? 'scale-105 shadow-2xl' 
-                            : 'hover:scale-102 hover:shadow-lg'
-                        }`}
-                      >
-                        {/* Celebration Confetti Overlay */}
-                        {isCelebrating && (
-                          <div className="absolute inset-0 bg-gradient-to-r from-[var(--sage-400)]/30 to-[var(--sage-500)]/30 rounded-2xl flex items-center justify-center z-20 backdrop-blur-sm">
-                            <div className="text-center animate-bounce">
-                              <div className="text-5xl mb-2">🎉</div>
-                              <div className="flex items-center gap-2 justify-center mb-1">
-                                <span className="text-lg font-black text-[var(--sage-700)]">{motivationMessage}</span>
-                              </div>
-                              <div className="flex items-center gap-2 justify-center px-3 py-1 bg-white/90 rounded-full shadow-lg">
-                                <span className="text-xs font-bold text-[var(--sage-600)]">+10 XP</span>
-                                <span className="text-xs">💎</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Task Card */}
-                        <div className={`relative bg-white rounded-2xl border-2 p-4 transition-all duration-300 ${
-                          isCelebrating 
-                            ? 'border-[var(--sage-500)]' 
-                            : 'border-[var(--sage-300)] group-hover:border-[var(--sage-500)]'
-                        }`}>
-                          {/* Rank Medal Badge */}
-                          <div className={`absolute -top-3 -left-3 w-10 h-10 rounded-full bg-gradient-to-br ${rankColors[index]} flex items-center justify-center shadow-lg border-2 border-white z-10`}>
-                            <span className="text-lg">{medals[index]}</span>
-                          </div>
-                          
-                          {/* Difficulty Bar */}
-                          <div className="absolute top-2 right-2 flex gap-0.5">
-                            {[1, 2, 3].map((dot) => (
-                              <div 
-                                key={dot}
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  dot <= (3 - index) ? 'bg-[var(--sage-500)]' : 'bg-[var(--sage-200)]'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          
-                          <div className="flex items-start gap-3 mt-2">
-                            {/* Checkbox */}
-                            <button
-                              onClick={() => handleToggleQuickWin(task.task_id)}
-                              className="mt-1 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--sage-500)] rounded-full transition-all hover:scale-125 active:scale-95"
-                              aria-label={task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}
-                            >
-                              {task.status === 'completed' ? (
-                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] flex items-center justify-center shadow-md">
-                                  <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={3} />
-                                </div>
-                              ) : (
-                                <div className="w-6 h-6 rounded-full border-2 border-[var(--sage-400)] group-hover:border-[var(--sage-500)] transition-colors" />
-                              )}
-                            </button>
-                            
-                            <div className="flex-1 min-w-0">
-                              {/* Task Title */}
-                              <p className={`text-sm font-semibold mb-2 ${
-                                task.status === 'completed' 
-                                  ? 'text-[var(--charcoal)]/50 line-through' 
-                                  : 'text-[var(--charcoal)] group-hover:text-[var(--sage-700)]'
-                              }`}>
-                                {task.title}
-                              </p>
-                              
-                              {/* Task Meta Info */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {/* Time Badge */}
-                                {task.time_estimate && (
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-[var(--sage-100)] to-[var(--sage-200)] rounded-lg">
-                                    <Clock className="w-3 h-3 text-[var(--sage-600)]" strokeWidth={2.5} />
-                                    <span className="text-xs font-bold text-[var(--sage-700)]">{task.time_estimate}m</span>
-                                  </div>
-                                )}
-                                
-                                {/* Category Badge */}
-                                <span className="text-[10px] px-2 py-1 bg-white border border-[var(--sage-300)] text-[var(--sage-700)] rounded-lg font-semibold">
-                                  {task.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                </span>
-                                
-                                {/* Priority Indicator */}
-                                <div className={`w-2 h-2 rounded-full ${
-                                  task.priority === 'high' ? 'bg-red-500' :
-                                  task.priority === 'medium' ? 'bg-yellow-500' :
-                                  'bg-green-500'
-                                } shadow-sm`} />
-                              </div>
-                              
-                              {/* Progress Bar for Time */}
-                              {task.time_estimate && (
-                                <div className="mt-2 h-1.5 bg-[var(--sage-100)] rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-[var(--sage-400)] to-[var(--sage-500)] rounded-full transition-all duration-1000"
-                                    style={{ width: task.status === 'completed' ? '100%' : '0%' }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Empty State */}
-                  {intelligentQuickWins.length === 0 && (
-                    <div className="text-center py-8">
-                      <div className="relative inline-block mb-3">
-                        <div className="text-5xl animate-bounce">🎯</div>
-                        <div className="absolute -top-2 -right-2 text-2xl animate-spin-slow">✨</div>
-                      </div>
-                      <p className="text-base font-bold text-[var(--charcoal)] mb-1">
-                        All Caught Up!
-                      </p>
-                      <p className="text-xs text-[var(--charcoal)]/60">
-                        You're crushing it! 🚀
-                      </p>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Bottom Progress Indicator */}
-                {intelligentQuickWins.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-[var(--sage-300)]">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--charcoal)]/60 font-medium">Daily Progress</span>
-                      <span className="font-bold text-[var(--sage-700)]">{completedToday}/{totalTasks} tasks</span>
-                    </div>
-                    <div className="mt-2 h-2 bg-[var(--sage-100)] rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-[var(--sage-400)] via-[var(--sage-500)] to-[var(--sage-600)] rounded-full transition-all duration-1000 shadow-sm"
-                        style={{ width: `${completionRate}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
 
             {/* AI-Generated Motivational Card */}
-            <div className="bg-white rounded-[2rem] p-4 sm:p-5 border-2 border-[var(--charcoal)] shadow-lg flex-shrink-0 hover:shadow-xl transition-shadow">
+            <div className="bg-white rounded-3xl p-6 border border-[var(--clay-200)] shadow-sm">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md">
-                    <Sparkles className="w-5 h-5 text-white" strokeWidth={2.5} />
+                  <div className="w-10 h-10 rounded-lg bg-[var(--clay-400)] flex items-center justify-center">
+                    <Lightbulb className="w-5 h-5 text-white" strokeWidth={2} />
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-serif font-bold text-[var(--charcoal)] mb-2" style={{fontFamily: 'var(--font-fraunces)'}}>
+                  <h3 className="text-lg font-semibold text-[var(--charcoal)] mb-2">
                     AI Insight
                   </h3>
-                  <p className="text-sm text-[var(--charcoal)]/70 leading-relaxed">
+                  <p className="text-sm text-[var(--charcoal)]/60 leading-relaxed">
                     {motivationalMessage || "You're making great progress. Remember, small steps lead to big achievements. 💚"}
                   </p>
                 </div>
               </div>
             </div>
-
-          </div>
         </div>
       </div>
 

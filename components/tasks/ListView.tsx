@@ -18,9 +18,9 @@ export default function ListView({ tasks }: ListViewProps) {
 
   const categories = [
     { key: 'all', label: 'All Tasks', icon: '📋' },
-    { key: 'career', label: 'Career Tasks', icon: '💼' },
-    { key: 'finance', label: 'Financial Tasks', icon: '💰' },
-    { key: 'daily_life', label: 'Daily Tasks', icon: '✅' },
+    { key: 'career', label: 'Career Tasks', icon: '📈' },
+    { key: 'finance', label: 'Financial Tasks', icon: '💵' },
+    { key: 'daily_life', label: 'Daily Tasks', icon: '🏠' },
     { key: 'social', label: 'Social Tasks', icon: '👥' },
   ];
 

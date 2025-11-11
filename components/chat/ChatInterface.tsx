@@ -16,6 +16,7 @@ interface Message {
   timestamp: Date;
   functionCall?: any;
   breakdown?: string[];
+  breakdownTips?: string[]; // Tips for task breakdown
   resources?: Array<{ title: string; url: string; description?: string; type?: string }>;
   sources?: Array<{ title: string; url: string; excerpt?: string }>;
   suggestBreakdown?: boolean;
@@ -54,7 +55,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
       role: 'assistant',
       content: "Hi! I'm Navia, your AI executive function coach. 💚\n\nI'm here to support you with career planning, managing finances, organizing daily tasks, and more—without any masking required. Just tell me what's on your mind, and we'll figure it out together.",
       persona: 'daily_tasks',
-      personaIcon: '✅',
+      personaIcon: '🏠',
       timestamp: new Date(),
     },
   ]);
@@ -124,7 +125,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         role: 'assistant',
         content: "Hi! I'm Navia, your AI executive function coach. 💚\n\nI'm here to support you with career planning, managing finances, organizing daily tasks, and more—without any masking required. Just tell me what's on your mind, and we'll figure it out together.",
         persona: 'daily_tasks',
-        personaIcon: '✅',
+        personaIcon: '🏠',
         timestamp: new Date(),
       },
       {
@@ -158,7 +159,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
         role: 'assistant',
         content: "Hi! I'm Navia, your AI executive function coach. 💚\n\nI'm here to support you with career planning, managing finances, organizing daily tasks, and more—without any masking required. Just tell me what's on your mind, and we'll figure it out together.",
         persona: 'daily_tasks',
-        personaIcon: '✅',
+        personaIcon: '◆',
         timestamp: new Date(),
       },
     ]);
@@ -414,12 +415,12 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
 
   const getPersonaIcon = (persona: string) => {
     const icons: Record<string, string> = {
-      career: '💼',
-      finance: '💰',
-      daily_task: '✅',
-      daily_tasks: '✅',
+      career: '◈',
+      finance: '💵',
+      daily_task: '🏠',
+      daily_tasks: '🏠',
     };
-    return icons[persona] || '✅';
+    return icons[persona] || '🏠';
   };
 
   const getPersonaLabel = (persona: string) => {
@@ -504,7 +505,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                   >
                     {/* Category Badge */}
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm">{getPersonaIcon(item.category)}</span>
+                      <span className="text-lg">{getPersonaIcon(item.category)}</span>
                       <span className={`px-2 py-0.5 ${colors.bg} ${colors.text} text-xs font-bold rounded-md`}>
                         {getPersonaLabel(item.category)}
                       </span>
@@ -706,7 +707,7 @@ export default function ChatInterface({ userContext }: ChatInterfaceProps) {
                       onClick={() => handleBreakdownResponse(true, message.originalQuery || '')}
                           className="flex-1 min-w-[140px] px-5 py-3.5 bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] hover:from-[var(--sage-600)] hover:to-[var(--sage-700)] text-white rounded-xl font-bold transition-all duration-200 text-sm shadow-md hover:shadow-lg active:scale-95"
                     >
-                      ✅ Yes, create a plan
+                      🏠 Yes, create a plan
                     </button>
                     <button
                       onClick={() => handleBreakdownResponse(false, message.originalQuery || '')}

@@ -54,7 +54,7 @@ export default function HowItWorks() {
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    Share what feels comfortable. Tell us about your challenges, your goals, and what kind of support would be helpful for you.
+                    Share your challenges and goals. Only what feels comfortable.
                   </p>
                 </div>
               </div>
@@ -86,7 +86,7 @@ export default function HowItWorks() {
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    Gentle prompts help you notice energy changes, what drains you, and the environments that feel supportive. No judgment—just curious reflection.
+                    Notice what drains you and what helps. No judgment.
                   </p>
                 </div>
               </div>
@@ -118,7 +118,7 @@ export default function HowItWorks() {
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    Receive personalized suggestions, task breakdowns, and strategies to help you navigate daily challenges in ways that work for you.
+                    Get task breakdowns and strategies that work for you.
                   </p>
                 </div>
               </div>
@@ -150,7 +150,7 @@ export default function HowItWorks() {
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    See your progress over time. Celebrate small wins, adjust what's working, and build confidence—all at your own pace.
+                    See your progress. Celebrate wins. Build confidence.
                   </p>
                 </div>
               </div>

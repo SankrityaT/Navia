@@ -76,11 +76,11 @@ function DraggableTaskCard({ task, onClick }: { task: Task; onClick: () => void 
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'career':
-        return '💼';
+        return '📈';
       case 'finance':
-        return '💰';
+        return '💵';
       case 'daily_life':
-        return '✅';
+        return '🏠';
       case 'social':
         return '👥';
       default:
@@ -255,11 +255,11 @@ export default function KanbanView({ tasks: initialTasks }: KanbanViewProps) {
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'career':
-        return '💼';
+        return '📈';
       case 'finance':
-        return '💰';
+        return '💵';
       case 'daily_life':
-        return '✅';
+        return '🏠';
       case 'social':
         return '👥';
       default:
