@@ -92,12 +92,30 @@ export default function UniversalNavia({
       // Send to API with full message history
       (async () => {
         try {
+          // Detect emotions from proactive message
+          let emotions = null;
+          try {
+            const emotionResponse = await fetch('/api/emotion-detect', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: proactiveMessage }),
+            });
+            
+            if (emotionResponse.ok) {
+              emotions = await emotionResponse.json();
+              console.log('🎭 Detected emotions (proactive):', emotions);
+            }
+          } catch (emotionError) {
+            console.warn('Emotion detection failed for proactive message:', emotionError);
+          }
+
           const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               messages: newMessages.map(({ role, content }) => ({ role, content })),
               context: { ...context, mode },
+              emotions, // Include detected emotions
             }),
           });
 
@@ -287,12 +305,31 @@ export default function UniversalNavia({
     }
 
     try {
+      // Detect emotions from user's message using Hume AI
+      let emotions = null;
+      try {
+        const emotionResponse = await fetch('/api/emotion-detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: textToSend }),
+        });
+        
+        if (emotionResponse.ok) {
+          emotions = await emotionResponse.json();
+          console.log('🎭 Detected emotions:', emotions);
+        }
+      } catch (emotionError) {
+        console.warn('Emotion detection failed, continuing without it:', emotionError);
+        // Continue without emotions if detection fails
+      }
+
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
           context: { ...context, mode },
+          emotions, // Include detected emotions
         }),
       });
 

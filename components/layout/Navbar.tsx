@@ -16,7 +16,7 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/dashboard-new', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/peers', label: 'Peer Network', icon: Users },
+    { href: '/peer-new', label: 'Peer Network', icon: Users },
   ];
 
   const isActive = (href: string) => pathname.startsWith(href);
