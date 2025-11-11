@@ -123,25 +123,21 @@ export default function DashboardBento({
             {/* Task List */}
             <div className="flex-1 space-y-3 mb-4 overflow-y-auto">
               {tasks.length === 0 ? (
-                <div className="space-y-3">
-                  {/* Loading Skeleton */}
-                  {[1, 2, 3].map((i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: [0.3, 0.6, 0.3] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
-                      className="flex items-start gap-3 p-4 bg-[var(--sand)]/50 rounded-xl border border-[var(--clay-200)]"
-                    >
-                      <div className="w-5 h-5 rounded-full bg-[var(--clay-200)] animate-pulse" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-[var(--clay-200)] rounded w-3/4 animate-pulse" />
-                        <div className="h-3 bg-[var(--clay-100)] rounded w-1/2 animate-pulse" />
-                      </div>
-                    </motion.div>
-                  ))}
-                  <p className="text-center text-[var(--charcoal)]/40 text-sm mt-4">Loading your tasks...</p>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col items-center justify-center py-12 px-6 text-center h-full"
+                >
+                  <div className="w-20 h-20 bg-[var(--sand)] rounded-full flex items-center justify-center mb-4">
+                    <CheckCircle2 className="w-10 h-10 text-[var(--clay-400)]" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-[var(--charcoal)] mb-2">
+                    No tasks yet
+                  </h3>
+                  <p className="text-[var(--sage-600)] mb-6 max-w-sm">
+                    Start your day by adding your first task below. I'll help you break it down if it feels overwhelming! 💛
+                  </p>
+                </motion.div>
               ) : (
                 tasks.map((task) => {
                   const taskId = task.task_id || task.id;

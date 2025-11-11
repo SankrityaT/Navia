@@ -19,7 +19,9 @@ export default function OnboardingV2() {
   const [isTyping, setIsTyping] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [userResponses, setUserResponses] = useState<string[]>([]);
+  const [questionCount, setQuestionCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [canFinish, setCanFinish] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -227,7 +229,9 @@ export default function OnboardingV2() {
 
       const newResponses = [...userResponses, transcript];
       setUserResponses(newResponses);
+      setQuestionCount(prev => prev + 1);
       console.log('📝 User responses:', newResponses);
+      console.log('📊 Question count:', questionCount + 1);
 
       // Detect emotions from text
       try {
@@ -311,28 +315,34 @@ export default function OnboardingV2() {
       console.log('📝 Full response received:', aiResponse);
       playTTS(aiResponse);
 
-      // Check if AI is offering the choice to continue or finish
+      // Enable finish button after 3 questions minimum
+      if (questionCount + 1 >= 3) {
+        setCanFinish(true);
+      }
+
+      // Auto-complete after 6 questions to prevent infinite loop
+      if (questionCount + 1 >= 6) {
+        console.log('✅ Auto-completing onboarding after 6 questions');
+        await saveUserContext();
+        setTimeout(() => {
+          router.push('/dashboard-new');
+        }, 3000);
+        return;
+      }
+
+      // Check if AI is explicitly finishing
       const lowerResponse = aiResponse.toLowerCase();
-      const isOfferingChoice = 
-        lowerResponse.includes('would you like to tell me more') ||
-        lowerResponse.includes('want to tell me more') ||
-        lowerResponse.includes('dive into your dashboard');
-      
       const wantsToFinish = 
         lowerResponse.includes('setting up your dashboard') ||
         lowerResponse.includes("let's do this together") ||
         lowerResponse.includes('perfect! i\'m setting up');
       
-      if (wantsToFinish && !isOfferingChoice) {
-        // Only redirect if AI explicitly says they're setting up dashboard
-        // AND not offering a choice
-        saveUserContext();
-        
+      if (wantsToFinish) {
+        await saveUserContext();
         setTimeout(() => {
           router.push('/dashboard-new');
-        }, 6000);
+        }, 3000);
       }
-      // Otherwise, conversation continues and waits for user's choice
     } catch (error) {
       console.error('❌ Voice processing error:', error);
       await typeText("I'm having trouble connecting. Let's try that again!");
@@ -351,7 +361,9 @@ export default function OnboardingV2() {
     const userMessage = chatInput.trim();
     setChatInput('');
     setUserResponses([...userResponses, userMessage]);
+    setQuestionCount(prev => prev + 1);
     setIsLoading(true);
+    console.log('📊 Question count:', questionCount + 1);
 
     // Detect emotions
     try {
@@ -416,27 +428,34 @@ export default function OnboardingV2() {
 
       setIsTyping(false);
 
-      // Check if AI is offering the choice to continue or finish
+      // Enable finish button after 3 questions minimum
+      if (questionCount + 1 >= 3) {
+        setCanFinish(true);
+      }
+
+      // Auto-complete after 6 questions to prevent infinite loop
+      if (questionCount + 1 >= 6) {
+        console.log('✅ Auto-completing onboarding after 6 questions');
+        await saveUserContext();
+        setTimeout(() => {
+          router.push('/dashboard-new');
+        }, 3000);
+        return;
+      }
+
+      // Check if AI is explicitly finishing
       const lowerResponse = aiResponse.toLowerCase();
-      const isOfferingChoice = 
-        lowerResponse.includes('would you like to tell me more') ||
-        lowerResponse.includes('want to tell me more') ||
-        lowerResponse.includes('dive into your dashboard');
-      
       const wantsToFinish = 
         lowerResponse.includes('setting up your dashboard') ||
         lowerResponse.includes("let's do this together") ||
         lowerResponse.includes('perfect! i\'m setting up');
       
-      if (wantsToFinish && !isOfferingChoice) {
-        // Only redirect if AI explicitly says they're setting up dashboard
-        // AND not offering a choice
+      if (wantsToFinish) {
         await saveUserContext();
         setTimeout(() => {
           router.push('/dashboard-new');
         }, 3000);
       }
-      // Otherwise, conversation continues and waits for user's choice
     } catch (error) {
       console.error('Error:', error);
       await typeText("I'm having trouble connecting. Let's try that again!");
@@ -447,6 +466,7 @@ export default function OnboardingV2() {
 
   const saveUserContext = async () => {
     try {
+      console.log('💾 Saving onboarding context...');
       // Save to Supabase and Pinecone
       await fetch('/api/save-onboarding', {
         method: 'POST',
@@ -457,9 +477,16 @@ export default function OnboardingV2() {
           preferredMode: mode,
         }),
       });
+      console.log('✅ Onboarding context saved');
     } catch (error) {
       console.error('Failed to save context:', error);
     }
+  };
+
+  const handleFinishOnboarding = async () => {
+    console.log('🎉 User manually finishing onboarding');
+    await saveUserContext();
+    router.push('/dashboard-new');
   };
 
   return (
@@ -615,13 +642,23 @@ export default function OnboardingV2() {
                 <Send className="w-6 h-6" />
               </button>
             </form>
-            <button
-              onClick={() => setMode('voice')}
-              className="text-[var(--sage-600)] hover:text-[var(--sage-700)] text-sm flex items-center gap-2 mx-auto"
-            >
-              <Volume2 className="w-4 h-4" />
-              Switch to voice
-            </button>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setMode('voice')}
+                className="text-[var(--sage-600)] hover:text-[var(--sage-700)] text-sm flex items-center gap-2"
+              >
+                <Volume2 className="w-4 h-4" />
+                Switch to voice
+              </button>
+              {canFinish && (
+                <button
+                  onClick={handleFinishOnboarding}
+                  className="bg-[var(--clay-500)] text-white px-6 py-2 rounded-full text-sm hover:bg-[var(--clay-600)] transition-all shadow-md"
+                >
+                  Finish & Go to Dashboard
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -646,13 +683,23 @@ export default function OnboardingV2() {
             <p className="text-lg text-[var(--sage-600)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
               {isRecording ? '🎤 Listening... Click to stop' : 'Click to start talking'}
             </p>
-            <button
-              onClick={() => setMode('chat')}
-              className="text-[var(--clay-600)] hover:text-[var(--clay-700)] text-sm flex items-center gap-2"
-            >
-              <MessageCircle className="w-4 h-4" />
-              Switch to chat
-            </button>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setMode('chat')}
+                className="text-[var(--clay-600)] hover:text-[var(--clay-700)] text-sm flex items-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Switch to chat
+              </button>
+              {canFinish && (
+                <button
+                  onClick={handleFinishOnboarding}
+                  className="bg-[var(--clay-500)] text-white px-6 py-2 rounded-full text-sm hover:bg-[var(--clay-600)] transition-all shadow-md"
+                >
+                  Finish & Go to Dashboard
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </div>

@@ -931,60 +931,78 @@ export default function DashboardNew() {
               onToggle={() => toggleSection('tasks')}
             >
               <div className="space-y-3">
-                {tasks.map((task) => (
+                {tasks.length === 0 ? (
                   <motion.div
-                    key={task.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ 
-                      opacity: 1, 
-                      x: 0,
-                      scale: celebratingTask === task.id ? [1, 1.05, 1] : 1,
-                    }}
-                    transition={{
-                      scale: { duration: 0.5, repeat: celebratingTask === task.id ? 2 : 0 }
-                    }}
-                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                      celebratingTask === task.id 
-                        ? 'bg-[var(--sage-100)] border-[var(--sage-400)] shadow-lg' 
-                        : 'bg-white border-[var(--stone)] hover:border-[var(--clay-400)]'
-                    }`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center py-12 px-6 text-center"
                   >
-                    <button
-                      onClick={() => toggleTask(task.id)}
-                      className="flex-shrink-0 transition-transform hover:scale-110"
-                    >
-                      {task.completed ? (
-                        <CheckCircle2 className="w-6 h-6 text-[var(--sage-600)]" />
-                      ) : (
-                        <Circle className="w-6 h-6 text-[var(--clay-400)]" />
-                      )}
-                    </button>
-                    <span
-                      className={`flex-1 text-[var(--charcoal)] ${
-                        task.completed ? 'line-through opacity-50' : ''
+                    <div className="w-20 h-20 bg-[var(--sand)] rounded-full flex items-center justify-center mb-4">
+                      <CheckCircle2 className="w-10 h-10 text-[var(--clay-400)]" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-[var(--charcoal)] mb-2">
+                      No tasks yet
+                    </h3>
+                    <p className="text-[var(--sage-600)] mb-6 max-w-sm">
+                      Start your day by adding your first task below. I'll help you break it down if it feels overwhelming! 💛
+                    </p>
+                  </motion.div>
+                ) : (
+                  tasks.map((task) => (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ 
+                        opacity: 1, 
+                        x: 0,
+                        scale: celebratingTask === task.id ? [1, 1.05, 1] : 1,
+                      }}
+                      transition={{
+                        scale: { duration: 0.5, repeat: celebratingTask === task.id ? 2 : 0 }
+                      }}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                        celebratingTask === task.id 
+                          ? 'bg-[var(--sage-100)] border-[var(--sage-400)] shadow-lg' 
+                          : 'bg-white border-[var(--stone)] hover:border-[var(--clay-400)]'
                       }`}
                     >
-                      {task.title}
-                    </span>
-                    {!task.completed && (
                       <button
-                        onClick={() => breakdownTask(task.id)}
-                        className="text-[var(--clay-600)] hover:text-[var(--clay-700)] text-sm font-medium"
+                        onClick={() => toggleTask(task.id)}
+                        className="flex-shrink-0 transition-transform hover:scale-110"
                       >
-                        Break down
+                        {task.completed ? (
+                          <CheckCircle2 className="w-6 h-6 text-[var(--sage-600)]" />
+                        ) : (
+                          <Circle className="w-6 h-6 text-[var(--clay-400)]" />
+                        )}
                       </button>
-                    )}
-                    {celebratingTask === task.id && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: [0, 1.2, 1] }}
-                        className="text-2xl"
+                      <span
+                        className={`flex-1 text-[var(--charcoal)] ${
+                          task.completed ? 'line-through opacity-50' : ''
+                        }`}
                       >
-                        🎉
-                      </motion.span>
-                    )}
-                  </motion.div>
-                ))}
+                        {task.title}
+                      </span>
+                      {!task.completed && (
+                        <button
+                          onClick={() => breakdownTask(task.id)}
+                          className="text-[var(--clay-600)] hover:text-[var(--clay-700)] text-sm font-medium"
+                        >
+                          Break down
+                        </button>
+                      )}
+                      {celebratingTask === task.id && (
+                        <motion.span
+                          initial={{ scale: 0 }}
+                          animate={{ scale: [0, 1.2, 1] }}
+                          className="text-2xl"
+                        >
+                          🎉
+                        </motion.span>
+                      )}
+                    </motion.div>
+                  ))
+                )}
 
                 {/* Add Task */}
                 <div className="flex gap-2">
