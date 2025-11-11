@@ -5,6 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Volume2, VolumeX } from 'lucide-react';
 import NaviaAvatar from './NaviaAvatar';
 
+// Simple markdown renderer for basic formatting
+const renderMarkdown = (text: string) => {
+  return text
+    // Bold: **text** or __text__
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic: *text* or _text_
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    // Code: `text`
+    .replace(/`(.+?)`/g, '<code class="bg-[var(--sand)] px-1 rounded">$1</code>');
+};
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -60,40 +73,120 @@ export default function UniversalNavia({
     }
   }, [messages, onMessagesChange]);
 
-  // Show proactive message if provided
+  // Show proactive message if provided - only once, and auto-send it
+  const hasShownProactive = useRef(false);
+  const proactiveMessageRef = useRef<string>('');
+  
   useEffect(() => {
-    if (proactiveMessage && !isAsleep) {
-      setMessages(prev => [...prev, { role: 'assistant', content: proactiveMessage }]);
-      if (voiceMode) {
-        playHumeVoice(proactiveMessage);
-      }
+    if (proactiveMessage && !isAsleep && proactiveMessage !== proactiveMessageRef.current) {
+      proactiveMessageRef.current = proactiveMessage;
+      
+      console.log('🤖 [UniversalNavia] Auto-sending proactive message:', proactiveMessage);
+      
+      // Add user message and trigger AI response
+      const userMessage: Message = { role: 'user', content: proactiveMessage };
+      const newMessages = [...messages, userMessage];
+      setMessages(newMessages);
+      setIsLoading(true);
+      
+      // Send to API with full message history
+      (async () => {
+        try {
+          const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: newMessages.map(({ role, content }) => ({ role, content })),
+              context: { ...context, mode },
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to send message');
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let assistantMessage = '';
+
+          while (true) {
+            const { done, value } = await reader!.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  assistantMessage += parsed.content;
+                  
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    
+                    if (lastMessage?.role === 'assistant') {
+                      lastMessage.content = assistantMessage;
+                    } else {
+                      newMessages.push({ role: 'assistant', content: assistantMessage });
+                    }
+                    
+                    return newMessages;
+                  });
+                } catch (e) {
+                  // Ignore parse errors
+                }
+              }
+            }
+          }
+
+          if (voiceMode && assistantMessage) {
+            await playHumeVoice(assistantMessage);
+          }
+        } catch (error) {
+          console.error('Error sending proactive message:', error);
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: "I'm having trouble connecting right now. Can you try again?" 
+          }]);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
     }
-  }, [proactiveMessage, isAsleep]);
+  }, [proactiveMessage, isAsleep, apiEndpoint, context, mode, voiceMode]);
 
   const playHumeVoice = async (text: string) => {
     try {
       setIsSpeaking(true);
       
-      // Try Hume TTS first, fallback to regular TTS
-      let response = await fetch('/api/hume-tts', {
+      const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          instructions: 'Speak with a warm, soothing, friendly female voice. Sound caring and supportive.',
+        }),
       });
 
-      // Fallback to regular TTS if Hume fails
       if (!response.ok) {
-        console.log('Hume TTS not available, using fallback TTS');
-        response = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
+        setIsSpeaking(false);
+        return;
       }
 
-      if (!response.ok) throw new Error('TTS failed');
+      const data = await response.json();
+      
+      if (!data.success || !data.audio) {
+        setIsSpeaking(false);
+        return;
+      }
 
-      const audioBlob = await response.blob();
+      const audioBlob = new Blob(
+        [Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0))],
+        { type: data.mimeType }
+      );
       const audioUrl = URL.createObjectURL(audioBlob);
       
       if (audioRef.current) {
@@ -271,93 +364,79 @@ export default function UniversalNavia({
   };
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col items-center h-full ${className}`}>
+      {/* Asleep State - Big and Prominent */}
+      {isAsleep && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center justify-center space-y-8 flex-1"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="text-[12rem]"
+          >
+            💤
+          </motion.div>
+          <div className="text-center space-y-4">
+            <p className="text-5xl font-bold text-[var(--charcoal)]" style={{ fontFamily: 'var(--font-fraunces)' }}>
+              I'm resting
+            </p>
+            <p className="text-3xl text-[var(--sage-700)]">
+              Click on me to wake me up 💛
+            </p>
+          </div>
+          <button
+            onClick={handleWake}
+            className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-12 py-6 rounded-full text-2xl font-bold transition-all hover:shadow-2xl hover:scale-105 active:scale-95"
+          >
+            Wake Navia
+          </button>
+        </motion.div>
+      )}
       {/* Navia Avatar */}
       {showAvatar && (
-        <div className="flex flex-col items-center mb-4">
-          <div 
-            className={`relative ${isAsleep ? 'cursor-pointer' : ''}`}
-            onClick={isAsleep ? handleWake : undefined}
-          >
-            <NaviaAvatar
-              isSpeaking={isSpeaking}
-              isThinking={isLoading && !isSpeaking}
-              size="lg"
-            />
-            
-            {/* Sleep indicator with animation */}
-            {isAsleep && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ 
-                  opacity: [0.5, 1, 0.5],
-                  y: [-10, -15, -10],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="absolute -top-12 left-1/2 transform -translate-x-1/2"
-              >
-                <div className="flex items-center gap-1">
-                  <motion.span 
-                    className="text-3xl"
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0 }}
-                  >
-                    Z
-                  </motion.span>
-                  <motion.span 
-                    className="text-2xl"
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
-                  >
-                    z
-                  </motion.span>
-                  <motion.span 
-                    className="text-xl"
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
-                  >
-                    z
-                  </motion.span>
-                </div>
-              </motion.div>
-            )}
-          </div>
-          
-          {isAsleep && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm text-[var(--sage-600)] mt-2 text-center italic"
-            >
-              Touch me if you need help 💛
-            </motion.p>
-          )}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-8 flex-shrink-0"
+        >
+          <NaviaAvatar
+            isSpeaking={isSpeaking}
+            isThinking={isLoading && !isSpeaking}
+            size="lg"
+          />
+        </motion.div>
       )}
 
-      {/* Messages */}
+      {/* Navia Branding Title */}
+      <h1 
+        className="text-6xl font-bold text-[var(--charcoal)] text-center mb-8 flex-shrink-0" 
+        style={{ fontFamily: 'var(--font-fraunces)' }}
+      >
+        Navia
+      </h1>
+
+      {/* Messages - Scrollable container */}
       {!isAsleep && messages.length > 0 && (
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4 max-h-96">
+        <div className="w-full max-w-3xl mb-8 space-y-6 overflow-y-auto flex-1 px-4" style={{ maxHeight: 'calc(100vh - 400px)' }}>
           {messages.map((message, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className="w-full"
             >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+              <div 
+                className={`text-2xl text-center leading-relaxed whitespace-pre-line ${
                   message.role === 'user'
-                    ? 'bg-[var(--clay-500)] text-white'
-                    : 'bg-[var(--sand)] text-[var(--charcoal)]'
+                    ? 'text-[var(--clay-600)] font-semibold'
+                    : 'text-[var(--charcoal)]'
                 }`}
-              >
-                {message.content}
-              </div>
+                style={{ fontFamily: 'var(--font-dm-sans)' }}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+              />
             </motion.div>
           ))}
           <div ref={messagesEndRef} />
@@ -369,18 +448,18 @@ export default function UniversalNavia({
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[var(--sage-100)] border border-[var(--sage-300)] rounded-2xl px-4 py-3 mb-4"
+          className="w-full max-w-2xl mb-6"
         >
-          <p className="text-sm text-[var(--sage-700)] italic">
+          <p className="text-lg text-center text-[var(--sage-700)] italic">
             {currentTranscript}
           </p>
         </motion.div>
       )}
 
-      {/* Input */}
+      {/* Input - Centered like OnboardingV2 - Fixed at bottom */}
       {showInput && !isAsleep && (
-        <div className="space-y-2">
-          <div className="flex gap-2">
+        <div className="w-full max-w-2xl space-y-2 flex-shrink-0">
+          <div className="flex gap-3 justify-center">
             <input
               type="text"
               value={input}
@@ -388,17 +467,17 @@ export default function UniversalNavia({
               onKeyPress={(e) => e.key === 'Enter' && !isRecording && sendMessage()}
               placeholder={isRecording ? "Listening..." : "Message Navia..."}
               disabled={isLoading || isRecording}
-              className="flex-1 bg-white border border-[var(--stone)] rounded-full px-6 py-3 text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] disabled:opacity-50"
+              className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-8 py-4 text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm disabled:opacity-50"
             />
             
             <button
               onClick={() => setVoiceMode(!voiceMode)}
               className={`${
-                voiceMode ? 'bg-[var(--sage-600)]' : 'bg-white border border-[var(--stone)]'
-              } ${voiceMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-full p-3 hover:opacity-80 transition-all`}
+                voiceMode ? 'bg-[var(--sage-600)]' : 'bg-white border-2 border-[var(--clay-400)]'
+              } ${voiceMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-full p-4 hover:opacity-80 transition-all shadow-sm`}
               title={voiceMode ? "Voice mode ON" : "Voice mode OFF"}
             >
-              {voiceMode ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              {voiceMode ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
             </button>
 
             {voiceMode ? (
@@ -406,24 +485,24 @@ export default function UniversalNavia({
                 onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                 className={`${
                   isRecording ? 'bg-red-500 animate-pulse' : 'bg-[var(--clay-500)]'
-                } hover:opacity-90 text-white rounded-full p-3 transition-all`}
+                } hover:opacity-90 text-white rounded-full p-4 transition-all shadow-sm`}
                 title={isRecording ? "Stop recording" : "Start recording"}
               >
-                <Mic className="w-5 h-5" />
+                <Mic className="w-6 h-6" />
               </button>
             ) : (
               <button
                 onClick={() => sendMessage()}
                 disabled={isLoading || !input.trim()}
-                className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-full p-3 transition-all disabled:opacity-50"
+                className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-full p-4 transition-all disabled:opacity-50 shadow-sm"
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-6 h-6" />
               </button>
             )}
           </div>
           
           {voiceMode && (
-            <p className="text-xs text-center text-[var(--sage-600)]">
+            <p className="text-sm text-center text-[var(--sage-600)]">
               {isRecording ? "🎤 Recording... Click mic to stop" : "Click mic to speak"}
             </p>
           )}

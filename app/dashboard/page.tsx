@@ -9,7 +9,7 @@ import { Task } from '@/lib/types';
 
 async function fetchTasks(userId: string): Promise<Task[]> {
   try {
-    console.log('🔍 [LIVE DATA] Fetching tasks from Pinecone for user:', userId);
+    console.log('🔍 [SERVER] Fetching tasks from Pinecone for user:', userId);
     
     // Import the operations directly instead of making HTTP call
     const { queryTasks } = await import('@/lib/pinecone/operations');
@@ -22,14 +22,26 @@ async function fetchTasks(userId: string): Promise<Task[]> {
     // Query tasks directly from Pinecone
     const results = await queryTasks(userId, embedding, {}, 50);
     
-    // Transform Pinecone results to Task objects
-    const tasks = results.map((match: any) => match.metadata as Task).filter(Boolean);
+    console.log('📦 [SERVER] Raw Pinecone results:', JSON.stringify(results, null, 2));
     
-    console.log(`✅ [LIVE DATA] Fetched ${tasks.length} tasks from Pinecone:`, tasks.map(t => t.title));
+    // Transform Pinecone results to Task objects
+    const tasks = results.map((match: any) => {
+      console.log('🔍 [SERVER] Processing match:', match);
+      console.log('🔍 [SERVER] Match metadata:', match.metadata);
+      return match.metadata as Task;
+    }).filter(Boolean);
+    
+    console.log(`✅ [SERVER] Fetched ${tasks.length} tasks from Pinecone`);
+    console.log('📋 [SERVER] Task details:', tasks.map(t => ({ 
+      task_id: t.task_id, 
+      title: t.title, 
+      status: t.status,
+      category: t.category 
+    })));
     
     return tasks;
   } catch (error) {
-    console.error('❌ [LIVE DATA] Error fetching tasks:', error);
+    console.error('❌ [SERVER] Error fetching tasks:', error);
     return [];
   }
 }

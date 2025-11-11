@@ -11,12 +11,12 @@ import { usePeersStore } from '@/lib/store/peersStore';
 import type { PeersState } from '@/lib/store/peersStore';
 
 export default function PeersPage() {
-  const matches = usePeersStore((state: PeersState) => state.matches);
-  const hasProfile = usePeersStore((state: PeersState) => state.hasProfile);
-  const isLoading = usePeersStore((state: PeersState) => state.isLoading);
-  const error = usePeersStore((state: PeersState) => state.error);
-  const startPolling = usePeersStore((state: PeersState) => state.startPolling);
-  const stopPolling = usePeersStore((state: PeersState) => state.stopPolling);
+  const matches = usePeersStore((state) => state.matches);
+  const hasProfile = usePeersStore((state) => state.hasProfile);
+  const isLoading = usePeersStore((state) => state.isLoading);
+  const error = usePeersStore((state) => state.error);
+  const startPolling = usePeersStore((state) => state.startPolling);
+  const stopPolling = usePeersStore((state) => state.stopPolling);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isConnecting, setIsConnecting] = useState(false);
 

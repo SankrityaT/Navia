@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 interface NaviaAvatarProps {
   isThinking?: boolean;
   isSpeaking?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export default function NaviaAvatar({ 
@@ -28,7 +28,8 @@ export default function NaviaAvatar({
   const sizeClasses = {
     sm: 'w-16 h-16',
     md: 'w-24 h-24',
-    lg: 'w-40 h-40', // Bigger for onboarding
+    lg: 'w-40 h-40',
+    xl: 'w-64 h-64', // Extra large for focus mode
   };
 
   return (

@@ -37,7 +37,17 @@ export async function GET(request: Request) {
 
     const results = await queryTasks(userId, embedding, filters, 50);
 
-    return NextResponse.json({ tasks: results });
+    // Extract metadata from Pinecone matches
+    const tasks = results.map((match: any) => ({
+      id: match.id,
+      task_id: match.id,
+      ...match.metadata,
+    }));
+
+    console.log('📋 [API/TASKS] Returning tasks:', tasks);
+    console.log('📋 [API/TASKS] Task titles:', tasks.map((t: any) => t.title));
+
+    return NextResponse.json({ tasks });
   } catch (error) {
     console.error('Task query error:', error);
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
@@ -104,17 +114,22 @@ export async function DELETE(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const taskId = searchParams.get('task_id');
+    // Support both 'id' and 'task_id' parameters
+    const taskId = searchParams.get('id') || searchParams.get('task_id');
+
+    console.log('🗑️ [API/TASKS] DELETE request - taskId:', taskId);
 
     if (!taskId) {
+      console.error('❌ [API/TASKS] No task ID provided');
       return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
     }
 
     await deleteTask(taskId);
+    console.log('✅ [API/TASKS] Task deleted successfully:', taskId);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Task deletion error:', error);
+    console.error('❌ [API/TASKS] Task deletion error:', error);
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }
 }

@@ -6,7 +6,9 @@ import { useUser } from '@clerk/nextjs';
 import NaviaAvatar from '@/components/ai/NaviaAvatar';
 import VoiceInput from '@/components/ai/VoiceInput';
 import ImmersiveFocusMode from '@/components/focus/ImmersiveFocusMode';
+import DashboardBento from '@/components/dashboard/DashboardBento';
 import Navbar from '@/components/layout/Navbar';
+import NaviaAssistant from '@/components/ai/NaviaAssistant';
 import {
   CheckCircle2,
   Circle,
@@ -24,12 +26,17 @@ import {
   Heart,
   Info,
   X,
+  Mic,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
 interface Task {
   id: string;
+  task_id?: string; // Backend uses task_id
   title: string;
   completed: boolean;
+  status?: string; // Backend uses status instead of completed
   breakdown?: string[];
   currentStep?: number;
   priority?: string;
@@ -49,11 +56,21 @@ interface Message {
 
 export default function DashboardNew() {
   const { user } = useUser();
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: '1', title: 'Update resume', completed: false },
-    { id: '2', title: 'Apply to 3 jobs', completed: false },
-    { id: '3', title: 'Practice coding', completed: false },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  
+  // Log whenever tasks change
+  useEffect(() => {
+    console.log(' [DASHBOARD-NEW] Tasks state changed:', tasks);
+    console.log(' [DASHBOARD-NEW] Task count:', tasks.length);
+    if (tasks.length > 0) {
+      console.log(' [DASHBOARD-NEW] Task details:', tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        completed: t.completed
+      })));
+    }
+  }, [tasks]);
+
   const [celebratingTask, setCelebratingTask] = useState<string | null>(null);
   const [focusIntention, setFocusIntention] = useState('');
   const [showFocusSetup, setShowFocusSetup] = useState(false);
@@ -65,13 +82,23 @@ export default function DashboardNew() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [focusTime, setFocusTime] = useState(25 * 60); // 25 minutes in seconds
+  const [customFocusMinutes, setCustomFocusMinutes] = useState(25); // For user input
   const [timerActive, setTimerActive] = useState(false);
+  const [isPausedInFocus, setIsPausedInFocus] = useState(false);
   const [energyLevel, setEnergyLevel] = useState(5);
   const [supportLevel, setSupportLevel] = useState(3);
   const [isLoadingState, setIsLoadingState] = useState(true); // 1=minimal, 3=balanced, 5=maximum support
   const [showSupportInfo, setShowSupportInfo] = useState(false);
   const [showImmersiveFocus, setShowImmersiveFocus] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [naviaManualTrigger, setNaviaManualTrigger] = useState(false);
+  const [naviaManualMessage, setNaviaManualMessage] = useState('');
+  const [naviaCelebrationMode, setNaviaCelebrationMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Section visibility states
   const [sectionsVisible, setSectionsVisible] = useState({
@@ -91,34 +118,58 @@ export default function DashboardNew() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('🔄 [DASHBOARD-NEW] Starting data load...');
+        
         // Load user state
         const stateResponse = await fetch('/api/user-state');
         if (stateResponse.ok) {
           const data = await stateResponse.json();
+          console.log('✅ [DASHBOARD-NEW] User state loaded:', data);
           setEnergyLevel(data.energyLevel);
           setSupportLevel(data.supportLevel);
         }
 
         // Load tasks
+        console.log('📋 [DASHBOARD-NEW] Fetching tasks from /api/tasks...');
         const tasksResponse = await fetch('/api/tasks');
+        console.log('📋 [DASHBOARD-NEW] Tasks response status:', tasksResponse.status);
+        
         if (tasksResponse.ok) {
           const data = await tasksResponse.json();
+          console.log('📦 [DASHBOARD-NEW] Raw tasks data:', data);
+          console.log('📋 [DASHBOARD-NEW] Tasks array:', data.tasks);
+          console.log('📋 [DASHBOARD-NEW] Number of tasks:', data.tasks?.length || 0);
+          
+          if (data.tasks && data.tasks.length > 0) {
+            console.log('🎯 [DASHBOARD-NEW] First task:', data.tasks[0]);
+            console.log('🎯 [DASHBOARD-NEW] Task titles:', data.tasks.map((t: any) => t.title || t.name || 'NO TITLE'));
+          } else {
+            console.warn('⚠️ [DASHBOARD-NEW] No tasks returned from API!');
+          }
+          
           setTasks(data.tasks || []);
+          console.log('✅ [DASHBOARD-NEW] Tasks set to state');
+        } else {
+          console.error('❌ [DASHBOARD-NEW] Tasks response not OK:', tasksResponse.statusText);
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('❌ [DASHBOARD-NEW] Error loading data:', error);
       } finally {
         setIsLoadingState(false);
+        console.log('✅ [DASHBOARD-NEW] Data load complete');
       }
     };
 
     loadData();
   }, []);
 
-  // Focus timer
+  // Focus timer - ONLY runs when NOT in immersive mode (minimized state)
   useEffect(() => {
+    // Don't run timer in dashboard if immersive mode is showing
+    if (showImmersiveFocus) return;
+    
     let interval: NodeJS.Timeout;
-    if (timerActive && focusTime > 0) {
+    if (timerActive && focusTime > 0 && !isPausedInFocus) {
       interval = setInterval(() => {
         setFocusTime((prev) => prev - 1);
       }, 1000);
@@ -129,7 +180,7 @@ export default function DashboardNew() {
       sendQuickMessage("Time's up! Great focus session! 🎉");
     }
     return () => clearInterval(interval);
-  }, [timerActive, focusTime]);
+  }, [timerActive, focusTime, showImmersiveFocus, isPausedInFocus]);
 
   // Random check-ins
   useEffect(() => {
@@ -151,86 +202,230 @@ export default function DashboardNew() {
     setSectionsVisible((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const addTask = async () => {
-    if (newTask.trim()) {
-      const task: Task = {
-        id: Date.now().toString(),
-        title: newTask,
-        completed: false,
-        priority: 'medium',
-        time_estimate: 30,
-        category: 'daily_life',
-      };
+  const addTask = async (title?: string) => {
+    const taskTitle = title || newTask.trim();
+    if (!taskTitle) return;
+    
+    console.log('➕ [DASHBOARD-NEW] Adding task:', taskTitle);
+    
+    const taskId = `task_${Date.now()}`;
+    const task: Task = {
+      id: taskId,
+      title: taskTitle,
+      completed: false,
+      priority: 'medium',
+      time_estimate: 30,
+      category: 'daily_life',
+    };
+    
+    // Optimistically add to UI
+    setTasks(prevTasks => [...prevTasks, task]);
+    if (!title) setNewTask('');
+    
+    // Save to backend
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task),
+      });
       
-      // Optimistically add to UI
-      setTasks([...tasks, task]);
-      setNewTask('');
-      
-      // Save to backend
-      try {
-        await fetch('/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(task),
-        });
-      } catch (error) {
-        console.error('Error saving task:', error);
+      if (!response.ok) {
+        console.error('❌ [DASHBOARD-NEW] Failed to save task');
+        // Revert optimistic update
+        setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
+      } else {
+        const data = await response.json();
+        console.log('✅ [DASHBOARD-NEW] Task saved:', data);
+        
+        // Update with backend task ID if different
+        if (data.task && data.task.task_id) {
+          setTasks(prevTasks => 
+            prevTasks.map(t => t.id === taskId ? { ...t, id: data.task.task_id, task_id: data.task.task_id } : t)
+          );
+        }
       }
+    } catch (error) {
+      console.error('❌ [DASHBOARD-NEW] Error saving task:', error);
+      // Revert optimistic update
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
     }
   };
 
   const toggleTask = async (id: string) => {
-    const task = tasks.find(t => t.id === id);
-    if (!task) return;
+    // Find task by either id or task_id
+    const task = tasks.find(t => t.id === id || t.task_id === id);
+    if (!task) {
+      console.error('❌ [DASHBOARD-NEW] Task not found for toggle:', id);
+      return;
+    }
+    
+    const actualId = task.task_id || task.id;
     
     const wasCompleted = task.completed;
     const nowCompleted = !wasCompleted;
     
-    // Update task state
-    setTasks(tasks.map((t) => (t.id === id ? { ...t, completed: nowCompleted } : t)));
+    console.log('✅ [DASHBOARD-NEW] Toggling task:', actualId, wasCompleted, '->', nowCompleted);
     
-    // If task just got completed, celebrate!
+    // Optimistic UI update - instant feedback
+    setTasks(tasks.map((t) => 
+      (t.id === id || t.task_id === id) ? { ...t, completed: nowCompleted } : t
+    ));
+    
+    // If task just got completed, show Navia celebration (but not for un-completion)
     if (nowCompleted && !wasCompleted) {
-      setCelebratingTask(id);
+      // Trigger Navia with a celebration message (celebration mode = no AI response, just show message)
+      setNaviaManualMessage(`Great job completing "${task.title}"! 🎉 You're doing amazing. Want to talk about how it went, or ready to tackle another task?`);
+      setNaviaCelebrationMode(true);
+      setNaviaManualTrigger(true);
+      setTimeout(() => {
+        setNaviaManualTrigger(false);
+        setNaviaCelebrationMode(false);
+      }, 1000);
+    }
+    
+    // Update backend
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          task_id: actualId, 
+          status: nowCompleted ? 'completed' : 'not_started' 
+        }),
+      });
       
-      // Generate AI affirmation
-      const affirmation = `I just completed: ${task.title}! 🎉`;
-      await sendQuickMessage(affirmation);
+      if (!response.ok) {
+        console.error('❌ [DASHBOARD-NEW] Failed to update task');
+        // Revert on error
+        setTasks(tasks.map((t) => 
+          (t.id === id || t.task_id === id) ? { ...t, completed: wasCompleted } : t
+        ));
+      }
+    } catch (error) {
+      console.error('❌ [DASHBOARD-NEW] Error updating task:', error);
+      // Revert on error
+      setTasks(tasks.map((t) => 
+        (t.id === id || t.task_id === id) ? { ...t, completed: wasCompleted } : t
+      ));
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    console.log('🗑️ [DASHBOARD-NEW] Deleting task:', taskId);
+    
+    // Find task by either id or task_id
+    const task = tasks.find(t => t.id === taskId || t.task_id === taskId);
+    if (!task) {
+      console.error('❌ [DASHBOARD-NEW] Task not found for delete:', taskId);
+      return;
+    }
+    
+    const actualId = task.task_id || task.id;
+    
+    // Optimistic update - remove immediately
+    const taskToDelete = task;
+    setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId && t.task_id !== taskId));
+    
+    try {
+      const response = await fetch(`/api/tasks?id=${actualId}`, {
+        method: 'DELETE',
+      });
       
-      // Clear celebration after animation
-      setTimeout(() => setCelebratingTask(null), 3000);
+      if (!response.ok) {
+        throw new Error('Failed to delete task');
+      }
+      
+      console.log('✅ [DASHBOARD-NEW] Task deleted successfully');
+    } catch (error) {
+      console.error('❌ [DASHBOARD-NEW] Error deleting task:', error);
+      // Revert optimistic update on error - add the task back
+      if (taskToDelete) {
+        setTasks(prevTasks => [...prevTasks, taskToDelete]);
+      }
     }
   };
 
   const breakdownTask = async (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+    console.log('🔨 [DASHBOARD-NEW] Breakdown requested for task ID:', taskId);
+    console.log('🔨 [DASHBOARD-NEW] Available tasks:', tasks.map(t => ({ id: t.id, task_id: t.task_id, title: t.title })));
+    
+    // Find task by either id or task_id
+    const task = tasks.find((t) => t.id === taskId || t.task_id === taskId);
+    if (!task) {
+      console.error('❌ [DASHBOARD-NEW] Task not found for breakdown:', taskId);
+      console.error('❌ [DASHBOARD-NEW] Searched in tasks:', tasks.length);
+      return;
+    }
 
-    setIsLoading(true);
-    sendQuickMessage(`Can you break down "${task.title}" into tiny steps?`);
+    console.log('🔨 [DASHBOARD-NEW] Breaking down task:', task.title);
+    
+    // Trigger Navia Assistant with breakdown request
+    const breakdownPrompt = `Can you help me break down "${task.title}" into tiny, manageable steps? Make each step super small and easy to start. I need this to feel less overwhelming.`;
+    
+    setNaviaManualMessage(breakdownPrompt);
+    setNaviaManualTrigger(true);
+    
+    console.log('✅ [DASHBOARD-NEW] Navia triggered for breakdown with prompt:', breakdownPrompt);
+    
+    setTimeout(() => setNaviaManualTrigger(false), 1000);
   };
 
+  // Focus timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timerActive && focusTime > 0) {
+      interval = setInterval(() => {
+        setFocusTime((prev) => prev - 1);
+      }, 1000);
+    } else if (focusTime === 0) {
+      setTimerActive(false);
+    }
+
+    return () => clearInterval(interval);
+  }, [timerActive, focusTime]);
+
   const startFocus = () => {
+    console.log('🎯 [DASHBOARD-NEW] Starting focus - opening setup modal');
     // Show focus setup modal
     setShowFocusSetup(true);
   };
   
   const beginFocusSession = () => {
+    console.log('🎯 [DASHBOARD-NEW] Beginning focus session');
+    console.log('  - Selected task:', selectedTaskForFocus);
+    console.log('  - Focus intention:', focusIntention);
+    console.log('  - Focus time:', customFocusMinutes, 'minutes');
+    
+    // Set the focus time from user input
+    setFocusTime(customFocusMinutes * 60);
     setShowFocusSetup(false);
     setFocusMode(true);
     setShowImmersiveFocus(true);
     setTimerActive(true);
+    setIsPausedInFocus(false);
+    
+    console.log('✅ [DASHBOARD-NEW] Immersive focus mode activated');
   };
   
   const handleEndFocus = () => {
+    console.log('🏁 [DASHBOARD-NEW] Ending focus session');
     setShowImmersiveFocus(false);
     setFocusMode(false);
     setTimerActive(false);
+    setIsPausedInFocus(false);
     setFocusTime(25 * 60);
   };
   
-  const handleMinimizeFocus = () => {
+  const handleMinimizeFocus = (isPaused: boolean, currentTime: number) => {
+    console.log('📐 [DASHBOARD-NEW] Minimizing focus mode');
+    console.log('  - Paused:', isPaused);
+    console.log('  - Time remaining:', currentTime, 'seconds');
+    
     setShowImmersiveFocus(false);
+    setIsPausedInFocus(isPaused);
+    setFocusTime(currentTime); // Sync the time
+    
     // Keep focus mode active, just hide immersive view
   };
   
@@ -238,7 +433,9 @@ export default function DashboardNew() {
     const oldLevel = energyLevel;
     setEnergyLevel(newLevel);
     
-    // Save to Supabase
+    console.log('⚡ [DASHBOARD-NEW] Energy level changed:', oldLevel, '->', newLevel);
+    
+    // Save to backend
     try {
       await fetch('/api/user-state', {
         method: 'PATCH',
@@ -249,10 +446,149 @@ export default function DashboardNew() {
       console.error('Error saving energy level:', error);
     }
     
-    // Proactive check-in when energy drops to ≤3 - will trigger Navia popup
+    // Proactive check-in when energy drops to ≤3
     if (newLevel <= 3 && oldLevel > 3) {
-      // Trigger Navia popup (will implement next)
-      console.log('Energy dropped to low - should trigger Navia popup');
+      console.log('💛 [DASHBOARD-NEW] Low energy detected - triggering Navia');
+      setNaviaManualMessage("I noticed your energy is low. That's completely okay 💛 Want to talk about it, or should I help you find something gentle to focus on?");
+      setNaviaManualTrigger(true);
+      setTimeout(() => setNaviaManualTrigger(false), 1000);
+    }
+  };
+
+  const handleSupportChange = async (newLevel: number) => {
+    setSupportLevel(newLevel);
+    
+    console.log('🤝 [DASHBOARD-NEW] Support level changed:', supportLevel, '->', newLevel);
+    
+    // Save to backend
+    try {
+      await fetch('/api/user-state', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supportLevel: newLevel }),
+      });
+      console.log('✅ [DASHBOARD-NEW] Support level saved to backend');
+    } catch (error) {
+      console.error('❌ [DASHBOARD-NEW] Error saving support level:', error);
+    }
+  };
+
+  // Play text using Hume TTS
+  const playTTS = async (text: string) => {
+    try {
+      console.log('🔊 Playing TTS...');
+      setIsPlayingAudio(true);
+      
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          instructions: 'Speak with a warm, soothing, friendly female voice. Sound caring and supportive.',
+        }),
+      });
+
+      if (!response.ok) {
+        setIsPlayingAudio(false);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.audio) {
+        setIsPlayingAudio(false);
+        return;
+      }
+
+      const audioBlob = new Blob(
+        [Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0))],
+        { type: data.mimeType }
+      );
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => {
+        setIsPlayingAudio(false);
+      };
+      await audioRef.current.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsPlayingAudio(false);
+    }
+  };
+
+  // Handle voice recording with live speech recognition
+  const startVoiceRecording = async () => {
+    try {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        alert('Speech recognition is not supported in your browser. Please use Chrome.');
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
+
+      recognitionRef.current = recognition;
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      let finalTranscript = '';
+      
+      recognition.onresult = async (event: any) => {
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        // Show interim results in input
+        if (interimTranscript) {
+          setInput(finalTranscript + interimTranscript);
+        }
+      };
+      
+      recognition.onend = async () => {
+        setIsRecording(false);
+        
+        if (finalTranscript.trim()) {
+          setInput(finalTranscript.trim());
+          // Auto-send the message
+          await sendQuickMessage(finalTranscript.trim());
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+      };
+
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting speech recognition:', error);
+      alert('Could not start speech recognition. Please check permissions.');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
     }
   };
 
@@ -344,6 +680,11 @@ export default function DashboardNew() {
           }
         }
       }
+      
+      // Play TTS if voice mode is enabled
+      if (voiceMode && assistantMessage) {
+        await playTTS(assistantMessage);
+      }
     } catch (error) {
       console.error('Error:', error);
       setMessages((prev) => [
@@ -382,12 +723,15 @@ export default function DashboardNew() {
     {/* Navbar */}
     <Navbar />
     
-    {/* Immersive Focus Mode Overlay */}
-    <AnimatePresence>
-      {showImmersiveFocus && (
-        <ImmersiveFocusMode
+    {/* Main content with padding for floating navbar */}
+    <div className="pt-40 pb-8">
+      {/* Immersive Focus Mode Overlay */}
+      <AnimatePresence>
+        {showImmersiveFocus && (
+          <ImmersiveFocusMode
           taskTitle={selectedTaskForFocus ? tasks.find(t => t.id === selectedTaskForFocus)?.title || focusIntention : focusIntention}
           initialTime={focusTime}
+          initialPaused={isPausedInFocus}
           onEnd={handleEndFocus}
           onMinimize={handleMinimizeFocus}
           context={{
@@ -398,8 +742,168 @@ export default function DashboardNew() {
         />
       )}
     </AnimatePresence>
+
+    {/* New Bento Grid Dashboard */}
+    <DashboardBento
+      tasks={tasks}
+      onToggleTask={toggleTask}
+      onAddTask={addTask}
+      onDeleteTask={deleteTask}
+      onBreakdownTask={breakdownTask}
+      onStartFocus={startFocus}
+      onOpenNavia={() => {
+        console.log('🎯 [DASHBOARD-NEW] Opening Navia from DashboardBento');
+        setNaviaManualMessage("Hey! I'm here to help. What's on your mind? 💛");
+        setNaviaManualTrigger(true);
+        setTimeout(() => setNaviaManualTrigger(false), 1000);
+      }}
+      energyLevel={energyLevel}
+      onEnergyChange={handleEnergyChange}
+      supportLevel={supportLevel}
+      onSupportChange={handleSupportChange}
+      userName={user?.firstName || 'friend'}
+      focusMode={focusMode}
+      focusTime={focusTime}
+      focusTask={selectedTaskForFocus ? tasks.find(t => t.id === selectedTaskForFocus)?.title || focusIntention : focusIntention}
+      onMaximizeFocus={() => setShowImmersiveFocus(true)}
+    />
+
+    {/* Focus Setup Modal */}
+    <AnimatePresence>
+      {showFocusSetup && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowFocusSetup(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-gradient-to-br from-white to-[var(--sand)] rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-[var(--clay-200)]"
+          >
+            <h2 className="text-3xl font-bold text-[var(--charcoal)] mb-3">
+              What are you focusing on?
+            </h2>
+            <p className="text-lg text-[var(--clay-700)] mb-6">
+              <span className="font-bold text-xl text-[var(--clay-600)]">I'll stay with you</span> the whole time 💛
+            </p>
+            
+            <div className="space-y-4">
+              {/* Choose from tasks */}
+              {tasks.filter(t => !t.completed).length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
+                    Choose a task:
+                  </label>
+                  <select
+                    value={selectedTaskForFocus}
+                    onChange={(e) => {
+                      setSelectedTaskForFocus(e.target.value);
+                      setFocusIntention('');
+                    }}
+                    className="w-full bg-white border border-[var(--stone)] rounded-lg px-4 py-3 text-[var(--charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
+                  >
+                    <option value="">Select a task...</option>
+                    {tasks.filter(t => !t.completed).map(task => (
+                      <option key={task.id} value={task.id}>{task.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              {/* Or custom intention */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
+                  Or write your own:
+                </label>
+                <input
+                  type="text"
+                  value={focusIntention}
+                  onChange={(e) => {
+                    setFocusIntention(e.target.value);
+                    setSelectedTaskForFocus('');
+                  }}
+                  placeholder="e.g., Reading for 25 minutes..."
+                  className="w-full bg-white border border-[var(--stone)] rounded-lg px-4 py-3 text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
+                />
+              </div>
+              
+              {/* Time selection */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
+                  How long do you want to focus?
+                </label>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {[15, 25, 45, 60].map(minutes => (
+                    <button
+                      key={minutes}
+                      onClick={() => setCustomFocusMinutes(minutes)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        customFocusMinutes === minutes
+                          ? 'bg-[var(--clay-500)] text-white shadow-md'
+                          : 'bg-white border border-[var(--stone)] text-[var(--charcoal)] hover:border-[var(--clay-400)]'
+                      }`}
+                    >
+                      {minutes}m
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="180"
+                    value={customFocusMinutes}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setCustomFocusMinutes(1);
+                      } else {
+                        const num = parseInt(val);
+                        if (!isNaN(num)) {
+                          setCustomFocusMinutes(Math.max(1, Math.min(180, num)));
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Ensure valid value on blur
+                      if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                        setCustomFocusMinutes(1);
+                      }
+                    }}
+                    className="flex-1 bg-white border border-[var(--stone)] rounded-lg px-4 py-2 text-[var(--charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
+                  />
+                  <span className="text-sm text-[var(--clay-700)] font-medium">minutes</span>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowFocusSetup(false)}
+                  className="flex-1 bg-white hover:bg-[var(--sand)] text-[var(--charcoal)] border border-[var(--stone)] px-6 py-3 rounded-full transition-all font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={beginFocusSession}
+                  disabled={!selectedTaskForFocus && !focusIntention.trim()}
+                  className="flex-1 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-6 py-3 rounded-full transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Let's Focus!
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     
-    <div className="min-h-screen bg-[var(--cream)] p-4 md:p-8">
+    {/* OLD DASHBOARD - KEEPING FOR REFERENCE, WILL REMOVE AFTER TESTING */}
+    <div className="min-h-screen bg-[var(--cream)] p-4 md:p-8" style={{display: 'none'}}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -493,7 +997,7 @@ export default function DashboardNew() {
                     className="flex-1 bg-white border border-[var(--stone)] rounded-lg px-4 py-2 text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
                   />
                   <button
-                    onClick={addTask}
+                    onClick={() => addTask()}
                     className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-lg p-2 transition-colors"
                   >
                     <Plus className="w-5 h-5" />
@@ -742,119 +1246,66 @@ export default function DashboardNew() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input with voice */}
-                <form onSubmit={sendMessage} className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Type or speak..."
-                    disabled={isLoading}
-                    className="flex-1 bg-white border border-[var(--stone)] rounded-lg px-3 py-2 text-sm text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] disabled:opacity-50"
-                  />
-                  <div className="scale-75">
-                    <VoiceInput
-                      onTranscript={(text, emotions) => {
-                        setInput(text);
-                        // Emotions will be detected when message is sent
-                      }}
-                      disabled={isLoading}
+                {/* Input with voice mode toggle */}
+                <div className="space-y-2">
+                  <form onSubmit={sendMessage} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder={isRecording ? "Listening..." : voiceMode ? "Speak or type..." : "Type a message..."}
+                      disabled={isLoading || isRecording}
+                      className="flex-1 bg-white border border-[var(--stone)] rounded-lg px-3 py-2 text-sm text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] disabled:opacity-50"
                     />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isLoading || !input.trim()}
-                    className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-lg p-2 transition-colors disabled:opacity-50"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </form>
+                    
+                    {/* Voice mode toggle */}
+                    <button
+                      type="button"
+                      onClick={() => setVoiceMode(!voiceMode)}
+                      className={`${
+                        voiceMode ? 'bg-[var(--sage-600)]' : 'bg-white border border-[var(--stone)]'
+                      } ${voiceMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-lg p-2 hover:opacity-80 transition-all`}
+                      title={voiceMode ? "Voice mode ON" : "Voice mode OFF"}
+                    >
+                      {voiceMode ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                    </button>
+
+                    {/* Mic button or Send button */}
+                    {voiceMode ? (
+                      <button
+                        type="button"
+                        onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                        disabled={isLoading}
+                        className={`${
+                          isRecording ? 'bg-red-500 animate-pulse' : 'bg-[var(--clay-500)]'
+                        } hover:opacity-90 text-white rounded-lg p-2 transition-all disabled:opacity-50`}
+                        title={isRecording ? "Stop recording" : "Start recording"}
+                      >
+                        <Mic className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={isLoading || !input.trim()}
+                        className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-lg p-2 transition-colors disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    )}
+                  </form>
+                  
+                  {/* Voice mode indicator */}
+                  {voiceMode && (
+                    <p className="text-xs text-center text-[var(--sage-600)]">
+                      {isRecording ? "🎤 Recording... Click mic to stop" : isPlayingAudio ? "🔊 Navia is speaking..." : "Click mic to speak"}
+                    </p>
+                  )}
+                </div>
               </div>
             </Section>
           </div>
         </div>
       </div>
-      
-      {/* Focus Setup Modal */}
-      {showFocusSetup && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-          onClick={() => setShowFocusSetup(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-gradient-to-br from-white to-[var(--sand)] rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-[var(--clay-200)]"
-          >
-            <h2 className="text-3xl font-bold text-[var(--charcoal)] mb-3">
-              What are you focusing on?
-            </h2>
-            <p className="text-lg text-[var(--clay-700)] mb-6">
-              <span className="font-bold text-xl text-[var(--clay-600)]">I'll stay with you</span> the whole time 💛
-            </p>
-            
-            <div className="space-y-4">
-              {/* Choose from tasks */}
-              {tasks.filter(t => !t.completed).length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
-                    Choose a task:
-                  </label>
-                  <select
-                    value={selectedTaskForFocus}
-                    onChange={(e) => {
-                      setSelectedTaskForFocus(e.target.value);
-                      setFocusIntention('');
-                    }}
-                    className="w-full bg-white border border-[var(--stone)] rounded-lg px-4 py-3 text-[var(--charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
-                  >
-                    <option value="">Select a task...</option>
-                    {tasks.filter(t => !t.completed).map(task => (
-                      <option key={task.id} value={task.id}>{task.title}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              {/* Or custom intention */}
-              <div>
-                <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
-                  Or write your own:
-                </label>
-                <input
-                  type="text"
-                  value={focusIntention}
-                  onChange={(e) => {
-                    setFocusIntention(e.target.value);
-                    setSelectedTaskForFocus('');
-                  }}
-                  placeholder="e.g., Reading for 25 minutes..."
-                  className="w-full bg-white border border-[var(--stone)] rounded-lg px-4 py-3 text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
-                />
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowFocusSetup(false)}
-                  className="flex-1 bg-white hover:bg-[var(--sand)] text-[var(--charcoal)] border border-[var(--stone)] px-6 py-3 rounded-full transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={beginFocusSession}
-                  disabled={!selectedTaskForFocus && !focusIntention.trim()}
-                  className="flex-1 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-6 py-3 rounded-full transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Let's Focus!
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
       
       {/* Support Level Info Modal */}
       {showSupportInfo && (
@@ -943,7 +1394,26 @@ export default function DashboardNew() {
         </motion.div>
       )}
       </div>
-    </>
+      
+      {/* Context-Aware Navia Assistant */}
+      <NaviaAssistant
+        energyLevel={energyLevel}
+        focusMode={focusMode}
+        context={{
+          tasks: tasks.map((t) => ({ title: t.title, completed: t.completed })),
+          energyLevel,
+          supportLevel,
+        }}
+        manualTrigger={naviaManualTrigger}
+        manualMessage={naviaManualMessage}
+        celebrationMode={naviaCelebrationMode}
+        onBreakdownRequest={(taskTitle) => {
+          console.log('Breakdown requested for:', taskTitle);
+          setNaviaManualTrigger(false);
+        }}
+      />
+    </div>
+  </>
   );
 }
 
