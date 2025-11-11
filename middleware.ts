@@ -32,7 +32,7 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 // Protected routes that require special handling
-const isOnboardingRoute = createRouteMatcher(['/onboarding']);
+const isOnboardingRoute = createRouteMatcher(['/onboarding', '/onboarding-new', '/onboarding-v2']);
 const isApiRoute = createRouteMatcher(['/api(.*)']);
 
 export default clerkMiddleware(async (auth, request) => {
@@ -59,12 +59,12 @@ export default clerkMiddleware(async (auth, request) => {
 
       // If user hasn't completed onboarding and is not on onboarding page, redirect to onboarding
       if (!hasCompletedOnboarding && !isOnboardingRoute(request)) {
-        return NextResponse.redirect(new URL('/onboarding', request.url));
+        return NextResponse.redirect(new URL('/onboarding-v2', request.url));
       }
 
       // If user has completed onboarding and is on onboarding page, redirect to dashboard
       if (hasCompletedOnboarding && isOnboardingRoute(request)) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/dashboard-new', request.url));
       }
     } catch (error) {
       console.error('Error checking onboarding status:', error);

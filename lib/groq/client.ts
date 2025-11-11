@@ -16,9 +16,9 @@ export const getGroqClient = () => {
 
 // Available Groq models
 export const GROQ_MODELS = {
-  LLAMA_4_SCOUT: 'meta-llama/llama-4-scout-17b-16e-instruct', // Llama 4 Scout - optimized for speed and efficiency
-  LLAMA_8B_INSTANT: 'llama-3.1-8b-instant', // Ultra-fast, lower token usage - use for simple operations
-  LLAMA_70B_FALLBACK: 'llama-3.1-70b-versatile', // Older but stable
+  LLAMA_4_SCOUT: 'meta-llama/llama-4-scout-17b-16e-instruct', // Fast, 131K context
+  LLAMA_4_MAVERICK: 'meta-llama/llama-4-maverick-17b-128e-instruct', // Slower but better quality
+  LLAMA_8B_INSTANT: 'llama-3.1-8b-instant', // Ultra-fast, lower token usage
   MIXTRAL: 'mixtral-8x7b-32768', // Long context alternative
 };
 

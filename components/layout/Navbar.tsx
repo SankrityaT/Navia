@@ -7,8 +7,6 @@ import { UserButton } from '@clerk/nextjs';
 import { 
   LayoutDashboard, 
   MessageCircle, 
-  Users, 
-  CheckSquare,
   UserCircle,
   Leaf,
   Sparkles
@@ -21,9 +19,6 @@ export default function Navbar() {
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/chat', label: 'Navia', icon: MessageCircle },
-    { href: '/peers', label: 'Peers', icon: Users },
-    { href: '/connections', label: 'Connections', icon: Users },
-    { href: '/tasks', label: 'Tasks', icon: CheckSquare },
     { href: '/profile', label: 'Profile', icon: UserCircle },
   ];
 
@@ -84,7 +79,7 @@ export default function Navbar() {
               <UserButton.MenuItems>
                 <UserButton.Link
                   label="Edit Profile"
-                  labelIcon={<Users className="w-4 h-4" />}
+                  labelIcon={<UserCircle className="w-4 h-4" />}
                   href="/profile/edit"
                 />
               </UserButton.MenuItems>
