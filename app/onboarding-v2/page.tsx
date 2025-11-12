@@ -536,39 +536,98 @@ export default function OnboardingV2() {
           </motion.div>
         )}
 
-        {/* Loading Screen - Shows while AI is thinking */}
-        {isLoading && !isTyping && !currentText && (
+        {/* Loading Popup - Shows while AI is thinking */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white/95 backdrop-blur-md px-12 py-10 rounded-3xl border-2 border-[var(--clay-300)]/40 shadow-2xl max-w-md mx-4"
+              >
+                <div className="flex flex-col items-center">
+                  {/* Animated Navia Avatar */}
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="mb-6"
+                  >
+                    <NaviaAvatar size="md" isThinking={true} />
+                  </motion.div>
+                  
+                  {/* Animated Dots */}
+                  <div className="flex gap-2 mb-4">
+                    <motion.div
+                      animate={{ y: [0, -12, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                      className="w-4 h-4 bg-[var(--clay-500)] rounded-full"
+                    />
+                    <motion.div
+                      animate={{ y: [0, -12, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                      className="w-4 h-4 bg-[var(--clay-500)] rounded-full"
+                    />
+                    <motion.div
+                      animate={{ y: [0, -12, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                      className="w-4 h-4 bg-[var(--clay-500)] rounded-full"
+                    />
+                  </div>
+                  
+                  {/* Text */}
+                  <p className="text-xl font-medium text-[var(--charcoal)] text-center" style={{ fontFamily: 'var(--font-dm-sans)' }}>
+                    Navia is thinking...
+                  </p>
+                  <p className="text-sm text-[var(--sage-600)] mt-2 text-center" style={{ fontFamily: 'var(--font-dm-sans)' }}>
+                    Crafting a thoughtful response 💛
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Typing Indicator - Shows when Navia is typing */}
+        {isTyping && !currentText && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             className="w-full max-w-2xl mb-8 min-h-[120px] flex flex-col items-center justify-center"
           >
-            <div className="flex gap-2 mb-4">
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
-              />
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
-              />
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
-              />
+            <div className="bg-[var(--sand)]/80 backdrop-blur-sm px-8 py-6 rounded-3xl border border-[var(--clay-300)]/30 shadow-lg">
+              <div className="flex gap-2 items-center justify-center">
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                  className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                  className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                  className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
+                />
+              </div>
+              <p className="text-sm text-[var(--sage-600)] mt-3 text-center" style={{ fontFamily: 'var(--font-dm-sans)' }}>
+                Navia is typing...
+              </p>
             </div>
-            <p className="text-lg text-[var(--sage-600)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
-              Thinking...
-            </p>
           </motion.div>
         )}
 
         {/* Streaming Text - No bubbles, just text */}
-        {!isLoading && (
+        {!isLoading && currentText && (
           <motion.div
             ref={textRef}
             className="w-full max-w-2xl mb-8 min-h-[120px]"

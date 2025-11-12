@@ -16,8 +16,9 @@ export default function SignInPage() {
             {/* Logo & Tagline */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center shadow-lg">
-                  <Leaf className="w-6 h-6 text-[var(--cream)]" strokeWidth={2.5} />
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] shadow-lg overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                  <div className="absolute inset-[2px] rounded-full bg-gradient-to-br from-[#c4a574]/80 via-[#9ca986]/80 to-[#6b8e6f]/80" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
@@ -45,8 +46,8 @@ export default function SignInPage() {
                     <Brain className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Your Progress Awaits</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">Pick up where you left off with your personalized dashboard</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Your Tasks & Progress Await</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Continue managing your tasks with AI-powered breakdowns</p>
                   </div>
                 </div>
               </div>
@@ -57,8 +58,8 @@ export default function SignInPage() {
                     <Sparkles className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Daily Support Ready</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">Your AI coach is here whenever you need guidance</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Focus Mode Ready</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Immersive focus sessions with music and timer support</p>
                   </div>
                 </div>
               </div>
@@ -69,8 +70,8 @@ export default function SignInPage() {
                     <TrendingUp className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">See Your Growth</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">Review your wins and celebrate your progress</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">AI Coach Available</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Get support and guidance whenever you need it</p>
                   </div>
                 </div>
               </div>
@@ -95,8 +96,9 @@ export default function SignInPage() {
               {/* Mobile Logo */}
               <div className="lg:hidden mb-8 text-center">
                 <div className="inline-flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center shadow-lg">
-                    <Leaf className="w-6 h-6 text-[var(--cream)]" strokeWidth={2.5} />
+                  <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] shadow-lg overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                    <div className="absolute inset-[2px] rounded-full bg-gradient-to-br from-[#c4a574]/80 via-[#9ca986]/80 to-[#6b8e6f]/80" />
                   </div>
                   <div className="text-left">
                     <h1 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>

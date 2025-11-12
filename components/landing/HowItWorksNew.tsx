@@ -50,11 +50,11 @@ export default function HowItWorks() {
                       <UserPlus className="w-6 h-6 text-white" strokeWidth={2.5} />
                     </div>
                     <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                      Create Your Profile
+                      Chat with Navia
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    Share what feels comfortable. Tell us about your challenges, your goals, and what kind of support would be helpful for you.
+                    Have a warm conversation with Navia. Share what you're struggling with and what kind of support would help you most.
                   </p>
                 </div>
               </div>
@@ -82,11 +82,11 @@ export default function HowItWorks() {
                       <Brain className="w-6 h-6 text-white" strokeWidth={2.5} />
                     </div>
                     <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                      Explore Your Patterns
+                      Manage Your Tasks
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    Gentle prompts help you notice energy changes, what drains you, and the environments that feel supportive. No judgment—just curious reflection.
+                    Break down overwhelming tasks into tiny steps with AI help. Track your energy levels and get support when you need it.
                   </p>
                 </div>
               </div>
@@ -114,11 +114,11 @@ export default function HowItWorks() {
                       <Sparkles className="w-6 h-6 text-white" strokeWidth={2.5} />
                     </div>
                     <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                      Get Personalized Support
+                      Enter Focus Mode
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    Receive personalized suggestions, task breakdowns, and strategies to help you navigate daily challenges in ways that work for you.
+                    Immersive focus sessions with lofi music or Spotify. Set your intention, choose your time, and Navia stays with you the whole way.
                   </p>
                 </div>
               </div>
@@ -146,11 +146,11 @@ export default function HowItWorks() {
                       <TrendingUp className="w-6 h-6 text-white" strokeWidth={2.5} />
                     </div>
                     <h3 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                      Track Your Progress
+                      Find Your People
                     </h3>
                   </div>
                   <p className="text-[var(--charcoal)]/70 leading-relaxed">
-                    See your progress over time. Celebrate small wins, adjust what's working, and build confidence—all at your own pace.
+                    Connect with peers who truly understand. No masking, no judgment—just real connections with people who get it.
                   </p>
                 </div>
               </div>

@@ -4,7 +4,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Leaf } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function CTAFooter() {
   return (
@@ -61,8 +61,9 @@ export default function CTAFooter() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             {/* Logo and Tagline */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center">
-                <Leaf className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                <div className="absolute inset-[2px] rounded-full bg-gradient-to-br from-[#c4a574]/80 via-[#9ca986]/80 to-[#6b8e6f]/80" />
               </div>
               <div>
                 <div className="text-xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Navia</div>

@@ -16,8 +16,9 @@ export default function SignUpPage() {
             {/* Logo & Tagline */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center shadow-lg">
-                  <Leaf className="w-6 h-6 text-[var(--cream)]" strokeWidth={2.5} />
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] shadow-lg overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                  <div className="absolute inset-[2px] rounded-full bg-gradient-to-br from-[#c4a574]/80 via-[#9ca986]/80 to-[#6b8e6f]/80" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
@@ -33,7 +34,7 @@ export default function SignUpPage() {
               </h2>
               
               <p className="text-lg text-[var(--charcoal)]/70 leading-relaxed">
-                Join neurodivergent young adults who are building confidence and navigating life beyond college with AI-powered support.
+                AI-powered task management, focus sessions, and daily support designed for your neurodivergent mind.
               </p>
             </div>
 
@@ -45,8 +46,8 @@ export default function SignUpPage() {
                     <Brain className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Personalized Insight Path</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">Discover your masking patterns and energy rhythms with supportive prompts</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Smart Task Management</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Break down overwhelming tasks into tiny, manageable steps with AI</p>
                   </div>
                 </div>
               </div>
@@ -57,8 +58,8 @@ export default function SignUpPage() {
                     <Sparkles className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">AI Executive Function Coach</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">24/7 support for task breakdown and decision-making</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Focus Mode with Music</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Immersive focus sessions with lofi music or Spotify integration</p>
                   </div>
                 </div>
               </div>
@@ -69,8 +70,8 @@ export default function SignUpPage() {
                     <TrendingUp className="w-5 h-5 text-[var(--cream)]" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">Track Your Progress</h3>
-                    <p className="text-sm text-[var(--charcoal)]/70">Celebrate wins and build confidence at your own pace</p>
+                    <h3 className="font-semibold text-[var(--charcoal)] mb-1">AI Coach & Energy Tracking</h3>
+                    <p className="text-sm text-[var(--charcoal)]/70">Get personalized support and track your energy levels daily</p>
                   </div>
                 </div>
               </div>
@@ -95,8 +96,9 @@ export default function SignUpPage() {
               {/* Mobile Logo */}
               <div className="lg:hidden mb-8 text-center">
                 <div className="inline-flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center shadow-lg">
-                    <Leaf className="w-6 h-6 text-[var(--cream)]" strokeWidth={2.5} />
+                  <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] shadow-lg overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                    <div className="absolute inset-[2px] rounded-full bg-gradient-to-br from-[#c4a574]/80 via-[#9ca986]/80 to-[#6b8e6f]/80" />
                   </div>
                   <div className="text-left">
                     <h1 className="text-2xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>

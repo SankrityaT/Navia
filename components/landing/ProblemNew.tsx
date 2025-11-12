@@ -3,7 +3,7 @@
 
 'use client';
 
-import { Leaf, Users, Flame } from 'lucide-react';
+import { Users, Flame, Leaf } from 'lucide-react';
 
 export default function Problem() {
   return (
