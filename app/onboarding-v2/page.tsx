@@ -311,14 +311,18 @@ export default function OnboardingV2() {
 
       setIsTyping(false);
 
+      // Enable finish button after 3 questions minimum
+      if (questionCount + 1 >= 3 && !canFinish) {
+        setCanFinish(true);
+        // Add a message asking if they want to continue or go to dashboard
+        const finishPrompt = "\n\nI have a good sense of how I can help you now! Would you like to continue chatting with me, or are you ready to head to your dashboard?";
+        aiResponse += finishPrompt;
+        setCurrentText(aiResponse);
+      }
+
       // Wait for COMPLETE response, then play audio
       console.log('📝 Full response received:', aiResponse);
       playTTS(aiResponse);
-
-      // Enable finish button after 3 questions minimum
-      if (questionCount + 1 >= 3) {
-        setCanFinish(true);
-      }
 
       // Auto-complete after 6 questions to prevent infinite loop
       if (questionCount + 1 >= 6) {
@@ -429,8 +433,12 @@ export default function OnboardingV2() {
       setIsTyping(false);
 
       // Enable finish button after 3 questions minimum
-      if (questionCount + 1 >= 3) {
+      if (questionCount + 1 >= 3 && !canFinish) {
         setCanFinish(true);
+        // Add a message asking if they want to continue or go to dashboard
+        const finishPrompt = "\n\nI have a good sense of how I can help you now! 💛 Would you like to continue chatting with me, or are you ready to head to your dashboard?";
+        aiResponse += finishPrompt;
+        setCurrentText(aiResponse);
       }
 
       // Auto-complete after 6 questions to prevent infinite loop
