@@ -112,12 +112,85 @@ export default function FocusMusicPlayer({ isPlaying = false, onPlayPause }: Foc
         
         if (response.ok) {
           const data = await response.json();
+          
+          // Check if token needs refresh
+          if (data.needsRefresh) {
+            console.log('🔄 Token expired, attempting refresh...');
+            const refreshToken = localStorage.getItem('spotify_refresh_token');
+            
+            if (refreshToken) {
+              try {
+                const refreshResponse = await fetch('/api/spotify/refresh', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ refresh_token: refreshToken }),
+                });
+                
+                if (refreshResponse.ok) {
+                  const refreshData = await refreshResponse.json();
+                  localStorage.setItem('spotify_access_token', refreshData.access_token);
+                  if (refreshData.refresh_token) {
+                    localStorage.setItem('spotify_refresh_token', refreshData.refresh_token);
+                  }
+                  console.log('✅ Token refreshed successfully');
+                  // Retry the connection check with new token
+                  return checkSpotifyConnection();
+                } else {
+                  console.error('❌ Token refresh failed');
+                  setIsSpotifyConnected(false);
+                  setPlayerError('Session expired. Please reconnect Spotify.');
+                }
+              } catch (refreshError) {
+                console.error('❌ Token refresh error:', refreshError);
+                setIsSpotifyConnected(false);
+                setPlayerError('Session expired. Please reconnect Spotify.');
+              }
+            } else {
+              console.log('⚠️ No refresh token available');
+              setIsSpotifyConnected(false);
+              setPlayerError('Session expired. Please reconnect Spotify.');
+            }
+            return;
+          }
+          
           setIsSpotifyConnected(true);
           if (data.track) {
             setSpotifyTrack(data.track);
             setLocalIsPlaying(data.is_playing || false);
             console.log('✅ Spotify connected, current track:', data.track);
           }
+        } else if (response.status === 401) {
+          // Token expired, trigger refresh
+          const data = await response.json();
+          if (data.needsRefresh) {
+            console.log('🔄 Token expired (401), attempting refresh...');
+            const refreshToken = localStorage.getItem('spotify_refresh_token');
+            
+            if (refreshToken) {
+              try {
+                const refreshResponse = await fetch('/api/spotify/refresh', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ refresh_token: refreshToken }),
+                });
+                
+                if (refreshResponse.ok) {
+                  const refreshData = await refreshResponse.json();
+                  localStorage.setItem('spotify_access_token', refreshData.access_token);
+                  if (refreshData.refresh_token) {
+                    localStorage.setItem('spotify_refresh_token', refreshData.refresh_token);
+                  }
+                  console.log('✅ Token refreshed successfully after 401');
+                  // Retry immediately
+                  return checkSpotifyConnection();
+                }
+              } catch (refreshError) {
+                console.error('❌ Token refresh error:', refreshError);
+              }
+            }
+          }
+          setIsSpotifyConnected(false);
+          setPlayerError('Session expired. Please reconnect Spotify.');
         }
       } catch (error) {
         console.log('Spotify not connected, using lofi fallback');

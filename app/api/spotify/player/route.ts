@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
   if (!accessToken) {
     console.error('❌ [SPOTIFY PLAYER GET] No access token found');
-    return NextResponse.json({ error: 'Not authenticated with Spotify' }, { status: 401 });
+    return NextResponse.json({ error: 'Not authenticated with Spotify', needsReauth: true }, { status: 401 });
   }
 
   try {
@@ -100,9 +100,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ is_playing: false, track: null });
     }
 
-    // 401/403 means token expired or invalid
+    // 401/403 means token expired - signal frontend to refresh
     if (response.status === 401 || response.status === 403) {
-      return NextResponse.json({ is_playing: false, track: null, error: 'Token expired' });
+      console.log('⚠️ [SPOTIFY PLAYER GET] Token expired, needs refresh');
+      return NextResponse.json({ 
+        is_playing: false, 
+        track: null, 
+        error: 'Token expired',
+        needsRefresh: true 
+      }, { status: 401 });
     }
 
     // Other errors - return empty state instead of throwing
