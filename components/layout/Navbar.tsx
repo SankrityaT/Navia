@@ -9,7 +9,7 @@ import {
   Users,
   UserCircle
 } from 'lucide-react';
-import NaviaAvatar from '@/components/ai/NaviaAvatar';
+import NaviaLogo from '@/components/branding/NaviaLogo';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -31,17 +31,9 @@ export default function Navbar() {
         {/* Main nav bubble */}
         <div className="relative bg-white/70 backdrop-blur-2xl border border-white/40 rounded-full shadow-2xl px-6 py-4">
           <div className="flex items-center gap-4">
-            {/* Logo - Circular Navia Avatar */}
+            {/* Logo - Circular Navia Logo */}
             <Link href="/dashboard-new" className="flex items-center gap-3 group flex-shrink-0">
-              <div className="relative">
-                {/* Glow on hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--clay-400)] to-[var(--sage-400)] rounded-full blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300" />
-                {/* Perfect circle avatar - smaller version */}
-                <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] shadow-lg overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                  <div className="absolute inset-[3px] rounded-full bg-gradient-to-br from-[#c4a574]/80 via-[#9ca986]/80 to-[#6b8e6f]/80" />
-                </div>
-              </div>
+              <NaviaLogo size="md" withGlow className="group-hover:scale-110 transition-transform duration-300" />
               <span className="text-xl font-bold text-[var(--charcoal)] tracking-tight hidden sm:block leading-none" style={{fontFamily: 'var(--font-fraunces)'}}>
                 Navia
               </span>

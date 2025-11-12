@@ -486,6 +486,8 @@ export default function OnboardingV2() {
   const handleFinishOnboarding = async () => {
     console.log('🎉 User manually finishing onboarding');
     await saveUserContext();
+    // Set flag to trigger tutorial on dashboard
+    localStorage.setItem('navia-show-tutorial', 'true');
     router.push('/dashboard-new');
   };
 

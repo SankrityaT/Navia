@@ -308,7 +308,7 @@ export default function DashboardNew({ tasks, quickWins, goals, onBreakdownReque
           <div className="lg:col-span-8 space-y-4 sm:space-y-6">
             
             {/* Today's Focus Card - AI Integration Point */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] p-4 sm:p-6 lg:p-8 border-2 border-[var(--clay-200)] shadow-lg hover:shadow-xl transition-all duration-300">
+            <div data-tutorial="focus-section" className="bg-white/80 backdrop-blur-sm rounded-[2rem] p-4 sm:p-6 lg:p-8 border-2 border-[var(--clay-200)] shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md flex-shrink-0">
@@ -447,7 +447,7 @@ export default function DashboardNew({ tasks, quickWins, goals, onBreakdownReque
             </div>
 
             {/* Goal Progress Card - AI Predictions */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] p-4 sm:p-6 lg:p-8 border-2 border-[var(--clay-200)] shadow-lg hover:shadow-xl transition-all duration-300">
+            <div data-tutorial="goal-progress" className="bg-white/80 backdrop-blur-sm rounded-[2rem] p-4 sm:p-6 lg:p-8 border-2 border-[var(--clay-200)] shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--sage-500)] to-[var(--sage-600)] flex items-center justify-center shadow-md flex-shrink-0">
                   <TrendingUp className="w-6 h-6 text-white" strokeWidth={2.5} />
@@ -516,7 +516,7 @@ export default function DashboardNew({ tasks, quickWins, goals, onBreakdownReque
           <div className="lg:col-span-4 flex flex-col gap-4 sm:gap-6">
             
             {/* Stats Card */}
-            <div className="bg-gradient-to-br from-[var(--clay-200)] via-[var(--sand)] to-[var(--clay-100)] rounded-[2rem] p-4 sm:p-6 border-2 border-[var(--clay-300)]/40 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div data-tutorial="stats" className="bg-gradient-to-br from-[var(--clay-200)] via-[var(--sand)] to-[var(--clay-100)] rounded-[2rem] p-4 sm:p-6 border-2 border-[var(--clay-300)]/40 shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md flex-shrink-0">
                   <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
@@ -551,10 +551,12 @@ export default function DashboardNew({ tasks, quickWins, goals, onBreakdownReque
             </div>
 
             {/* Calm Space - Neurodivergent-Friendly Fidget Game */}
-            <FidgetBreather />
+            <div data-tutorial="calm-space">
+              <FidgetBreather />
+            </div>
 
             {/* AI-Generated Motivational Card */}
-            <div className="bg-white rounded-[2rem] p-4 sm:p-5 border-2 border-[var(--charcoal)] shadow-lg flex-shrink-0 hover:shadow-xl transition-shadow">
+            <div data-tutorial="ai-insight" className="bg-white rounded-[2rem] p-4 sm:p-5 border-2 border-[var(--charcoal)] shadow-lg flex-shrink-0 hover:shadow-xl transition-shadow">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center shadow-md">

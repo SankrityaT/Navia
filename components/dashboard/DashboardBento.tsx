@@ -155,6 +155,7 @@ export default function DashboardBento({
           
           {/* TOP LEFT: Tasks List */}
           <motion.div
+            data-tutorial="tasks"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="bg-white rounded-3xl border-2 border-[var(--clay-200)] p-4 md:p-6 shadow-lg overflow-hidden flex flex-col min-h-[400px] md:min-h-0 md:-translate-x-4 md:-translate-y-4"
@@ -307,6 +308,7 @@ export default function DashboardBento({
 
           {/* TOP RIGHT: Energy Level */}
           <motion.div
+            data-tutorial="energy-level"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             className="bg-white rounded-3xl border-2 border-[var(--clay-200)] p-4 md:p-6 shadow-lg overflow-hidden flex flex-col min-h-[350px] md:min-h-0 md:translate-x-4 md:-translate-y-4"
@@ -366,6 +368,7 @@ export default function DashboardBento({
 
           {/* BOTTOM RIGHT: Support Level */}
           <motion.div
+            data-tutorial="support-level"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -419,6 +422,7 @@ export default function DashboardBento({
 
           {/* BOTTOM LEFT: Focus Mode */}
           <motion.div
+            data-tutorial="focus-mode"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -544,7 +548,7 @@ export default function DashboardBento({
         </div>
 
           {/* CENTER: Navia Avatar - Absolute positioned at intersection (Desktop only) */}
-          <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%-30px)] z-30">
+          <div data-tutorial="navia-avatar" className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[calc(50%-30px)] z-30">
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}

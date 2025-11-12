@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 interface NaviaAvatarProps {
   isThinking?: boolean;
   isSpeaking?: boolean;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '4xl' | '8xl';
 }
 
 export default function NaviaAvatar({ 
@@ -30,6 +30,8 @@ export default function NaviaAvatar({
     md: 'w-24 h-24',
     lg: 'w-40 h-40',
     xl: 'w-64 h-64', // Extra large for focus mode
+    '4xl': 'w-96 h-96', // Ultra large for demo/recording
+    '8xl': 'w-[512px] h-[512px]', // Massive for video recording
   };
 
   return (
@@ -63,9 +65,12 @@ export default function NaviaAvatar({
         }}
         animate={isThinking ? {
           rotate: 360,
+          scale: [1, 1.1, 1],
         } : isSpeaking ? {
           scale: [1, 1.05, 1],
-        } : {}}
+        } : {
+          scale: [1, 1.02, 1], // Subtle idle breathing
+        }}
         transition={{
           rotate: {
             duration: 3,
@@ -73,7 +78,7 @@ export default function NaviaAvatar({
             ease: 'linear',
           },
           scale: {
-            duration: 0.6,
+            duration: 3.5,
             repeat: Infinity,
             ease: 'easeInOut',
           },

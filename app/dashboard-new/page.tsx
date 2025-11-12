@@ -9,6 +9,8 @@ import ImmersiveFocusMode from '@/components/focus/ImmersiveFocusMode';
 import DashboardBento from '@/components/dashboard/DashboardBento';
 import Navbar from '@/components/layout/Navbar';
 import NaviaAssistant from '@/components/ai/NaviaAssistant';
+import DashboardTutorial from '@/components/tutorial/DashboardTutorial';
+import { useTutorial } from '@/hooks/useTutorial';
 import {
   CheckCircle2,
   Circle,
@@ -56,6 +58,7 @@ interface Message {
 
 export default function DashboardNew() {
   const { user } = useUser();
+  const { showTutorial, completeTutorial, closeTutorial, startTutorial } = useTutorial();
   const [tasks, setTasks] = useState<Task[]>([]);
   
   // Log whenever tasks change
@@ -486,9 +489,14 @@ export default function DashboardNew() {
     // Proactive check-in when energy drops to ≤3
     if (newLevel <= 3 && oldLevel > 3) {
       console.log('💛 [DASHBOARD-NEW] Low energy detected - triggering Navia');
+      // Use celebration mode to show message directly without AI generating a fake conversation
       setNaviaManualMessage("I noticed your energy is low. That's completely okay 💛 Want to talk about it, or should I help you find something gentle to focus on?");
+      setNaviaCelebrationMode(true);
       setNaviaManualTrigger(true);
-      setTimeout(() => setNaviaManualTrigger(false), 1000);
+      setTimeout(() => {
+        setNaviaManualTrigger(false);
+        setNaviaCelebrationMode(false);
+      }, 1000);
     }
   };
 
@@ -1475,6 +1483,24 @@ export default function DashboardNew() {
           setNaviaManualTrigger(false);
         }}
       />
+
+      {/* Dashboard Tutorial */}
+      <DashboardTutorial
+        isOpen={showTutorial}
+        onClose={closeTutorial}
+        onComplete={completeTutorial}
+        variant="bento"
+      />
+
+      {/* Optional: Tutorial trigger button */}
+      <button
+        onClick={startTutorial}
+        className="fixed bottom-6 right-6 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all z-50 flex items-center gap-2 font-semibold"
+        title="Show tutorial"
+      >
+        <span>❓</span>
+        <span className="hidden sm:inline">Tutorial</span>
+      </button>
     </div>
   </>
   );
