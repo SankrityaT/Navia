@@ -536,27 +536,60 @@ export default function OnboardingV2() {
           </motion.div>
         )}
 
-        {/* Streaming Text - No bubbles, just text */}
-        <motion.div
-          ref={textRef}
-          className="w-full max-w-2xl mb-8 min-h-[120px]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <p 
-            className="text-2xl text-center text-[var(--charcoal)] leading-relaxed whitespace-pre-line"
-            style={{ fontFamily: 'var(--font-dm-sans)' }}
+        {/* Loading Screen - Shows while AI is thinking */}
+        {isLoading && !isTyping && !currentText && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="w-full max-w-2xl mb-8 min-h-[120px] flex flex-col items-center justify-center"
           >
-            {currentText}
-            {isTyping && (
-              <motion.span
-                animate={{ opacity: [1, 0, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
-                className="inline-block w-1 h-6 bg-[var(--clay-500)] ml-1"
+            <div className="flex gap-2 mb-4">
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
               />
-            )}
-          </p>
-        </motion.div>
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
+              />
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                className="w-3 h-3 bg-[var(--clay-500)] rounded-full"
+              />
+            </div>
+            <p className="text-lg text-[var(--sage-600)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
+              Thinking...
+            </p>
+          </motion.div>
+        )}
+
+        {/* Streaming Text - No bubbles, just text */}
+        {!isLoading && (
+          <motion.div
+            ref={textRef}
+            className="w-full max-w-2xl mb-8 min-h-[120px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <p 
+              className="text-2xl text-center text-[var(--charcoal)] leading-relaxed whitespace-pre-line"
+              style={{ fontFamily: 'var(--font-dm-sans)' }}
+            >
+              {currentText}
+              {isTyping && (
+                <motion.span
+                  animate={{ opacity: [1, 0, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="inline-block w-1 h-6 bg-[var(--clay-500)] ml-1"
+                />
+              )}
+            </p>
+          </motion.div>
+        )}
 
         {/* Name Input */}
         {mode === 'name' && !isTyping && (

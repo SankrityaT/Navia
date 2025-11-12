@@ -43,14 +43,14 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.next();
   }
 
-  // PROTECT ALL NON-PUBLIC ROUTES - Require authentication
-  // This will redirect unauthenticated users to sign-in
-  await auth.protect();
-
-  // Skip onboarding check for API routes
+  // Allow API routes without authentication (they handle their own auth)
   if (isApiRoute(request)) {
     return NextResponse.next();
   }
+
+  // PROTECT ALL NON-PUBLIC, NON-API ROUTES - Require authentication
+  // This will redirect unauthenticated users to sign-in
+  await auth.protect();
 
   // If user is authenticated, enforce onboarding flow
   if (userId) {

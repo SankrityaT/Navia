@@ -85,6 +85,27 @@ export default function DashboardNew() {
   const [customFocusMinutes, setCustomFocusMinutes] = useState(25); // For user input
   const [timerActive, setTimerActive] = useState(false);
   const [isPausedInFocus, setIsPausedInFocus] = useState(false);
+
+  // Restore focus session if returning from Spotify auth
+  useEffect(() => {
+    const savedFocusState = sessionStorage.getItem('focus_session_state');
+    if (savedFocusState) {
+      try {
+        const state = JSON.parse(savedFocusState);
+        setFocusMode(state.focusMode);
+        setFocusTime(state.focusTime);
+        setFocusIntention(state.focusIntention);
+        setSelectedTaskForFocus(state.selectedTaskForFocus);
+        setShowImmersiveFocus(state.showImmersiveFocus);
+        setIsPausedInFocus(state.isPausedInFocus);
+        setTimerActive(state.timerActive);
+        sessionStorage.removeItem('focus_session_state');
+        console.log('🔄 [DASHBOARD-NEW] Restored focus session after Spotify auth');
+      } catch (error) {
+        console.error('Failed to restore focus state:', error);
+      }
+    }
+  }, []);
   const [energyLevel, setEnergyLevel] = useState(5);
   const [supportLevel, setSupportLevel] = useState(3);
   const [isLoadingState, setIsLoadingState] = useState(true); // 1=minimal, 3=balanced, 5=maximum support
@@ -428,6 +449,22 @@ export default function DashboardNew() {
     
     // Keep focus mode active, just hide immersive view
   };
+
+  const handlePauseFocus = () => {
+    console.log('⏸️ [DASHBOARD-NEW] Toggling focus pause');
+    setIsPausedInFocus(!isPausedInFocus);
+    setTimerActive(!isPausedInFocus); // Toggle timer
+  };
+
+  const handleEndFocusFromBento = () => {
+    console.log('🏁 [DASHBOARD-NEW] Ending focus from bento');
+    handleEndFocus();
+  };
+
+  const handleAddTime = (minutes: number) => {
+    console.log(`⏱️ [DASHBOARD-NEW] Adding ${minutes} minutes to focus session`);
+    setFocusTime(prev => prev + (minutes * 60));
+  };
   
   const handleEnergyChange = async (newLevel: number) => {
     const oldLevel = energyLevel;
@@ -766,6 +803,10 @@ export default function DashboardNew() {
       focusTime={focusTime}
       focusTask={selectedTaskForFocus ? tasks.find(t => t.id === selectedTaskForFocus)?.title || focusIntention : focusIntention}
       onMaximizeFocus={() => setShowImmersiveFocus(true)}
+      onPauseFocus={handlePauseFocus}
+      onEndFocus={handleEndFocusFromBento}
+      onAddTime={handleAddTime}
+      isPaused={isPausedInFocus}
     />
 
     {/* Focus Setup Modal */}
@@ -794,11 +835,11 @@ export default function DashboardNew() {
             
             <div className="space-y-4">
               {/* Choose from tasks */}
-              {tasks.filter(t => !t.completed).length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
-                    Choose a task:
-                  </label>
+              <div>
+                <label className="block text-sm font-medium text-[var(--charcoal)] mb-2">
+                  Choose a task:
+                </label>
+                {tasks.filter(t => !t.completed && t.status !== 'completed').length > 0 ? (
                   <select
                     value={selectedTaskForFocus}
                     onChange={(e) => {
@@ -808,12 +849,16 @@ export default function DashboardNew() {
                     className="w-full bg-white border border-[var(--stone)] rounded-lg px-4 py-3 text-[var(--charcoal)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)]"
                   >
                     <option value="">Select a task...</option>
-                    {tasks.filter(t => !t.completed).map(task => (
+                    {tasks.filter(t => !t.completed && t.status !== 'completed').map(task => (
                       <option key={task.id} value={task.id}>{task.title}</option>
                     ))}
                   </select>
-                </div>
-              )}
+                ) : (
+                  <div className="w-full bg-[var(--sand)] border border-[var(--clay-200)] rounded-lg px-4 py-3 text-[var(--sage-600)] text-sm italic">
+                    No active tasks yet. Write your own focus intention below! 💛
+                  </div>
+                )}
+              </div>
               
               {/* Or custom intention */}
               <div>

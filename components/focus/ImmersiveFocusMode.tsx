@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pause, Play, X, Minimize2 } from 'lucide-react';
+import { Pause, Play, X, Minimize2, Plus } from 'lucide-react';
 import UniversalNavia from '../ai/UniversalNavia';
 import NaviaAvatar from '../ai/NaviaAvatar';
+import FocusMusicPlayer from './FocusMusicPlayer';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -132,89 +133,29 @@ export default function ImmersiveFocusMode({
       />
 
       {/* Content */}
-      <div className="relative h-full flex flex-col p-8">
+      <div className="relative h-full overflow-y-auto">
         {/* Top right controls */}
-        <div className="absolute top-8 right-8 flex gap-3 z-10">
+        <div className="absolute top-4 right-4 md:top-8 md:right-8 flex gap-3 z-10">
           {/* Minimize button */}
           <button
             onClick={handleMinimize}
-            className="bg-[var(--charcoal)] hover:bg-[var(--charcoal)]/80 text-white rounded-full p-3 transition-all shadow-lg"
+            className="bg-[var(--charcoal)] hover:bg-[var(--charcoal)]/80 text-white rounded-full p-2 md:p-3 transition-all shadow-lg"
             title="Minimize focus mode"
           >
-            <Minimize2 className="w-6 h-6" />
+            <Minimize2 className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
 
-        {/* Fixed Top Section - Title & Timer */}
-        <div className="flex-shrink-0 max-w-4xl w-full mx-auto space-y-8 mb-8">
-          {/* Task title */}
-          <motion.div
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-center"
-          >
-            <h2 className="text-3xl font-bold text-[var(--charcoal)] mb-2">
-              Focusing on:
-            </h2>
-            <p className="text-5xl font-bold text-[var(--clay-600)]">
-              {taskTitle}
-            </p>
-          </motion.div>
-
-          {/* Timer */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="text-center"
-          >
-            <div className="text-9xl font-bold text-[var(--charcoal)] mb-8 tracking-tight">
-              {formatTime(timeLeft)}
-            </div>
-
-            {/* Controls */}
-            <div className="flex gap-4 justify-center items-center">
-              <button
-                onClick={togglePause}
-                className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-full px-12 py-6 text-2xl font-semibold transition-all shadow-2xl flex items-center gap-4"
-              >
-                {isPaused ? (
-                  <>
-                    <Play className="w-8 h-8" />
-                    Resume
-                  </>
-                ) : (
-                  <>
-                    <Pause className="w-8 h-8" />
-                    Pause
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={onEnd}
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-[var(--charcoal)] border-2 border-[var(--stone)] rounded-full px-12 py-6 text-2xl font-semibold transition-all flex items-center gap-4"
-              >
-                <X className="w-8 h-8" />
-                End Session
-              </button>
-            </div>
+        {/* Content Container with padding */}
+        <div className="min-h-full flex items-center justify-center p-4 md:p-8 pt-16 md:pt-20 pb-8 md:pb-12">
+          {/* Two Column Layout: Timer on Right, Navia on Left */}
+          <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center">
             
-            {/* Pause indicator */}
-            {isPaused && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center mt-4"
-              >
-                <p className="text-xl text-[var(--clay-600)] font-semibold">⏸️ Paused</p>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
+            {/* Left Side: Navia Section */}
+            <div className="flex flex-col items-center justify-center order-2 md:order-1 space-y-8">
 
-        {/* Optional Navia Section - Only shown when user requests */}
-        {showNaviaSection ? (
-          <div className="flex-1 overflow-y-auto max-w-4xl w-full mx-auto">
+              {showNaviaSection ? (
+                <div className="w-full">
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -247,9 +188,9 @@ export default function ImmersiveFocusMode({
                 className="max-w-2xl mx-auto"
               />
             </motion.div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center w-full mx-auto py-12">
+                </div>
+              ) : (
+                <div className="w-full flex flex-col items-center">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -322,9 +263,93 @@ export default function ImmersiveFocusMode({
                   Click to chat with me
                 </p>
               </motion.div>
-            </motion.div>
+                </motion.div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Side: Timer & Controls */}
+            <div className="flex flex-col items-center justify-center order-1 md:order-2 space-y-6">
+              {/* Task title */}
+              <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="text-center"
+              >
+                <h2 className="text-xl md:text-2xl font-bold text-[var(--charcoal)] mb-1">
+                  Focusing on:
+                </h2>
+                <p className="text-2xl md:text-4xl font-bold text-[var(--clay-600)]">
+                  {taskTitle}
+                </p>
+              </motion.div>
+
+              {/* Timer */}
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center"
+              >
+                <div className="text-6xl md:text-8xl font-bold text-[var(--charcoal)] mb-4 tracking-tight">
+                  {formatTime(timeLeft)}
+                </div>
+              </motion.div>
+
+              {/* Music Player */}
+              <div className="w-full max-w-md">
+                <FocusMusicPlayer isPlaying={!isPaused} />
+              </div>
+
+              {/* Controls */}
+              <div className="flex flex-wrap gap-3 justify-center items-center">
+                <button
+                  onClick={togglePause}
+                  className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-full px-6 py-3 md:px-8 md:py-4 text-base md:text-lg font-semibold transition-all shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95"
+                >
+                  {isPaused ? (
+                    <>
+                      <Play className="w-5 h-5 md:w-6 md:h-6" />
+                      Resume
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="w-5 h-5 md:w-6 md:h-6" />
+                      Pause
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => handleExtendTime(1)}
+                  className="bg-[var(--sage-500)] hover:bg-[var(--sage-600)] text-white rounded-full px-6 py-3 md:px-8 md:py-4 text-base md:text-lg font-semibold transition-all shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95"
+                  title="Add 1 minute"
+                >
+                  <Plus className="w-5 h-5 md:w-6 md:h-6" />
+                  1 min
+                </button>
+
+                <button
+                  onClick={onEnd}
+                  className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-[var(--charcoal)] border-2 border-[var(--stone)] rounded-full px-6 py-3 md:px-8 md:py-4 text-base md:text-lg font-semibold transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
+                >
+                  <X className="w-5 h-5 md:w-6 md:h-6" />
+                  End Session
+                </button>
+              </div>
+              
+              {/* Pause indicator */}
+              {isPaused && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center"
+                >
+                  <p className="text-xl text-[var(--clay-600)] font-semibold">⏸️ Paused</p>
+                </motion.div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Timer Completion Modal */}
