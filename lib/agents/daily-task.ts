@@ -95,6 +95,41 @@ ${userContext.recentHistory.slice(semanticEndIndex).map((msg: any) => {
       ? `\n\nUSER CONTEXT:\n- Energy Level: ${userContext.energy_level || 'unknown'}\n- EF Profile: ${userContext.ef_profile?.join(', ') || 'not provided'}\n- Goals: ${userContext.current_goals?.join(', ') || 'not provided'}`
       : '';
 
+    // Add brain dump context if this is a memory recall query
+    const brainDumpContext = userContext?.isMemoryQuery && (userContext?.brainDumpMemories?.length > 0 || userContext?.pendingTasks?.length > 0)
+      ? `\n\n🧠 MEMORY RECALL MODE - Answer based on their brain dumps and pending tasks:
+QUERY TYPE: ${userContext.memoryQueryType || 'forgetting'}
+USER QUESTION: "${query}"
+
+${userContext.brainDumpMemories && userContext.brainDumpMemories.length > 0
+  ? `📝 RECENT BRAIN DUMPS:\n${userContext.brainDumpMemories.slice(0, 5).map((memory: any, idx: number) => {
+      const items = memory.extracted_items && Array.isArray(memory.extracted_items)
+        ? memory.extracted_items.map((i: any) => i.content).join(', ')
+        : '';
+      return `${idx + 1}. "${memory.content}" (${new Date(memory.timestamp).toLocaleDateString()})${items ? `\n   Extracted: ${items}` : ''}`;
+    }).join('\n')}`
+  : ''}
+
+${userContext.pendingTasks && userContext.pendingTasks.length > 0
+  ? `✅ PENDING TASKS:\n${userContext.pendingTasks.slice(0, 10).map((task: any, idx: number) => `${idx + 1}. ${task.title}`).join('\n')}`
+  : ''}
+
+CRITICAL RULE FOR MEMORY RECALL:
+- ONLY mention things that are explicitly listed in the "RECENT BRAIN DUMPS" or "PENDING TASKS" sections above
+- NEVER mention items from examples or make assumptions about what they might have said
+- If only one item is provided, only mention that one item
+- If no brain dumps or tasks are provided, say you don't have any recent memories to share
+
+RESPONSE STYLE FOR MEMORY RECALL:
+- Sound like a caring friend, NOT a robot
+- Be conversational and natural
+- Keep it SHORT (3-4 sentences max)
+- Pick 2-3 most important things from the ACTUAL data provided above
+- Use natural language, not bullet points
+- Add empathy and validation
+- End with warmth 💛`
+      : '';
+
     // Step 6: Check if user EXPLICITLY requested a breakdown (with conversation history for context)
     const explicitBreakdownRequest = await explicitlyRequestsBreakdown(query, userContext?.recentHistory);
 
@@ -146,6 +181,7 @@ ${userContext.recentHistory.slice(semanticEndIndex).map((msg: any) => {
 ${recentConversationContext}
 USER QUERY: "${query}"
 ${userContextInfo}
+${brainDumpContext}
 ${energyAdjustment}
 ${ragContext}
 ${resourceContext}

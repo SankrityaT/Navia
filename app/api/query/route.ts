@@ -6,6 +6,9 @@ import { NextResponse } from 'next/server';
 import { orchestrateQuery } from '@/lib/agents/orchestrator';
 import { storeChatMessage, retrieveChatHistory, retrieveRelevantContext } from '@/lib/pinecone/chat-history';
 import { autoStoreTaskIfNeeded } from '@/lib/tasks/ai-task-storage';
+import { getBrainDumpMemories } from '@/lib/pinecone/brain-dump';
+import { isMemoryRecallQuery, getMemoryQueryType } from '@/lib/utils/memory-query-detection';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 export async function POST(request: Request) {
   try {
@@ -130,6 +133,41 @@ export async function POST(request: Request) {
     const sessionTitle = isFirstMessage ? generateSessionTitle(query, primaryDomain) : undefined;
     
     console.log(`🔍 Session check: ${session_id}, existing messages: ${existingSessionMessages.length}, isFirstMessage: ${isFirstMessage}`);
+
+    // Check if this is a memory recall query and retrieve brain dump data
+    const isMemoryQuery = isMemoryRecallQuery(query);
+    const memoryQueryType = isMemoryQuery ? getMemoryQueryType(query) : null;
+    
+    let brainDumpMemories: any[] = [];
+    let pendingTasks: any[] = [];
+    if (isMemoryQuery && userId) {
+      try {
+        brainDumpMemories = await getBrainDumpMemories(userId, query, 10);
+        
+        // Get not_started tasks from Supabase
+        const { data: tasks, error: tasksError } = await supabaseAdmin
+          .from('tasks')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'not_started')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!tasksError && tasks) {
+          pendingTasks = tasks;
+        }
+        
+        console.log('🧠 [Query Route] Memory query detected. Found', brainDumpMemories.length, 'memories and', pendingTasks.length, 'pending tasks');
+        
+        // Add brain dump data to enhanced context
+        enhancedContext.brainDumpMemories = brainDumpMemories;
+        enhancedContext.pendingTasks = pendingTasks;
+        enhancedContext.isMemoryQuery = true;
+        enhancedContext.memoryQueryType = memoryQueryType;
+      } catch (error) {
+        console.error('Error retrieving brain dump memories:', error);
+      }
+    }
 
     // Orchestrate the query with full context
     const result = await orchestrateQuery(userId, query, enhancedContext);

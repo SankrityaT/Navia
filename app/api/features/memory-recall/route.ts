@@ -1,35 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/client';
-import { generateEmbedding } from '@/lib/embeddings/client';
-import { getIndex } from '@/lib/pinecone/client';
+import { getBrainDumpMemories } from '@/lib/pinecone/brain-dump';
 import { groqStreamChat, GROQ_MODELS } from '@/lib/groq/client';
 
 const MEMORY_RECALL_PROMPT = `You are Navia, a warm AI companion helping neurodivergent users recall what they've brain dumped.
 
 YOUR JOB:
-Answer their question based on their brain dumps and pending tasks. Be conversational, warm, and helpful.
+Answer their question based ONLY on the brain dumps and pending tasks provided below. Do NOT make up or invent items that aren't in the provided data.
+
+CRITICAL RULE:
+- ONLY mention things that are explicitly listed in the "RECENT BRAIN DUMPS" or "PENDING TASKS" sections below
+- NEVER mention items from examples or make assumptions about what they might have said
+- If the provided data only has one item, only mention that one item
+- If no brain dumps or tasks are provided, say you don't have any recent memories to share
 
 RESPONSE STYLE:
 - Sound like a caring friend, NOT a robot
 - Be conversational and natural
-- Example GOOD: "Hey, I remember you mentioned needing to pick up your ADHD meds and email Professor Chen about that recommendation letter. Also, you said something about forgetting to eat when you're stressed - that's so real. 💛"
-- Example BAD: "I recall you mentioning• Needing to pick ADHD medication• Wanting to email..."
+- Example format (use ONLY actual data provided): "Hey, I remember you mentioned [specific item from brain dump]. Also, [another specific item if available]. [Warm validation] 💛"
+- Example BAD: "I recall you mentioning• Item 1• Item 2..." (too robotic)
 - Keep it SHORT (3-4 sentences max)
-- Pick 2-3 most important things
+- Pick 2-3 most important things from the ACTUAL data provided
 - Use natural language, not bullet points
 - Add empathy and validation
 - End with warmth 💛
 
 QUERY TYPES:
-- "forgetting": Remind them of 2-3 key things they mentioned but haven't done
-- "today": What they said they'd do today
-- "patterns": 1-2 patterns you notice in their brain dumps
+- "forgetting": Remind them of 2-3 key things they mentioned but haven't done (from provided data only)
+- "today": What they said they'd do today (from provided data only)
+- "patterns": 1-2 patterns you notice in their brain dumps (from provided data only)
 
-IMPORTANT: Be warm, specific, and conversational. Reference actual content from their brain dumps and tasks.`;
+IMPORTANT: Be warm, specific, and conversational. Reference ONLY actual content from the brain dumps and tasks provided below.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, userId, queryType } = await request.json();
+    const body = await request.json();
+    
+    // Handle both data formats:
+    // Format 1: { query, userId, queryType } (direct call)
+    // Format 2: { messages: [...], ...context } (from UniversalNavia)
+    let query: string | undefined = body.query;
+    let userId: string | undefined = body.userId;
+    let queryType: string | undefined = body.queryType;
+
+    // If format 2, extract from messages and context
+    if (!query && body.messages && Array.isArray(body.messages) && body.messages.length > 0) {
+      query = body.messages[0]?.content;
+    }
+    
+    if (!userId && body.userId) {
+      userId = body.userId;
+    }
+    
+    if (!queryType && body.queryType) {
+      queryType = body.queryType;
+    }
 
     if (!userId) {
       return NextResponse.json(
@@ -38,32 +63,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!query) {
+      return NextResponse.json(
+        { error: 'Missing query' },
+        { status: 400 }
+      );
+    }
+
     console.log('🧠 [Memory Recall] Query type:', queryType, 'for user:', userId);
 
-    // Get relevant memories from Pinecone
-    let memories: any[] = [];
-    if (query) {
-      const queryEmbedding = await generateEmbedding(query);
-      const index = getIndex();
-      const namespace = index.namespace(`user-${userId}`);
-
-      const queryResponse = await namespace.query({
-        vector: queryEmbedding,
-        topK: 10,
-        includeMetadata: true,
-        filter: {
-          type: 'brain_dump',
-        },
-      });
-
-      memories = queryResponse.matches.map((match: any) => ({
-        content: match.metadata?.content || '',
-        timestamp: match.metadata?.timestamp || '',
-        extracted_items: match.metadata?.extracted_items || null,
-        patterns: match.metadata?.patterns || null,
-        score: match.score,
-      }));
-    }
+    // Get relevant memories from Pinecone using utility function
+    // This includes both type: 'brain_dump' AND userId filter
+    const memories = await getBrainDumpMemories(userId, query, 10);
 
     // Get not_started tasks from Supabase
     const { data: tasks, error: tasksError } = await supabaseAdmin
@@ -90,11 +101,8 @@ export async function POST(request: NextRequest) {
       contextPrompt += `\n\n📝 RECENT BRAIN DUMPS:`;
       memories.slice(0, 5).forEach((memory: any, idx: number) => {
         contextPrompt += `\n${idx + 1}. "${memory.content}" (${new Date(memory.timestamp).toLocaleDateString()})`;
-        if (memory.extracted_items) {
-          try {
-            const items = JSON.parse(memory.extracted_items);
-            contextPrompt += `\n   Extracted: ${items.map((i: any) => i.content).join(', ')}`;
-          } catch (e) {}
+        if (memory.extracted_items && Array.isArray(memory.extracted_items)) {
+          contextPrompt += `\n   Extracted: ${memory.extracted_items.map((i: any) => i.content).join(', ')}`;
         }
       });
     }

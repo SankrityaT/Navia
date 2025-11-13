@@ -6,6 +6,9 @@ import { groqStreamChat, GROQ_MODELS } from '@/lib/groq/client';
 import { geminiStreamChat, GEMINI_MODELS } from '@/lib/gemini/client';
 import { auth } from '@clerk/nextjs/server';
 import { storeChatMessage } from '@/lib/supabase/operations';
+import { getBrainDumpMemories } from '@/lib/pinecone/brain-dump';
+import { isMemoryRecallQuery, getMemoryQueryType } from '@/lib/utils/memory-query-detection';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 // System prompt for dashboard AI - focused on executive function support
 const DASHBOARD_SYSTEM_PROMPT = `You are Navia, an AI companion supporting neurodivergent individuals with executive function challenges.
@@ -84,10 +87,41 @@ export async function POST(req: NextRequest) {
 
     // Check message type for special handling
     const lastMessage = messages[messages.length - 1]?.content || '';
+    const userQuery = lastMessage;
     const isTaskCompletion = lastMessage.includes('I just completed:') || lastMessage.includes('🎉');
     const isFocusStart = lastMessage.includes('Stay with me!') || lastMessage.includes('focusing on:');
     const isEnergyUpdate = lastMessage.includes('My energy is');
     const isFocusMode = context?.focusMode === true;
+    
+    // Check if this is a memory recall query
+    const isMemoryQuery = isMemoryRecallQuery(userQuery);
+    const memoryQueryType = isMemoryQuery ? getMemoryQueryType(userQuery) : null;
+    
+    // Retrieve brain dump memories if this is a memory recall query
+    let brainDumpMemories: any[] = [];
+    let pendingTasks: any[] = [];
+    if (isMemoryQuery && userId) {
+      try {
+        brainDumpMemories = await getBrainDumpMemories(userId, userQuery, 10);
+        
+        // Get not_started tasks from Supabase
+        const { data: tasks, error: tasksError } = await supabaseAdmin
+          .from('tasks')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'not_started')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!tasksError && tasks) {
+          pendingTasks = tasks;
+        }
+        
+        console.log('🧠 [Dashboard Chat] Memory query detected. Found', brainDumpMemories.length, 'memories and', pendingTasks.length, 'pending tasks');
+      } catch (error) {
+        console.error('Error retrieving brain dump memories:', error);
+      }
+    }
 
     // Add user context if provided (current tasks, energy level, etc.)
     let systemPrompt = DASHBOARD_SYSTEM_PROMPT;
@@ -191,6 +225,45 @@ The user shared their energy level. Meet them where they are.
 - Medium (4-6): Acknowledge it's okay, suggest manageable tasks
 - High (7-10): Celebrate! Help channel it productively
 Be understanding and adaptive.`;
+    }
+    
+    // Add brain dump context if this is a memory recall query
+    if (isMemoryQuery && (brainDumpMemories.length > 0 || pendingTasks.length > 0)) {
+      systemPrompt += `\n\n🧠 MEMORY RECALL MODE - Answer based on their brain dumps and pending tasks:\n`;
+      systemPrompt += `QUERY TYPE: ${memoryQueryType || 'forgetting'}\n`;
+      systemPrompt += `USER QUESTION: "${userQuery}"\n`;
+      
+      if (brainDumpMemories.length > 0) {
+        systemPrompt += `\n📝 RECENT BRAIN DUMPS:\n`;
+        brainDumpMemories.slice(0, 5).forEach((memory: any, idx: number) => {
+          systemPrompt += `${idx + 1}. "${memory.content}" (${new Date(memory.timestamp).toLocaleDateString()})\n`;
+          if (memory.extracted_items && Array.isArray(memory.extracted_items)) {
+            systemPrompt += `   Extracted: ${memory.extracted_items.map((i: any) => i.content).join(', ')}\n`;
+          }
+        });
+      }
+      
+      if (pendingTasks.length > 0) {
+        systemPrompt += `\n✅ PENDING TASKS:\n`;
+        pendingTasks.slice(0, 10).forEach((task: any, idx: number) => {
+          systemPrompt += `${idx + 1}. ${task.title}\n`;
+        });
+      }
+      
+      systemPrompt += `\nCRITICAL RULE FOR MEMORY RECALL:
+- ONLY mention things that are explicitly listed in the "RECENT BRAIN DUMPS" or "PENDING TASKS" sections above
+- NEVER mention items from examples or make assumptions about what they might have said
+- If only one item is provided, only mention that one item
+- If no brain dumps or tasks are provided, say you don't have any recent memories to share
+
+RESPONSE STYLE FOR MEMORY RECALL:
+- Sound like a caring friend, NOT a robot
+- Be conversational and natural
+- Keep it SHORT (3-4 sentences max)
+- Pick 2-3 most important things from the ACTUAL data provided above
+- Use natural language, not bullet points
+- Add empathy and validation
+- End with warmth 💛`;
     }
     
     // Add emotion context if provided
