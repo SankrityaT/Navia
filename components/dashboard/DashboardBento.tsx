@@ -150,16 +150,28 @@ export default function DashboardBento({
     setNaviaModalOpen(true);
   };
 
-  // Open NAVIA for energy check-in (only when energy is ≤ 4)
+  // Track energy level during dragging (for visual updates only)
+  const [tempEnergyLevel, setTempEnergyLevel] = useState(energyLevel);
+  
+  // Sync tempEnergyLevel when energyLevel prop changes from parent
+  useEffect(() => {
+    setTempEnergyLevel(energyLevel);
+  }, [energyLevel]);
+  
+  // Handle energy level change during dragging (visual update only)
   const handleEnergyChange = (newLevel: number) => {
+    setTempEnergyLevel(newLevel);
     onEnergyChange(newLevel);
-    
-    // Only open Navia when energy level is 4 or below
-    if (newLevel <= 4) {
+  };
+  
+  // Open NAVIA for energy check-in (only when user finishes dragging and energy is ≤ 4)
+  const handleEnergyChangeEnd = (finalLevel: number) => {
+    // Only open Navia when energy level is 4 or below and user has finished dragging
+    if (finalLevel <= 4) {
       setNaviaApiEndpoint('/api/features/navia-session'); // Use general chat - wait for user
-      setNaviaInitialMessage(`I noticed your energy is at ${newLevel}/10. How are you feeling?`);
+      setNaviaInitialMessage(`I noticed your energy is at ${finalLevel}/10. How are you feeling?`);
       setNaviaContext({
-        energyLevel: newLevel,
+        energyLevel: finalLevel,
         sessionType: 'energy_checkin',
       });
       setNaviaModalOpen(true);
@@ -546,24 +558,26 @@ export default function DashboardBento({
                 <p className="text-xs md:text-sm font-semibold text-[var(--charcoal)] mb-2 md:mb-3">Energy Level</p>
                 <div className="text-center mb-3 md:mb-4">
                   <div className="text-4xl md:text-6xl font-bold text-[var(--charcoal)] mb-2">
-                    {energyLevel}/10
+                    {tempEnergyLevel}/10
                   </div>
                   <p className="text-sm md:text-base font-bold text-[var(--clay-700)]">
-                    {energyLevel <= 3 && "Low energy - that's okay 💛"}
-                    {energyLevel > 3 && energyLevel <= 6 && "Moderate energy"}
-                    {energyLevel > 6 && "Good energy! 🌟"}
+                    {tempEnergyLevel <= 3 && "Low energy - that's okay 💛"}
+                    {tempEnergyLevel > 3 && tempEnergyLevel <= 6 && "Moderate energy"}
+                    {tempEnergyLevel > 6 && "Good energy! 🌟"}
                   </p>
                 </div>
                 <input
                   type="range"
                   min="1"
                   max="10"
-                  value={energyLevel}
+                  value={tempEnergyLevel}
                   onChange={(e) => handleEnergyChange(Number(e.target.value))}
+                  onMouseUp={(e) => handleEnergyChangeEnd(Number((e.target as HTMLInputElement).value))}
+                  onTouchEnd={(e) => handleEnergyChangeEnd(Number((e.target as HTMLInputElement).value))}
                   className="w-full h-3 rounded-full appearance-none cursor-pointer"
                   style={{
-                    background: `linear-gradient(to right, #c4a57b 0%, #c4a57b ${((energyLevel - 1) / 9) * 100}%, #e8dcc8 ${((energyLevel - 1) / 9) * 100}%, #e8dcc8 100%)`,
-                    accentColor: energyLevel <= 3 ? '#c4a57b' : energyLevel <= 6 ? '#9ca986' : '#6b8e6f'
+                    background: `linear-gradient(to right, #c4a57b 0%, #c4a57b ${((tempEnergyLevel - 1) / 9) * 100}%, #e8dcc8 ${((tempEnergyLevel - 1) / 9) * 100}%, #e8dcc8 100%)`,
+                    accentColor: tempEnergyLevel <= 3 ? '#c4a57b' : tempEnergyLevel <= 6 ? '#9ca986' : '#6b8e6f'
                   }}
                 />
                 <div className="flex justify-between text-[10px] md:text-xs font-medium text-[var(--clay-600)] mt-2 px-1">

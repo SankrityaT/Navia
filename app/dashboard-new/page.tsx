@@ -462,25 +462,42 @@ export default function DashboardNew() {
     setFocusTime(prev => prev + (minutes * 60));
   };
   
-  const handleEnergyChange = async (newLevel: number) => {
-    const oldLevel = energyLevel;
+  // Track energy level during dragging (for visual updates only)
+  const [tempEnergyLevel, setTempEnergyLevel] = useState(energyLevel);
+  const [previousEnergyLevel, setPreviousEnergyLevel] = useState(energyLevel);
+  
+  // Sync tempEnergyLevel when energyLevel prop changes
+  useEffect(() => {
+    setTempEnergyLevel(energyLevel);
+    setPreviousEnergyLevel(energyLevel);
+  }, [energyLevel]);
+  
+  // Handle energy level change during dragging (visual update only)
+  const handleEnergyChange = (newLevel: number) => {
+    setTempEnergyLevel(newLevel);
     setEnergyLevel(newLevel);
     
-    console.log('⚡ [DASHBOARD-NEW] Energy level changed:', oldLevel, '->', newLevel);
-    
-    // Save to backend
-    try {
-      await fetch('/api/user-state', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ energyLevel: newLevel }),
-      });
-    } catch (error) {
+    // Save to backend immediately for persistence
+    fetch('/api/user-state', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ energyLevel: newLevel }),
+    }).catch(error => {
       console.error('Error saving energy level:', error);
-    }
+    });
+  };
+  
+  // Handle energy level change when user finishes dragging
+  const handleEnergyChangeEnd = async (finalLevel: number) => {
+    const oldLevel = previousEnergyLevel;
     
-    // Proactive check-in when energy drops to ≤4
-    if (newLevel <= 4 && oldLevel > 4) {
+    console.log('⚡ [DASHBOARD-NEW] Energy level finalized:', oldLevel, '->', finalLevel);
+    
+    // Update previous level for next comparison
+    setPreviousEnergyLevel(finalLevel);
+    
+    // Proactive check-in when energy drops to ≤4 (only when user finishes dragging)
+    if (finalLevel <= 4 && oldLevel > 4) {
       console.log('💛 [DASHBOARD-NEW] Low energy detected - triggering Navia');
       // Use celebration mode to show message directly without AI generating a fake conversation
       setNaviaManualMessage("I noticed your energy is low. That's completely okay 💛 Want to talk about it, or should I help you find something gentle to focus on?");
@@ -1193,12 +1210,12 @@ export default function DashboardNew() {
                   <div className="space-y-3">
                     <div className="text-center">
                       <div className="text-6xl font-bold text-[var(--charcoal)] mb-2">
-                        {energyLevel}/10
+                        {tempEnergyLevel}/10
                       </div>
                       <p className="text-base font-bold text-[var(--clay-700)]">
-                        {energyLevel <= 3 && "Low energy - that's okay 💛"}
-                        {energyLevel > 3 && energyLevel <= 6 && "Moderate energy"}
-                        {energyLevel > 6 && "Good energy! 🌟"}
+                        {tempEnergyLevel <= 3 && "Low energy - that's okay 💛"}
+                        {tempEnergyLevel > 3 && tempEnergyLevel <= 6 && "Moderate energy"}
+                        {tempEnergyLevel > 6 && "Good energy! 🌟"}
                       </p>
                     </div>
                     
@@ -1207,16 +1224,18 @@ export default function DashboardNew() {
                         type="range"
                         min="1"
                         max="10"
-                        value={energyLevel}
+                        value={tempEnergyLevel}
                         onChange={(e) => handleEnergyChange(Number(e.target.value))}
+                        onMouseUp={(e) => handleEnergyChangeEnd(Number((e.target as HTMLInputElement).value))}
+                        onTouchEnd={(e) => handleEnergyChangeEnd(Number((e.target as HTMLInputElement).value))}
                         className="w-full h-4 rounded-full appearance-none cursor-pointer"
                         style={{
                           background: `linear-gradient(to right, 
                             #c4a57b 0%, 
-                            #c4a57b ${((energyLevel - 1) / 9) * 100}%, 
-                            #e8dcc8 ${((energyLevel - 1) / 9) * 100}%, 
+                            #c4a57b ${((tempEnergyLevel - 1) / 9) * 100}%, 
+                            #e8dcc8 ${((tempEnergyLevel - 1) / 9) * 100}%, 
                             #e8dcc8 100%)`,
-                          accentColor: energyLevel <= 3 ? '#c4a57b' : energyLevel <= 6 ? '#9ca986' : '#6b8e6f'
+                          accentColor: tempEnergyLevel <= 3 ? '#c4a57b' : tempEnergyLevel <= 6 ? '#9ca986' : '#6b8e6f'
                         }}
                       />
                       <div className="flex justify-between text-sm font-medium text-[var(--clay-600)] mt-2 px-1">
