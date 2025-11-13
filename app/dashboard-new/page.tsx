@@ -479,8 +479,8 @@ export default function DashboardNew() {
       console.error('Error saving energy level:', error);
     }
     
-    // Proactive check-in when energy drops to ≤3
-    if (newLevel <= 3 && oldLevel > 3) {
+    // Proactive check-in when energy drops to ≤4
+    if (newLevel <= 4 && oldLevel > 4) {
       console.log('💛 [DASHBOARD-NEW] Low energy detected - triggering Navia');
       // Use celebration mode to show message directly without AI generating a fake conversation
       setNaviaManualMessage("I noticed your energy is low. That's completely okay 💛 Want to talk about it, or should I help you find something gentle to focus on?");

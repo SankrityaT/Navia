@@ -150,17 +150,20 @@ export default function DashboardBento({
     setNaviaModalOpen(true);
   };
 
-  // Open NAVIA for energy check-in
+  // Open NAVIA for energy check-in (only when energy is ≤ 4)
   const handleEnergyChange = (newLevel: number) => {
     onEnergyChange(newLevel);
     
-    setNaviaApiEndpoint('/api/features/navia-session'); // Use general chat - wait for user
-    setNaviaInitialMessage(`I noticed your energy is at ${newLevel}/10. How are you feeling?`);
-    setNaviaContext({
-      energyLevel: newLevel,
-      sessionType: 'energy_checkin',
-    });
-    setNaviaModalOpen(true);
+    // Only open Navia when energy level is 4 or below
+    if (newLevel <= 4) {
+      setNaviaApiEndpoint('/api/features/navia-session'); // Use general chat - wait for user
+      setNaviaInitialMessage(`I noticed your energy is at ${newLevel}/10. How are you feeling?`);
+      setNaviaContext({
+        energyLevel: newLevel,
+        sessionType: 'energy_checkin',
+      });
+      setNaviaModalOpen(true);
+    }
   };
 
   // Open NAVIA for support check-in
