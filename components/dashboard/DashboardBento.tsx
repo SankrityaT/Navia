@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Circle, CheckCircle2, Target, Sparkles, Plus, Maximize2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Circle, CheckCircle2, Target, Sparkles, Plus, Maximize2, Loader2, X, Trash2, SparklesIcon } from 'lucide-react';
 import NaviaAvatar from '@/components/ai/NaviaAvatar';
-import FidgetBreather from '@/components/games/FidgetBreather';
 import FocusMusicPlayer from '@/components/focus/FocusMusicPlayer';
+import NaviaAssistant from '@/components/ai/NaviaAssistant';
+import BrainDump from '@/components/dashboard/BrainDump';
 
 interface Task {
   id: string;
@@ -30,6 +31,7 @@ interface DashboardBentoProps {
   supportLevel: number;
   onSupportChange: (level: number) => void;
   userName?: string;
+  userId: string;
   focusMode?: boolean;
   focusTime?: number;
   focusTask?: string;
@@ -53,6 +55,7 @@ export default function DashboardBento({
   supportLevel,
   onSupportChange,
   userName = 'friend',
+  userId,
   focusMode = false,
   focusTime = 0,
   focusTask = '',
@@ -65,20 +68,187 @@ export default function DashboardBento({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [isExtractingTasks, setIsExtractingTasks] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState('');
+  
+  // Universal NAVIA Modal State
+  const [naviaModalOpen, setNaviaModalOpen] = useState(false);
+  const [naviaInitialMessage, setNaviaInitialMessage] = useState('');
+  const [naviaContext, setNaviaContext] = useState<any>({});
+  const [naviaApiEndpoint, setNaviaApiEndpoint] = useState('/api/dashboard-chat');
 
   console.log('🎨 [DashboardBento] Rendering with tasks:', tasks);
   console.log('🎨 [DashboardBento] Task count:', tasks.length);
 
-  const handleAddTask = (e: React.FormEvent) => {
+  // Listen for modal close event from breakdown completion
+  useEffect(() => {
+    const handleCloseModal = () => {
+      setNaviaModalOpen(false);
+    };
+    window.addEventListener('closeNaviaModal', handleCloseModal);
+    return () => window.removeEventListener('closeNaviaModal', handleCloseModal);
+  }, []);
+
+  // AI-powered task extraction
+  const handleExtractTasks = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newTaskTitle.trim()) {
-      onAddTask(newTaskTitle);
-      setNewTaskTitle('');
+    if (!newTaskTitle.trim()) return;
+
+    setIsExtractingTasks(true);
+    setExtractionMessage('Extracting tasks...');
+
+    try {
+      const response = await fetch('/api/features/extract-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: newTaskTitle }),
+      });
+
+      const data = await response.json();
+      
+      console.log('📥 Received from API:', data);
+
+      if (data.success && data.tasks && data.tasks.length > 0) {
+        console.log(`📝 Adding ${data.tasks.length} tasks to UI...`);
+        
+        // Add each extracted task
+        for (const task of data.tasks) {
+          console.log(`  ➕ Adding task: "${task.title}"`);
+          onAddTask(task.title);
+        }
+        
+        setExtractionMessage(data.message);
+        setNewTaskTitle('');
+        
+        // Clear message after 3 seconds
+        setTimeout(() => setExtractionMessage(''), 3000);
+      } else {
+        setExtractionMessage(data.message || 'No tasks found');
+        setTimeout(() => setExtractionMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Task extraction error:', error);
+      setExtractionMessage('Oops, something went wrong. Try again? 💛');
+      setTimeout(() => setExtractionMessage(''), 3000);
+    } finally {
+      setIsExtractingTasks(false);
     }
   };
 
-  const activeTasks = tasks.filter(t => t.status !== 'completed' && !t.completed);
+  // Open NAVIA for task breakdown
+  const handleBreakdownClick = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    setNaviaApiEndpoint('/api/features/task-breakdown');
+    setNaviaInitialMessage(`Let me break down "${task.title}" for you...`);
+    setNaviaContext({
+      task: task.title,
+      supportLevel,
+      userContext: { energyLevel },
+    });
+    setNaviaModalOpen(true);
+  };
+
+  // Open NAVIA for energy check-in
+  const handleEnergyChange = (newLevel: number) => {
+    onEnergyChange(newLevel);
+    
+    setNaviaApiEndpoint('/api/features/navia-session'); // Use general chat - wait for user
+    setNaviaInitialMessage(`I noticed your energy is at ${newLevel}/10. How are you feeling?`);
+    setNaviaContext({
+      energyLevel: newLevel,
+      sessionType: 'energy_checkin',
+    });
+    setNaviaModalOpen(true);
+  };
+
+  // Open NAVIA for support check-in
+  const handleSupportChange = (newLevel: number) => {
+    onSupportChange(newLevel);
+    
+    // Generate detailed explanation based on support level
+    let explanation = '';
+    switch(newLevel) {
+      case 1:
+        explanation = `**Support Level 1/5 - Minimal Support** 💪\n\nYou've got this! I'll give you:\n- Clear, straightforward steps\n- Trust you to figure out the details\n- Minimal hand-holding\n- Quick tips when needed\n\nPerfect for when you're feeling confident and just need a roadmap!`;
+        break;
+      case 2:
+        explanation = `**Support Level 2/5 - Light Support** 🌱\n\nYou're pretty independent! I'll provide:\n- Clear steps with brief explanations\n- Some helpful tips\n- Space for you to problem-solve\n- Encouragement without over-explaining\n\nGreat for when you know what you're doing but want a little guidance.`;
+        break;
+      case 3:
+        explanation = `**Support Level 3/5 - Balanced Support** ⚖️\n\nThe sweet spot! I'll give you:\n- 6-8 clear steps\n- Helpful tips and alternatives\n- Balance between guidance and independence\n- Acknowledgment of challenges\n\nPerfect for most tasks - not too much, not too little.`;
+        break;
+      case 4:
+        explanation = `**Support Level 4/5 - High Support** 🤝\n\nI'm here for you! Expect:\n- 8-10 micro-steps\n- Detailed guidance for each step\n- Lots of encouragement\n- Sensory considerations\n- Pause points and breaks\n\nIdeal for overwhelming tasks or low-energy days.`;
+        break;
+      case 5:
+        explanation = `**Support Level 5/5 - Maximum Support** 💛\n\nI've got you completely! You'll get:\n- The tiniest possible micro-steps\n- Encouragement after each step\n- Acknowledgment of every difficulty\n- Sensory alternatives\n- Frequent pause points\n- Maximum compassion, zero judgment\n\nPerfect for really hard days or tasks that feel impossible.`;
+        break;
+    }
+    
+    setNaviaApiEndpoint('/api/features/navia-session'); // Use general chat for follow-up
+    setNaviaInitialMessage(explanation);
+    setNaviaContext({
+      currentSupportLevel: newLevel,
+      sessionType: 'support_explanation',
+    });
+    setNaviaModalOpen(true);
+  };
+
+  // Open NAVIA for general chat
+  const handleOpenNavia = () => {
+    setNaviaApiEndpoint('/api/features/navia-session');
+    setNaviaInitialMessage("Hey! I'm here to help. What's on your mind? 💛");
+    setNaviaContext({
+      messages: [],
+      sessionType: 'general',
+      userContext: { userName, energyLevel },
+    });
+    setNaviaModalOpen(true);
+  };
+
+  // Open NAVIA with memory context (for Brain Dump quick questions)
+  const handleOpenNaviaWithMemory = (message: string, context: any, endpoint: string) => {
+    setNaviaApiEndpoint(endpoint);
+    setNaviaInitialMessage(message);
+    setNaviaContext(context);
+    setNaviaModalOpen(true);
+  };
+
+  // Filter tasks based on energy level
+  const getEnergyFilteredTasks = () => {
+    const allActive = tasks.filter(t => t.status !== 'completed' && !t.completed);
+    
+    // Low energy (1-3): Prioritize quick tasks (≤15 min), but show at least 3 tasks
+    if (energyLevel <= 3) {
+      const quickTasks = allActive.filter(t => !t.time_estimate || t.time_estimate <= 15);
+      // If we have quick tasks, show them. Otherwise show shortest 3 tasks
+      if (quickTasks.length > 0) {
+        return quickTasks;
+      }
+      // Sort by time estimate and show shortest 3
+      return allActive
+        .sort((a, b) => (a.time_estimate || 30) - (b.time_estimate || 30))
+        .slice(0, 3);
+    }
+    // Medium energy (4-6): Show tasks ≤30 min, or shortest 5 if none qualify
+    if (energyLevel <= 6) {
+      const mediumTasks = allActive.filter(t => !t.time_estimate || t.time_estimate <= 30);
+      if (mediumTasks.length > 0) {
+        return mediumTasks;
+      }
+      return allActive
+        .sort((a, b) => (a.time_estimate || 60) - (b.time_estimate || 60))
+        .slice(0, 5);
+    }
+    // High energy (7-10): Show all tasks
+    return allActive;
+  };
+
+  const activeTasks = getEnergyFilteredTasks();
   const completedTasks = tasks.filter(t => t.status === 'completed' || t.completed);
+  const hiddenTaskCount = tasks.filter(t => t.status !== 'completed' && !t.completed).length - activeTasks.length;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -110,7 +280,7 @@ export default function DashboardBento({
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            onClick={onOpenNavia}
+            onClick={handleOpenNavia}
             className="group flex flex-col items-center cursor-pointer"
           >
             <motion.div 
@@ -169,9 +339,16 @@ export default function DashboardBento({
                   Your Tasks
                 </h2>
               </div>
-              <span className="px-2 md:px-3 py-1 bg-[var(--sage-100)] text-[var(--sage-700)] rounded-full text-xs md:text-sm font-semibold">
-                {activeTasks.length} active
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2 md:px-3 py-1 bg-[var(--sage-100)] text-[var(--sage-700)] rounded-full text-xs md:text-sm font-semibold">
+                  {activeTasks.length} active
+                </span>
+                {hiddenTaskCount > 0 && (
+                  <span className="px-2 md:px-3 py-1 bg-[var(--clay-100)] text-[var(--clay-700)] rounded-full text-xs md:text-sm font-semibold">
+                    {hiddenTaskCount} hidden (low energy)
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Task List */}
@@ -193,8 +370,14 @@ export default function DashboardBento({
                   </p>
                 </motion.div>
               ) : (
-                tasks.map((task) => {
-                  const taskId = task.task_id || task.id;
+                [...tasks].sort((a, b) => {
+                  // Sort: incomplete tasks first, completed tasks last
+                  const aCompleted = a.status === 'completed' || a.completed;
+                  const bCompleted = b.status === 'completed' || b.completed;
+                  if (aCompleted === bCompleted) return 0;
+                  return aCompleted ? 1 : -1;
+                }).map((task) => {
+                  const taskId = task.id;
                   const isCompleted = task.status === 'completed' || task.completed;
                   const taskTitle = task.title || 'Untitled Task';
                   const isDeleting = deletingTaskId === taskId;
@@ -264,9 +447,13 @@ export default function DashboardBento({
                       </div>
                       <div className="flex gap-1 md:gap-2">
                         <button
-                          onClick={() => onBreakdownTask(taskId)}
-                          className="text-[var(--clay-600)] hover:text-[var(--clay-700)] text-xs md:text-sm font-medium opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBreakdownClick(taskId);
+                          }}
+                          className="text-[var(--clay-600)] hover:text-[var(--charcoal)] hover:bg-[var(--clay-100)] hover:font-bold text-xs md:text-sm font-medium opacity-100 md:opacity-0 group-hover:opacity-100 transition-all rounded-md px-2 py-1 flex items-center gap-1"
                         >
+                          <SparklesIcon className="w-3 h-3" />
                           Break down
                         </button>
                         <button
@@ -277,9 +464,10 @@ export default function DashboardBento({
                               setDeletingTaskId(null);
                             }, 300);
                           }}
-                          className="text-red-500 hover:text-red-700 text-xs md:text-sm font-medium opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all rounded-md p-1.5 flex items-center justify-center"
+                          title="Delete task"
                         >
-                          Delete
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </motion.div>
@@ -288,22 +476,49 @@ export default function DashboardBento({
               )}
             </div>
 
-            {/* Add Task Form */}
-            <form onSubmit={handleAddTask} className="flex gap-2">
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Add a task..."
-                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-white border-2 border-[var(--clay-200)] rounded-xl focus:outline-none focus:border-[var(--clay-500)] text-[var(--charcoal)] text-sm md:text-base"
-              />
-              <button
-                type="submit"
-                className="px-3 md:px-4 py-2 md:py-3 bg-gradient-to-r from-[var(--clay-500)] to-[var(--clay-600)] text-white rounded-xl hover:shadow-lg transition-all"
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5" strokeWidth={2.5} />
-              </button>
-            </form>
+            {/* AI-Powered Task Input */}
+            <div className="space-y-2">
+              <form onSubmit={handleExtractTasks} className="flex gap-2">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="Brain dump all your tasks here... I'll organize them! 💛"
+                    disabled={isExtractingTasks}
+                    className="w-full px-3 md:px-4 py-2 md:py-3 bg-white border-2 border-[var(--clay-200)] rounded-xl focus:outline-none focus:border-[var(--clay-500)] text-[var(--charcoal)] text-sm md:text-base disabled:opacity-50"
+                  />
+                  {isExtractingTasks && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-[var(--clay-500)]" />
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={isExtractingTasks}
+                  className="px-3 md:px-4 py-2 md:py-3 bg-gradient-to-r from-[var(--clay-500)] to-[var(--clay-600)] text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isExtractingTasks ? (
+                    <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" strokeWidth={2.5} />
+                  ) : (
+                    <Plus className="w-4 h-4 md:w-5 md:h-5" strokeWidth={2.5} />
+                  )}
+                </button>
+              </form>
+              {extractionMessage && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-[var(--sage-700)] text-center bg-[var(--sage-100)] px-3 py-2 rounded-lg"
+                >
+                  {extractionMessage}
+                </motion.p>
+              )}
+              <p className="text-[10px] text-[var(--clay-600)] text-center">
+                ✨ Type multiple tasks at once - I'll extract them automatically!
+              </p>
+            </div>
           </motion.div>
 
           {/* TOP RIGHT: Energy Level */}
@@ -341,7 +556,7 @@ export default function DashboardBento({
                   min="1"
                   max="10"
                   value={energyLevel}
-                  onChange={(e) => onEnergyChange(Number(e.target.value))}
+                  onChange={(e) => handleEnergyChange(Number(e.target.value))}
                   className="w-full h-3 rounded-full appearance-none cursor-pointer"
                   style={{
                     background: `linear-gradient(to right, #c4a57b 0%, #c4a57b ${((energyLevel - 1) / 9) * 100}%, #e8dcc8 ${((energyLevel - 1) / 9) * 100}%, #e8dcc8 100%)`,
@@ -366,58 +581,18 @@ export default function DashboardBento({
             </div>
           </motion.div>
 
-          {/* BOTTOM RIGHT: Support Level */}
+          {/* BOTTOM RIGHT: Brain Dump & Memory */}
           <motion.div
-            data-tutorial="support-level"
+            data-tutorial="brain-dump"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-3xl border-2 border-[var(--clay-200)] p-4 md:p-6 shadow-lg overflow-hidden flex flex-col min-h-[350px] md:min-h-0 md:-translate-x-8 md:translate-y-8"
+            className="min-h-[350px] md:min-h-0 md:-translate-x-8 md:translate-y-8"
           >
-            <div className="flex items-center justify-center gap-2 md:gap-3 mb-4 md:mb-6">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-[var(--clay-500)] to-[var(--clay-600)] flex items-center justify-center">
-                <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
-              </div>
-              <h2 className="text-xl md:text-2xl font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>
-                Support Level
-              </h2>
-            </div>
-            
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="space-y-3 md:space-y-4">
-                <p className="text-xs md:text-sm font-semibold text-[var(--charcoal)] text-center">How much support do you need?</p>
-                <div className="text-center">
-                  <div className="text-3xl md:text-5xl font-bold text-[var(--clay-600)] mb-2 md:mb-3">
-                    {supportLevel === 1 && "🎯 Minimal"}
-                    {supportLevel === 2 && "👍 Low"}
-                    {supportLevel === 3 && "⚖️ Balanced"}
-                    {supportLevel === 4 && "🤝 High"}
-                    {supportLevel === 5 && "💛 Maximum"}
-                  </div>
-                  <p className="text-xs md:text-sm text-[var(--clay-600)] mb-3 md:mb-4">
-                    {supportLevel === 1 && "I trust you - just high-level guidance"}
-                    {supportLevel === 2 && "Some help, but you've got this"}
-                    {supportLevel === 3 && "Good mix of guidance & independence"}
-                    {supportLevel === 4 && "Detailed steps & frequent check-ins"}
-                    {supportLevel === 5 && "Let's do this together, step by step"}
-                  </p>
-                </div>
-                
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={supportLevel}
-                  onChange={(e) => onSupportChange(Number(e.target.value))}
-                  className="w-full h-4 rounded-full appearance-none cursor-pointer bg-gradient-to-r from-[var(--clay-300)] to-[var(--clay-600)]"
-                />
-                <div className="flex justify-between text-[10px] md:text-xs font-medium text-[var(--clay-600)] px-1">
-                  <span>Independent</span>
-                  <span>Balanced</span>
-                  <span>Supported</span>
-                </div>
-              </div>
-            </div>
+            <BrainDump 
+              userId={userId} 
+              onOpenNavia={handleOpenNaviaWithMemory}
+            />
           </motion.div>
 
           {/* BOTTOM LEFT: Focus Mode */}
@@ -592,6 +767,18 @@ export default function DashboardBento({
           </div>
         </div>
       </div>
+
+      {/* NAVIA Assistant - Full Screen Centered Modal */}
+      {naviaModalOpen && (
+        <NaviaAssistant
+          energyLevel={energyLevel}
+          focusMode={focusMode}
+          context={naviaContext}
+          manualTrigger={naviaModalOpen}
+          manualMessage={naviaInitialMessage}
+          apiEndpoint={naviaApiEndpoint}
+        />
+      )}
     </div>
   );
 }

@@ -1,16 +1,15 @@
-// BACKEND: CRUD operations for tasks
-// TODO: Implement GET (query tasks from Pinecone)
-// TODO: Implement POST (create new task)
-// TODO: Implement PATCH (update task status)
-// TODO: Implement DELETE
+// BACKEND: CRUD operations for tasks using Supabase
 
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { queryTasks, storeTask, updateTaskStatus, deleteTask } from '@/lib/pinecone/operations';
-import { generateEmbedding } from '@/lib/embeddings/client';
-import { Task } from '@/lib/types';
+import { createClient } from '@supabase/supabase-js';
 
-// GET: Query tasks
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// GET: Query tasks from Supabase
 export async function GET(request: Request) {
   try {
     const { userId } = await auth();
@@ -22,39 +21,33 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const category = searchParams.get('category');
     const priority = searchParams.get('priority');
-    const date = searchParams.get('date');
 
-    // Build filter
-    const filters: any = {};
-    if (status) filters.status = { $eq: status };
-    if (category) filters.category = { $eq: category };
-    if (priority) filters.priority = { $eq: priority };
-    if (date) filters.date = { $eq: date };
+    // Build Supabase query
+    let query = supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-    // Generate query embedding
-    const queryText = `Get tasks for user with filters: ${JSON.stringify(filters)}`;
-    const embedding = await generateEmbedding(queryText);
+    if (status) query = query.eq('status', status);
+    if (category) query = query.eq('category', category);
+    if (priority) query = query.eq('priority', priority);
 
-    const results = await queryTasks(userId, embedding, filters, 50);
+    const { data: tasks, error } = await query;
 
-    // Extract metadata from Pinecone matches
-    const tasks = results.map((match: any) => ({
-      id: match.id,
-      task_id: match.id,
-      ...match.metadata,
-    }));
+    if (error) throw error;
 
-    console.log('📋 [API/TASKS] Returning tasks:', tasks);
-    console.log('📋 [API/TASKS] Task titles:', tasks.map((t: any) => t.title));
+    console.log('📋 [API/TASKS] Fetched from Supabase:', tasks?.length || 0);
+    console.log('📋 [API/TASKS] Task titles:', tasks?.map((t: any) => t.title));
 
-    return NextResponse.json({ tasks });
+    return NextResponse.json({ tasks: tasks || [] });
   } catch (error) {
     console.error('Task query error:', error);
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
 }
 
-// POST: Create new task
+// POST: Create new task in Supabase
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -64,29 +57,31 @@ export async function POST(request: Request) {
 
     const taskData = await request.json();
     
-    const task: Task = {
+    const task = {
       user_id: userId,
-      task_id: `task_${Date.now()}`,
-      created_at: new Date().toISOString(),
       status: 'not_started',
       created_by: 'user',
       ...taskData,
     };
 
-    // Generate embedding for task
-    const taskText = `Task: ${task.title}, category: ${task.category}, priority: ${task.priority}`;
-    const embedding = await generateEmbedding(taskText);
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([task])
+      .select()
+      .single();
 
-    await storeTask(task, embedding);
+    if (error) throw error;
+    
+    console.log(`✅ Created task: "${data.title}" with ID: ${data.id}`);
 
-    return NextResponse.json({ success: true, task });
+    return NextResponse.json({ success: true, task: data });
   } catch (error) {
     console.error('Task creation error:', error);
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
   }
 }
 
-// PATCH: Update task status
+// PATCH: Update task in Supabase
 export async function PATCH(request: Request) {
   try {
     const { userId } = await auth();
@@ -94,18 +89,32 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { task_id, status } = await request.json();
+    const { id, task_id, ...updates } = await request.json();
 
-    await updateTaskStatus(task_id, status);
+    const targetId = id ?? task_id;
 
-    return NextResponse.json({ success: true });
+    if (!targetId) {
+      return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', targetId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, task: data });
   } catch (error) {
     console.error('Task update error:', error);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
 }
 
-// DELETE: Delete task
+// DELETE: Delete task from Supabase
 export async function DELETE(request: Request) {
   try {
     const { userId } = await auth();
@@ -114,18 +123,19 @@ export async function DELETE(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    // Support both 'id' and 'task_id' parameters
-    const taskId = searchParams.get('id') || searchParams.get('task_id');
-
-    console.log('🗑️ [API/TASKS] DELETE request - taskId:', taskId);
+    const taskId = searchParams.get('id');
 
     if (!taskId) {
-      console.error('❌ [API/TASKS] No task ID provided');
       return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
     }
 
-    await deleteTask(taskId);
-    console.log('✅ [API/TASKS] Task deleted successfully:', taskId);
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error) {

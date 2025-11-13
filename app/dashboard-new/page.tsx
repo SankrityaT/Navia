@@ -232,9 +232,8 @@ export default function DashboardNew() {
     
     console.log('➕ [DASHBOARD-NEW] Adding task:', taskTitle);
     
-    const taskId = `task_${Date.now()}`;
-    const task: Task = {
-      id: taskId,
+    // Create task data (no ID - Supabase will generate UUID)
+    const taskData = {
       title: taskTitle,
       completed: false,
       priority: 'medium',
@@ -242,37 +241,31 @@ export default function DashboardNew() {
       category: 'daily_life',
     };
     
-    // Optimistically add to UI
-    setTasks(prevTasks => [...prevTasks, task]);
     if (!title) setNewTask('');
     
-    // Save to backend
+    // Save to backend first
     try {
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task),
+        body: JSON.stringify(taskData),
       });
       
       if (!response.ok) {
-        console.error('❌ [DASHBOARD-NEW] Failed to save task');
-        // Revert optimistic update
-        setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
-      } else {
-        const data = await response.json();
-        console.log('✅ [DASHBOARD-NEW] Task saved:', data);
-        
-        // Update with backend task ID if different
-        if (data.task && data.task.task_id) {
-          setTasks(prevTasks => 
-            prevTasks.map(t => t.id === taskId ? { ...t, id: data.task.task_id, task_id: data.task.task_id } : t)
-          );
-        }
+        const error = await response.json();
+        console.error('❌ [DASHBOARD-NEW] Failed to save task:', error);
+        throw error;
+      }
+      
+      const data = await response.json();
+      console.log('✅ [DASHBOARD-NEW] Task saved:', data);
+      
+      // Add to UI with the real UUID from Supabase
+      if (data.task) {
+        setTasks(prevTasks => [...prevTasks, data.task]);
       }
     } catch (error) {
       console.error('❌ [DASHBOARD-NEW] Error saving task:', error);
-      // Revert optimistic update
-      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
     }
   };
 
@@ -713,14 +706,36 @@ export default function DashboardNew() {
             }
             try {
               const parsed = JSON.parse(data);
-              assistantMessage += parsed.content;
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                newMessages[newMessages.length - 1].content = assistantMessage;
-                return newMessages;
-              });
+              
+              // Handle extracted tasks
+              if (parsed.tasks && Array.isArray(parsed.tasks)) {
+                console.log('📋 [DASHBOARD-NEW] Received tasks from chat:', parsed.tasks);
+                // Add tasks to UI
+                setTasks(prevTasks => [...prevTasks, ...parsed.tasks.map((t: any) => ({
+                  id: t.task_id,
+                  task_id: t.task_id,
+                  title: t.title,
+                  completed: false,
+                  status: t.status || 'not_started',
+                  priority: t.priority,
+                  time_estimate: t.time_estimate,
+                  category: t.category,
+                }))]);
+              }
+              
+              // Handle chat content
+              if (parsed.content !== undefined && parsed.content !== null && parsed.content !== '') {
+                assistantMessage += parsed.content;
+                setMessages((prev) => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1].content = assistantMessage;
+                  return newMessages;
+                });
+              } else if (parsed.content === undefined) {
+                console.log('⚠️ [DASHBOARD-NEW] Received chunk with undefined content, skipping');
+              }
             } catch (e) {
-              // Ignore
+              // Ignore parse errors
             }
           }
         }
@@ -807,6 +822,7 @@ export default function DashboardNew() {
       supportLevel={supportLevel}
       onSupportChange={handleSupportChange}
       userName={user?.firstName || 'friend'}
+      userId={user?.id || 'guest'}
       focusMode={focusMode}
       focusTime={focusTime}
       focusTask={selectedTaskForFocus ? tasks.find(t => t.id === selectedTaskForFocus)?.title || focusIntention : focusIntention}

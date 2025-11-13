@@ -13,6 +13,7 @@ interface NaviaAssistantProps {
   manualTrigger?: boolean;
   manualMessage?: string;
   celebrationMode?: boolean; // If true, show message directly without AI response
+  apiEndpoint?: string; // Custom API endpoint (default: /api/dashboard-chat)
 }
 
 /**
@@ -29,7 +30,8 @@ export default function NaviaAssistant({
   onBreakdownRequest,
   manualTrigger = false,
   manualMessage = '',
-  celebrationMode = false
+  celebrationMode = false,
+  apiEndpoint = '/api/dashboard-chat'
 }: NaviaAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [proactiveMessage, setProactiveMessage] = useState<string>('');
@@ -120,7 +122,7 @@ export default function NaviaAssistant({
           <UniversalNavia
             mode={focusMode ? 'focus' : 'dashboard'}
             context={context}
-            apiEndpoint="/api/dashboard-chat"
+            apiEndpoint={apiEndpoint}
             showAvatar={true}
             showInput={true}
             proactiveMessage={proactiveMessage}

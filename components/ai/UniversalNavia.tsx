@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, Volume2, VolumeX } from 'lucide-react';
 import NaviaAvatar from './NaviaAvatar';
+import InteractiveBreakdown from './InteractiveBreakdown';
 
 // Simple markdown renderer for basic formatting
 const renderMarkdown = (text: string) => {
@@ -21,6 +22,11 @@ const renderMarkdown = (text: string) => {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  emotions?: {
+    topEmotion: string;
+    emotionIntensity: 'low' | 'moderate' | 'high';
+    allEmotions: Array<{ name: string; score: number }>;
+  };
 }
 
 interface UniversalNaviaProps {
@@ -56,14 +62,18 @@ export default function UniversalNavia({
 }: UniversalNaviaProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
+  const [showPlaceholder, setShowPlaceholder] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
+  const [breakdownData, setBreakdownData] = useState<any>(null); // For interactive breakdown
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const lastAutoSendRef = useRef<string | null>(null);
+  const isAutoSendingRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,108 +83,138 @@ export default function UniversalNavia({
     }
   }, [messages, onMessagesChange]);
 
-  // Show proactive message if provided - only once, and auto-send it
-  const hasShownProactive = useRef(false);
-  const proactiveMessageRef = useRef<string>('');
-  
+  // Show proactive message AND auto-send to API if there's context
   useEffect(() => {
-    if (proactiveMessage && !isAsleep && proactiveMessage !== proactiveMessageRef.current) {
-      proactiveMessageRef.current = proactiveMessage;
+    if (proactiveMessage && !isAsleep) {
+      // Show the initial message (only if not already showing)
+      setMessages(prev => {
+        // Don't reset if we already have messages
+        if (prev.length > 0 && prev[0].content === proactiveMessage) {
+          return prev;
+        }
+        return [{ role: 'assistant', content: proactiveMessage }];
+      });
       
-      console.log('🤖 [UniversalNavia] Auto-sending proactive message:', proactiveMessage);
-      
-      // Add user message and trigger AI response
-      const userMessage: Message = { role: 'user', content: proactiveMessage };
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
-      setIsLoading(true);
-      
-      // Send to API with full message history
-      (async () => {
-        try {
-          // Detect emotions from proactive message
-          let emotions = null;
+      // Auto-send for task breakdown OR memory recall
+      const shouldAutoSend = 
+        (context && context.task && apiEndpoint.includes('task-breakdown')) ||
+        (context && context.query && apiEndpoint.includes('memory-recall'));
+
+      if (shouldAutoSend) {
+        const contextSignature = JSON.stringify({
+          endpoint: apiEndpoint,
+          task: context?.task,
+          query: context?.query,
+        });
+
+        if (isAutoSendingRef.current && lastAutoSendRef.current === contextSignature) {
+          return;
+        }
+
+        lastAutoSendRef.current = contextSignature;
+        isAutoSendingRef.current = true;
+
+        // Auto-trigger API call with the context
+        (async () => {
+          setIsLoading(true);
           try {
-            const emotionResponse = await fetch('/api/emotion-detect', {
+            const response = await fetch(apiEndpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: proactiveMessage }),
+              body: JSON.stringify({
+                messages: [{ role: 'user', content: proactiveMessage }],
+                ...context, // Spread context directly (has memories, pendingTasks, queryType, etc.)
+                mode,
+              }),
             });
-            
-            if (emotionResponse.ok) {
-              emotions = await emotionResponse.json();
-              console.log('🎭 Detected emotions (proactive):', emotions);
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error('API Error:', errorData);
+              throw new Error(`API returned ${response.status}: ${JSON.stringify(errorData)}`);
             }
-          } catch (emotionError) {
-            console.warn('Emotion detection failed for proactive message:', emotionError);
-          }
 
-          const response = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messages: newMessages.map(({ role, content }) => ({ role, content })),
-              context: { ...context, mode },
-              emotions, // Include detected emotions
-            }),
-          });
+            // Check if this is a breakdown (returns JSON, not stream)
+            if (apiEndpoint.includes('task-breakdown')) {
+              const data = await response.json();
+              if (data.success && data.breakdown) {
+                setBreakdownData({
+                  taskName: data.task,
+                  ...data.breakdown
+                });
+                setIsLoading(false);
+                return;
+              }
+            }
 
-          if (!response.ok) throw new Error('Failed to send message');
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let assistantMessage = '';
 
-          const reader = response.body?.getReader();
-          const decoder = new TextDecoder();
-          let assistantMessage = '';
+            console.log('🎬 [UniversalNavia] Starting to read stream from:', apiEndpoint);
 
-          while (true) {
-            const { done, value } = await reader!.read();
-            if (done) break;
+            while (true) {
+              const { done, value } = await reader!.read();
+              if (done) {
+                console.log('✅ [UniversalNavia] Stream reading complete');
+                break;
+              }
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+              const chunk = decoder.decode(value);
+              console.log('📦 [UniversalNavia] Raw chunk:', chunk.slice(0, 100));
+              const lines = chunk.split('\n');
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data === '[DONE]') continue;
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') continue;
 
-                try {
-                  const parsed = JSON.parse(data);
-                  assistantMessage += parsed.content;
-                  
-                  setMessages(prev => {
-                    const newMessages = [...prev];
-                    const lastMessage = newMessages[newMessages.length - 1];
+                  try {
+                    const parsed = JSON.parse(data);
+                    console.log('✨ [UniversalNavia] Parsed content:', parsed.content);
+                    assistantMessage += parsed.content;
                     
-                    if (lastMessage?.role === 'assistant') {
-                      lastMessage.content = assistantMessage;
-                    } else {
-                      newMessages.push({ role: 'assistant', content: assistantMessage });
-                    }
-                    
-                    return newMessages;
-                  });
-                } catch (e) {
-                  // Ignore parse errors
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      const lastMessage = newMessages[newMessages.length - 1];
+                      
+                      if (lastMessage?.role === 'assistant' && lastMessage.content === proactiveMessage) {
+                        // Replace the initial message with the real response
+                        newMessages[newMessages.length - 1] = { role: 'assistant', content: assistantMessage };
+                      } else if (lastMessage?.role === 'assistant' && lastMessage.content !== proactiveMessage) {
+                        // Update existing assistant message
+                        lastMessage.content = assistantMessage;
+                      } else {
+                        // Add new assistant message
+                        newMessages.push({ role: 'assistant', content: assistantMessage });
+                      }
+                      
+                      return newMessages;
+                    });
+                  } catch (e) {
+                    // Ignore parse errors
+                  }
                 }
               }
             }
-          }
 
-          if (voiceMode && assistantMessage) {
-            await playHumeVoice(assistantMessage);
+            if (voiceMode && assistantMessage) {
+              await playHumeVoice(assistantMessage);
+            }
+          } catch (error) {
+            console.error('Error auto-sending proactive message:', error);
+            setMessages(prev => [...prev, { 
+              role: 'assistant', 
+              content: "I'm having trouble connecting right now. Can you try again?" 
+            }]);
+          } finally {
+            setIsLoading(false);
+            isAutoSendingRef.current = false;
           }
-        } catch (error) {
-          console.error('Error sending proactive message:', error);
-          setMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: "I'm having trouble connecting right now. Can you try again?" 
-          }]);
-        } finally {
-          setIsLoading(false);
-        }
-      })();
+        })();
+      }
     }
-  }, [proactiveMessage, isAsleep, apiEndpoint, context, mode, voiceMode]);
+  }, [proactiveMessage, isAsleep, context, apiEndpoint, mode, voiceMode, context?.query]);
 
   const playHumeVoice = async (text: string) => {
     try {
@@ -297,7 +337,29 @@ export default function UniversalNavia({
     setInput('');
     setIsLoading(true);
 
-    const userMessage: Message = { role: 'user', content: textToSend };
+    // Detect emotions from user's message using Hume AI
+    let emotions = null;
+    try {
+      const emotionResponse = await fetch('/api/emotion-detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToSend }),
+      });
+      
+      if (emotionResponse.ok) {
+        emotions = await emotionResponse.json();
+        console.log('🎭 Detected emotions:', emotions);
+      }
+    } catch (emotionError) {
+      console.warn('Emotion detection failed, continuing without it:', emotionError);
+      // Continue without emotions if detection fails
+    }
+
+    const userMessage: Message = { 
+      role: 'user', 
+      content: textToSend,
+      emotions: emotions // Store emotions with the message
+    };
     setMessages(prev => [...prev, userMessage]);
 
     if (onMessage) {
@@ -305,23 +367,6 @@ export default function UniversalNavia({
     }
 
     try {
-      // Detect emotions from user's message using Hume AI
-      let emotions = null;
-      try {
-        const emotionResponse = await fetch('/api/emotion-detect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: textToSend }),
-        });
-        
-        if (emotionResponse.ok) {
-          emotions = await emotionResponse.json();
-          console.log('🎭 Detected emotions:', emotions);
-        }
-      } catch (emotionError) {
-        console.warn('Emotion detection failed, continuing without it:', emotionError);
-        // Continue without emotions if detection fails
-      }
 
       const response = await fetch(apiEndpoint, {
         method: 'POST',
@@ -402,8 +447,40 @@ export default function UniversalNavia({
 
   return (
     <div className={`flex flex-col items-center h-full ${className}`}>
+      {/* Interactive Breakdown Mode - Fullscreen */}
+      {breakdownData && !isAsleep && (
+        <div className="fixed inset-0 z-50 bg-[var(--cream)] flex flex-col items-center justify-start overflow-y-auto py-12">
+          {/* Navia Logo & Title at Top */}
+          <div className="flex flex-col items-center mb-8 flex-shrink-0">
+            <NaviaAvatar
+              isSpeaking={false}
+              isThinking={false}
+              size="md"
+            />
+            <h1 
+              className="text-5xl font-bold text-[var(--charcoal)] mt-4" 
+              style={{ fontFamily: 'var(--font-fraunces)' }}
+            >
+              Navia
+            </h1>
+          </div>
+          
+          <InteractiveBreakdown
+            taskName={breakdownData.taskName}
+            breakdown={breakdownData}
+            onComplete={() => {
+              setBreakdownData(null);
+              // Close the modal by triggering parent close
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('closeNaviaModal'));
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* Asleep State - Big and Prominent */}
-      {isAsleep && (
+      {isAsleep && !breakdownData && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -433,7 +510,7 @@ export default function UniversalNavia({
         </motion.div>
       )}
       {/* Navia Avatar */}
-      {showAvatar && (
+      {showAvatar && !breakdownData && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -449,11 +526,58 @@ export default function UniversalNavia({
 
       {/* Navia Branding Title */}
       <h1 
-        className="text-6xl font-bold text-[var(--charcoal)] text-center mb-8 flex-shrink-0" 
+        className="text-6xl font-bold text-[var(--charcoal)] text-center mb-4 flex-shrink-0" 
         style={{ fontFamily: 'var(--font-fraunces)' }}
       >
         Navia
       </h1>
+
+      {/* Loading Indicator - PROMINENT breathing effect */}
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-12 flex-shrink-0 flex flex-col items-center gap-6"
+        >
+          {/* Pulsing orb */}
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--sage-400)] to-[var(--clay-500)] blur-xl"
+          />
+          
+          {/* Text */}
+          <motion.div
+            animate={{
+              opacity: [0.7, 1, 0.7],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="text-center"
+          >
+            <p className="text-3xl font-bold text-[var(--charcoal)] mb-2" style={{ fontFamily: 'var(--font-fraunces)' }}>
+              NAVIA is thinking
+            </p>
+            <motion.p
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="text-xl text-[var(--sage-600)]"
+            >
+              Crafting your response...
+            </motion.p>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Messages - Scrollable container */}
       {!isAsleep && messages.length > 0 && (
@@ -474,6 +598,32 @@ export default function UniversalNavia({
                 style={{ fontFamily: 'var(--font-dm-sans)' }}
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
               />
+              
+              {/* Emotion Display - Only for user messages */}
+              {message.role === 'user' && message.emotions && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mt-3 flex justify-center"
+                >
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--sage-100)] to-[var(--clay-100)] rounded-full border-2 border-[var(--clay-200)]">
+                    <span className="text-2xl">🎭</span>
+                    <div className="text-sm">
+                      <span className="font-bold text-[var(--clay-700)]">
+                        {message.emotions.topEmotion}
+                      </span>
+                      <span className="text-[var(--sage-600)] ml-1">
+                        ({message.emotions.emotionIntensity})
+                      </span>
+                    </div>
+                    {message.emotions.allEmotions.slice(0, 3).map((emotion, idx) => (
+                      <span key={idx} className="text-xs text-[var(--sage-700)] bg-white px-2 py-1 rounded-full">
+                        {emotion.name} {Math.round(emotion.score * 100)}%
+                      </span>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           ))}
           <div ref={messagesEndRef} />
@@ -498,11 +648,12 @@ export default function UniversalNavia({
         <div className="w-full max-w-2xl space-y-2 flex-shrink-0">
           <div className="flex gap-3 justify-center">
             <input
-              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setShowPlaceholder(false)}
+              onBlur={() => setShowPlaceholder(input.trim().length === 0)}
               onKeyPress={(e) => e.key === 'Enter' && !isRecording && sendMessage()}
-              placeholder={isRecording ? "Listening..." : "Message Navia..."}
+              placeholder={isRecording ? "Listening..." : showPlaceholder ? "Message Navia..." : ''}
               disabled={isLoading || isRecording}
               className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-8 py-4 text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm disabled:opacity-50"
             />

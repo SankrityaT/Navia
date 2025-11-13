@@ -89,9 +89,32 @@ export interface BreakdownStep {
 }
 
 /**
- * Task breakdown from breakdown tool
+ * Hierarchical task step with sub-steps
+ */
+export interface TaskStep {
+  stepNumber: number;
+  action: string;
+  duration: string; // e.g., "2 minutes", "30 seconds"
+  isComplex: boolean; // true if this step has sub-steps
+  subSteps: string[]; // empty array if not complex
+}
+
+/**
+ * Task breakdown from breakdown tool (hierarchical format)
  */
 export interface TaskBreakdown {
+  why: string; // One sentence explaining why this task matters
+  mainSteps: TaskStep[];
+  totalSteps: number; // Count of main steps
+  totalSubSteps: number; // Total count of all sub-steps across all main steps
+  encouragement: string; // Message shown when task is complete
+  energyNote?: string; // Optional note if user has low energy
+}
+
+/**
+ * Legacy task breakdown format (deprecated, use TaskBreakdown instead)
+ */
+export interface LegacyTaskBreakdown {
   breakdown: BreakdownStep[];  // Hierarchical steps with sub-steps
   needsBreakdown: boolean;
   complexity: number;

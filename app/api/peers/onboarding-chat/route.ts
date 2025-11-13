@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Any additional messages - always include the prompt
-      response = "Thanks for sharing that! I'm finding peers who really get it. Great! I think I have a good sense of what you're looking for. Ready to see your matches? Click \"Find My Matches\" below when you're ready! 💛";
+      response = "Thanks for sharing that! I think I have a good sense of what you're looking for. Ready to see your matches? Click \"Find My Matches\" below when you're ready! 💛";
     }
 
     // Return streaming response to match UniversalNavia's expectations

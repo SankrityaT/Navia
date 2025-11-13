@@ -24,7 +24,7 @@ interface ImmersiveFocusModeProps {
 export default function ImmersiveFocusMode({
   taskTitle,
   initialTime,
-  initialPaused = false,
+  initialPaused = false, // Start paused by default so user can choose when to begin
   onEnd,
   onMinimize,
   context = {},
@@ -309,7 +309,7 @@ export default function ImmersiveFocusMode({
                   {isPaused ? (
                     <>
                       <Play className="w-5 h-5 md:w-6 md:h-6" />
-                      Resume
+                      Start
                     </>
                   ) : (
                     <>
