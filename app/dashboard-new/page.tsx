@@ -487,6 +487,22 @@ export default function DashboardNew() {
     });
   };
   
+  // Get energy-specific message based on level (more supportive for lower energy)
+  const getEnergyMessage = (level: number): string => {
+    switch (level) {
+      case 1:
+        return "I see your energy is really low right now (1/10). That's completely valid - some days are just like that, especially with ADHD/Autism. Your brain is working hard even when it doesn't feel like it. Want to talk about what's draining you, or should we find something super gentle to do? No pressure at all 💛";
+      case 2:
+        return "Your energy is quite low (2/10). I know this can feel really overwhelming, especially when executive function feels impossible. You're not broken - your brain just needs different support right now. What would feel most helpful? We can just sit here together if that's what you need 💛";
+      case 3:
+        return "I noticed your energy is low (3/10). That's totally okay - energy fluctuations are real, especially for neurodivergent brains. Sometimes the best thing we can do is honor where we're at. Want to talk about it, or should I help you find something gentle that won't drain you more? 💛";
+      case 4:
+        return "Your energy is on the lower side (4/10). That's completely normal - everyone has days like this, and it's especially common with ADHD/Autism. How are you feeling? I'm here to support you however you need right now 💛";
+      default:
+        return `I noticed your energy is at ${level}/10. How are you feeling?`;
+    }
+  };
+
   // Handle energy level change when user finishes dragging
   const handleEnergyChangeEnd = async (finalLevel: number) => {
     const oldLevel = previousEnergyLevel;
@@ -500,7 +516,7 @@ export default function DashboardNew() {
     if (finalLevel <= 4 && oldLevel > 4) {
       console.log('💛 [DASHBOARD-NEW] Low energy detected - triggering Navia');
       // Use celebration mode to show message directly without AI generating a fake conversation
-      setNaviaManualMessage("I noticed your energy is low. That's completely okay 💛 Want to talk about it, or should I help you find something gentle to focus on?");
+      setNaviaManualMessage(getEnergyMessage(finalLevel));
       setNaviaCelebrationMode(true);
       setNaviaManualTrigger(true);
       setTimeout(() => {
