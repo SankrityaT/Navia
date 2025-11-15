@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Volume2, VolumeX } from 'lucide-react';
+import { Send, Mic, Volume2, VolumeX, Radio } from 'lucide-react';
 import NaviaAvatar from './NaviaAvatar';
 import InteractiveBreakdown from './InteractiveBreakdown';
+import { useEviSpeechToSpeech } from '@/hooks/useEviSpeechToSpeech';
 
 // Simple markdown renderer for basic formatting
 const renderMarkdown = (text: string) => {
@@ -66,6 +67,7 @@ export default function UniversalNavia({
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [speechToSpeechMode, setSpeechToSpeechMode] = useState(false); // New: EVI mode
   const [isRecording, setIsRecording] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [breakdownData, setBreakdownData] = useState<any>(null); // For interactive breakdown
@@ -74,6 +76,41 @@ export default function UniversalNavia({
   const recognitionRef = useRef<any>(null);
   const lastAutoSendRef = useRef<string | null>(null);
   const isAutoSendingRef = useRef(false);
+
+  // EVI Speech-to-Speech hook
+  const {
+    isConnected: eviConnected,
+    isRecording: eviRecording,
+    isSpeaking: eviSpeaking,
+    connect: eviConnect,
+    disconnect: eviDisconnect,
+    startRecording: eviStartRecording,
+    stopRecording: eviStopRecording,
+  } = useEviSpeechToSpeech({
+    onTranscript: (text, isUser) => {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        
+        if (isUser) {
+          // Add user message
+          newMessages.push({ role: 'user', content: text });
+        } else {
+          // Update or add assistant message
+          if (lastMessage?.role === 'assistant') {
+            lastMessage.content = text;
+          } else {
+            newMessages.push({ role: 'assistant', content: text });
+          }
+        }
+        
+        return newMessages;
+      });
+    },
+    onError: (error) => {
+      console.error('EVI error:', error);
+    },
+  });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -653,17 +690,67 @@ export default function UniversalNavia({
               className="flex-1 min-w-0 bg-white border-2 border-[var(--clay-400)] rounded-full px-4 md:px-8 py-3 md:py-4 text-base md:text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm disabled:opacity-50"
             />
             
+            {/* Speech-to-Speech Mode Toggle (EVI) */}
             <button
-              onClick={() => setVoiceMode(!voiceMode)}
+              onClick={async () => {
+                const newMode = !speechToSpeechMode;
+                setSpeechToSpeechMode(newMode);
+                if (newMode) {
+                  setVoiceMode(false); // Disable TTS mode
+                  // Get KORA voice config and connect
+                  try {
+                    const configResponse = await fetch('/api/evi/config');
+                    const configData = await configResponse.json();
+                    if (configData.success && configData.configId) {
+                      await eviConnect(configData.configId);
+                    } else {
+                      await eviConnect(); // Fallback to default
+                    }
+                  } catch (error) {
+                    console.error('Failed to get EVI config:', error);
+                    await eviConnect(); // Fallback to default
+                  }
+                } else {
+                  eviDisconnect();
+                }
+              }}
+              className={`flex-shrink-0 ${
+                speechToSpeechMode ? 'bg-[var(--clay-600)]' : 'bg-white border-2 border-[var(--clay-400)]'
+              } ${speechToSpeechMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-full p-3 md:p-4 hover:opacity-80 transition-all shadow-sm`}
+              title={speechToSpeechMode ? "Speech-to-Speech ON (EVI)" : "Speech-to-Speech OFF"}
+            >
+              <Radio className={`w-5 h-5 md:w-6 md:h-6 ${speechToSpeechMode ? 'animate-pulse' : ''}`} />
+            </button>
+
+            {/* Text-to-Speech Mode Toggle */}
+            <button
+              onClick={() => {
+                setVoiceMode(!voiceMode);
+                if (!voiceMode) {
+                  setSpeechToSpeechMode(false); // Disable EVI mode
+                  eviDisconnect();
+                }
+              }}
               className={`flex-shrink-0 ${
                 voiceMode ? 'bg-[var(--sage-600)]' : 'bg-white border-2 border-[var(--clay-400)]'
               } ${voiceMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-full p-3 md:p-4 hover:opacity-80 transition-all shadow-sm`}
-              title={voiceMode ? "Voice mode ON" : "Voice mode OFF"}
+              title={voiceMode ? "Text-to-Speech ON" : "Text-to-Speech OFF"}
             >
               {voiceMode ? <Volume2 className="w-5 h-5 md:w-6 md:h-6" /> : <VolumeX className="w-5 h-5 md:w-6 md:h-6" />}
             </button>
 
-            {voiceMode ? (
+            {speechToSpeechMode ? (
+              <button
+                onClick={eviRecording ? eviStopRecording : eviStartRecording}
+                disabled={!eviConnected}
+                className={`flex-shrink-0 ${
+                  eviRecording ? 'bg-red-500 animate-pulse' : 'bg-[var(--clay-500)]'
+                } hover:opacity-90 text-white rounded-full p-3 md:p-4 transition-all shadow-sm disabled:opacity-50`}
+                title={eviRecording ? "Stop speaking" : eviConnected ? "Start speaking" : "Connecting..."}
+              >
+                <Mic className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+            ) : voiceMode ? (
               <button
                 onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                 className={`flex-shrink-0 ${
@@ -684,7 +771,13 @@ export default function UniversalNavia({
             )}
           </div>
           
-          {voiceMode && (
+          {speechToSpeechMode && (
+            <p className="text-sm text-center text-[var(--sage-600)]">
+              {!eviConnected ? "📡 Connecting to EVI..." : eviRecording ? "🎤 Speaking... Click mic to stop" : eviSpeaking ? "🔊 Navia is responding..." : "Click mic to start conversation"}
+            </p>
+          )}
+          
+          {voiceMode && !speechToSpeechMode && (
             <p className="text-sm text-center text-[var(--sage-600)]">
               {isRecording ? "🎤 Recording... Click mic to stop" : "Click mic to speak"}
             </p>
