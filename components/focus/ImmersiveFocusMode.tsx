@@ -35,6 +35,7 @@ export default function ImmersiveFocusMode({
   const [focusMessages, setFocusMessages] = useState<Message[]>([]);
   const [showNaviaSection, setShowNaviaSection] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [isCelebrating, setIsCelebrating] = useState(false);
 
   // Timer logic
   useEffect(() => {
@@ -99,11 +100,12 @@ export default function ImmersiveFocusMode({
     setShowCompletionModal(false);
     setNaviaAsleep(false);
     setShowNaviaSection(true);
+    setIsCelebrating(true);
     
     // Navia celebrates the user's focus session
     const celebrationMessage: Message = {
       role: 'assistant',
-      content: `Amazing work! 🎉 You just stayed focused on "${taskTitle}" for your entire session. That takes real effort, and I'm so proud of you! 💛 How are you feeling? Want to talk about what you accomplished, or are you ready to take a well-deserved break?`
+      content: `🎉 Wow, you did it! You just completed a full focus session on "${taskTitle}"! \n\nI know staying focused isn't always easy, especially when your mind wants to wander or when things feel overwhelming. But you showed up, you stayed present, and you gave it your all. That's something to be really proud of. 💛\n\nTake a moment to appreciate what you just accomplished. You deserve this win! \n\nHow are you feeling? Want to share what you got done, or are you ready for a well-deserved break?`
     };
     
     setFocusMessages([celebrationMessage]);
@@ -159,7 +161,7 @@ export default function ImmersiveFocusMode({
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-[var(--stone)] mb-8"
+              className="bg-white/80 backdrop-blur-md rounded-3xl p-4 md:p-8 shadow-2xl border border-[var(--stone)] mb-8 overflow-hidden"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-[var(--charcoal)]">Chat with Navia</h3>
@@ -179,7 +181,7 @@ export default function ImmersiveFocusMode({
                 context={context}
                 apiEndpoint="/api/dashboard-chat"
                 showAvatar={true}
-                showInput={!naviaAsleep}
+                showInput={!naviaAsleep && !isCelebrating}
                 isAsleep={naviaAsleep}
                 onWake={handleWakeNavia}
                 proactiveMessage=""
@@ -187,6 +189,24 @@ export default function ImmersiveFocusMode({
                 onMessagesChange={setFocusMessages}
                 className="max-w-2xl mx-auto"
               />
+              
+              {/* End Session Button - Show after celebration */}
+              {isCelebrating && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="mt-6 text-center"
+                >
+                  <button
+                    onClick={onEnd}
+                    className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2 mx-auto"
+                  >
+                    <span>✨</span>
+                    End Session
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
                 </div>
               ) : (

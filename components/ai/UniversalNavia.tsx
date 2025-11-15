@@ -616,11 +616,6 @@ export default function UniversalNavia({
                         ({message.emotions.emotionIntensity})
                       </span>
                     </div>
-                    {message.emotions.allEmotions.slice(0, 3).map((emotion, idx) => (
-                      <span key={idx} className="text-xs text-[var(--sage-700)] bg-white px-2 py-1 rounded-full">
-                        {emotion.name} {Math.round(emotion.score * 100)}%
-                      </span>
-                    ))}
                   </div>
                 </motion.div>
               )}
@@ -645,8 +640,8 @@ export default function UniversalNavia({
 
       {/* Input - Centered like OnboardingV2 - Fixed at bottom */}
       {showInput && !isAsleep && (
-        <div className="w-full max-w-2xl space-y-2 flex-shrink-0">
-          <div className="flex gap-3 justify-center">
+        <div className="w-full max-w-2xl space-y-2 flex-shrink-0 px-2 md:px-0">
+          <div className="flex gap-2 md:gap-3 justify-center items-center">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -655,36 +650,36 @@ export default function UniversalNavia({
               onKeyPress={(e) => e.key === 'Enter' && !isRecording && sendMessage()}
               placeholder={isRecording ? "Listening..." : showPlaceholder ? "Message Navia..." : ''}
               disabled={isLoading || isRecording}
-              className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-8 py-4 text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm disabled:opacity-50"
+              className="flex-1 min-w-0 bg-white border-2 border-[var(--clay-400)] rounded-full px-4 md:px-8 py-3 md:py-4 text-base md:text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm disabled:opacity-50"
             />
             
             <button
               onClick={() => setVoiceMode(!voiceMode)}
-              className={`${
+              className={`flex-shrink-0 ${
                 voiceMode ? 'bg-[var(--sage-600)]' : 'bg-white border-2 border-[var(--clay-400)]'
-              } ${voiceMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-full p-4 hover:opacity-80 transition-all shadow-sm`}
+              } ${voiceMode ? 'text-white' : 'text-[var(--charcoal)]'} rounded-full p-3 md:p-4 hover:opacity-80 transition-all shadow-sm`}
               title={voiceMode ? "Voice mode ON" : "Voice mode OFF"}
             >
-              {voiceMode ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+              {voiceMode ? <Volume2 className="w-5 h-5 md:w-6 md:h-6" /> : <VolumeX className="w-5 h-5 md:w-6 md:h-6" />}
             </button>
 
             {voiceMode ? (
               <button
                 onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
-                className={`${
+                className={`flex-shrink-0 ${
                   isRecording ? 'bg-red-500 animate-pulse' : 'bg-[var(--clay-500)]'
-                } hover:opacity-90 text-white rounded-full p-4 transition-all shadow-sm`}
+                } hover:opacity-90 text-white rounded-full p-3 md:p-4 transition-all shadow-sm`}
                 title={isRecording ? "Stop recording" : "Start recording"}
               >
-                <Mic className="w-6 h-6" />
+                <Mic className="w-5 h-5 md:w-6 md:h-6" />
               </button>
             ) : (
               <button
                 onClick={() => sendMessage()}
                 disabled={isLoading || !input.trim()}
-                className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-full p-4 transition-all disabled:opacity-50 shadow-sm"
+                className="flex-shrink-0 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white rounded-full p-3 md:p-4 transition-all disabled:opacity-50 shadow-sm"
               >
-                <Send className="w-6 h-6" />
+                <Send className="w-5 h-5 md:w-6 md:h-6" />
               </button>
             )}
           </div>

@@ -1543,15 +1543,15 @@ export default function DashboardNew() {
         variant="bento"
       />
 
-      {/* Optional: Tutorial trigger button */}
-      <button
+      {/* Optional: Tutorial trigger button - HIDDEN FOR NOW */}
+      {/* <button
         onClick={startTutorial}
         className="fixed bottom-6 right-6 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all z-50 flex items-center gap-2 font-semibold"
         title="Show tutorial"
       >
         <span>❓</span>
         <span className="hidden sm:inline">Tutorial</span>
-      </button>
+      </button> */}
     </div>
   </>
   );

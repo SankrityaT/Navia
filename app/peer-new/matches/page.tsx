@@ -107,7 +107,7 @@ export default function MatchesPage() {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center mb-12"
+                className="text-center mb-8"
               >
                 <h1 className="text-4xl font-bold text-[var(--charcoal)] mb-4" style={{ fontFamily: 'var(--font-fraunces)' }}>
                   Your Matches
@@ -116,6 +116,16 @@ export default function MatchesPage() {
                   Found {peers.length} peers who might be a great fit 💛
                 </p>
               </motion.div>
+
+              {/* Back Button - Moved above cards */}
+              <div className="mb-8 text-center">
+                <button
+                  onClick={() => router.push('/peer-new')}
+                  className="px-6 py-3 bg-white border-2 border-[var(--stone)] text-[var(--charcoal)] rounded-full font-semibold hover:bg-[var(--sand)] transition-all"
+                >
+                  ← Back to Onboarding
+                </button>
+              </div>
 
               {/* Card Stack */}
               <motion.div
@@ -130,16 +140,6 @@ export default function MatchesPage() {
                   onComplete={handleComplete}
                 />
               </motion.div>
-
-              {/* Back Button */}
-              <div className="mt-16 text-center">
-                <button
-                  onClick={() => router.push('/peer-new')}
-                  className="px-6 py-3 bg-white border-2 border-[var(--stone)] text-[var(--charcoal)] rounded-full font-semibold hover:bg-[var(--sand)] transition-all"
-                >
-                  ← Back to Onboarding
-                </button>
-              </div>
             </>
           ) : (
             /* Completion Screen */
