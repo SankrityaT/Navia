@@ -207,7 +207,7 @@ struct DashboardView: View {
                         naviaMessage = "Oops, couldn't update that task. Try again? 💛"
                         showNaviaModal = true
 
-                        if Environment.isDebug {
+                        if AppEnvironment.isDebug {
                             print("❌ Failed to update task: \(error)")
                         }
                     }
@@ -237,7 +237,7 @@ struct DashboardView: View {
                         naviaMessage = "Couldn't delete that task. Try again? 💛"
                         showNaviaModal = true
 
-                        if Environment.isDebug {
+                        if AppEnvironment.isDebug {
                             print("❌ Failed to delete task: \(error)")
                         }
                     }
@@ -318,7 +318,7 @@ struct DashboardView: View {
                     extractionMessage = "Oops, try again? 💛"
                     isExtractingTasks = false
 
-                    if Environment.isDebug {
+                    if AppEnvironment.isDebug {
                         print("❌ Task extraction failed: \(error)")
                     }
                 }
@@ -357,7 +357,7 @@ struct DashboardView: View {
             } catch {
                 await MainActor.run {
                     // Fall back to mock data on error (for dev/testing)
-                    if Environment.isDebug {
+                    if AppEnvironment.isDebug {
                         tasks = Task.mockList
                         print("⚠️ Failed to load tasks, using mock data: \(error)")
                     } else {

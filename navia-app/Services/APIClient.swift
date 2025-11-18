@@ -10,11 +10,11 @@ import Foundation
 class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = Environment.apiBaseURL
+    private let baseURL = AppEnvironment.apiBaseURL
     private var authToken: String?
 
     private init() {
-        if Environment.isDebug {
+        if AppEnvironment.isDebug {
             print("🌐 APIClient initialized with base URL: \(baseURL)")
         }
     }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum Environment {
+enum AppEnvironment {
     static var apiBaseURL: String {
         // Check for environment variable first (for local dev)
         if let envURL = ProcessInfo.processInfo.environment["NAVIA_API_URL"] {

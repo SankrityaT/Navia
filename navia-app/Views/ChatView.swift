@@ -191,7 +191,7 @@ struct ChatView: View {
             } catch {
                 await MainActor.run {
                     isLoadingHistory = false
-                    if Environment.isDebug {
+                    if AppEnvironment.isDebug {
                         print("⚠️ Failed to load chat history: \(error)")
                     }
                 }
