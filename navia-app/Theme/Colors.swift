@@ -21,6 +21,7 @@ extension Color {
     static let clay900 = Color(hex: "4A2718")
 
     // MARK: - Sage & Earth Accents
+    static let sage50 = Color(hex: "F4F6F3")
     static let sage100 = Color(hex: "E8EDE6")
     static let sage200 = Color(hex: "D1DCC9")
     static let sage300 = Color(hex: "B9CAAF")
@@ -28,6 +29,7 @@ extension Color {
     static let sage500 = Color(hex: "8A9B80")
     static let sage600 = Color(hex: "6D7F63")
     static let sage700 = Color(hex: "586650")
+    static let sage800 = Color(hex: "3D4A38")
     static let moss500 = Color(hex: "5C6E52")
     static let moss600 = Color(hex: "4A5A42")
 
