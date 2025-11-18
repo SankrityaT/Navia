@@ -165,14 +165,26 @@ struct ChatView: View {
                 let chatMessages = try await ChatService.shared.fetchChatHistory(limit: 50)
 
                 await MainActor.run {
-                    messages = chatMessages.map { msg in
-                        DisplayMessage(
-                            id: msg.id,
-                            content: msg.content,
-                            isUser: msg.isUser,
-                            timestamp: msg.timestamp,
-                            category: msg.category
-                        )
+                    // Convert ChatMessage (has message + response) to DisplayMessage array
+                    messages = chatMessages.flatMap { msg -> [DisplayMessage] in
+                        [
+                            // User message
+                            DisplayMessage(
+                                id: msg.id + "_user",
+                                content: msg.message,
+                                isUser: true,
+                                timestamp: msg.createdAt,
+                                category: msg.category
+                            ),
+                            // AI response
+                            DisplayMessage(
+                                id: msg.id + "_ai",
+                                content: msg.response,
+                                isUser: false,
+                                timestamp: msg.createdAt,
+                                category: msg.category
+                            )
+                        ]
                     }
                     isLoadingHistory = false
                 }
