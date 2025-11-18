@@ -74,7 +74,16 @@ struct DashboardView: View {
             } else {
                 mainContent
             }
+
+            // Navia Modal
+            if showNaviaModal {
+                NaviaModalView(
+                    isPresented: $showNaviaModal,
+                    message: naviaMessage
+                )
+            }
         }
+        .navigationBarHidden(true)
         .onAppear {
             loadData()
         }
@@ -82,7 +91,7 @@ struct DashboardView: View {
 
     private var mainContent: some View {
         ScrollView(showsIndicators: false) {
-                VStack(spacing: Spacing.lg) {
+            VStack(spacing: Spacing.lg) {
                     // Greeting Header
                     VStack(spacing: Spacing.xs) {
                         Text("\(greeting), \(userName)! 💛")
@@ -160,20 +169,10 @@ struct DashboardView: View {
                             // Navigate to Focus tab
                         }
                     )
-                }
-                .padding(.horizontal, Spacing.screenPadding)
-                .padding(.bottom, Spacing.xxxl)
             }
-
-            // Navia Modal
-            if showNaviaModal {
-                NaviaModalView(
-                    isPresented: $showNaviaModal,
-                    message: naviaMessage
-                )
-            }
+            .padding(.horizontal, Spacing.screenPadding)
+            .padding(.bottom, Spacing.xxxl)
         }
-        .navigationBarHidden(true)
     }
 
     // MARK: - Actions
