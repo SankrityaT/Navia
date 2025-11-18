@@ -2,16 +2,16 @@
 //  navia_appApp.swift
 //  navia-app
 //
-//  Created by Sankritya Thakur on 11/17/25.
+//  Main app entry point
 //
 
 import SwiftUI
 
 @main
-struct navia_appApp: App {
+struct NaviaApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
         }
     }
 }
