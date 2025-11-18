@@ -12,6 +12,7 @@ struct ChatView: View {
     @State private var inputText = ""
     @State private var isStreaming = false
     @State private var currentStreamingMessage = ""
+    @State private var isLoadingHistory = false
 
     var body: some View {
         NavigationView {
@@ -90,6 +91,9 @@ struct ChatView: View {
             .navigationTitle("Chat")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            loadChatHistory()
+        }
     }
 
     private func sendMessage() {
@@ -147,6 +151,38 @@ struct ChatView: View {
                     category: nil
                 )
                 messages.append(errorMessage)
+            }
+        }
+    }
+
+    private func loadChatHistory() {
+        guard messages.isEmpty && !isLoadingHistory else { return }
+
+        isLoadingHistory = true
+
+        _Concurrency.Task {
+            do {
+                let chatMessages = try await ChatService.shared.fetchChatHistory(limit: 50)
+
+                await MainActor.run {
+                    messages = chatMessages.map { msg in
+                        DisplayMessage(
+                            id: msg.id,
+                            content: msg.content,
+                            isUser: msg.isUser,
+                            timestamp: msg.timestamp,
+                            category: msg.category
+                        )
+                    }
+                    isLoadingHistory = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoadingHistory = false
+                    if Environment.isDebug {
+                        print("⚠️ Failed to load chat history: \(error)")
+                    }
+                }
             }
         }
     }

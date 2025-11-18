@@ -11,7 +11,9 @@ struct DashboardView: View {
     @State private var energyLevel: Double = 6
     @State private var previousEnergyLevel: Double = 6
     @State private var supportLevel: Int = 3
-    @State private var tasks: [Task] = Task.mockList
+    @State private var tasks: [Task] = []
+    @State private var isLoadingTasks = true
+    @State private var loadError: String?
     @State private var showingAddTask = false
     @State private var newTaskInput = ""
     @State private var isExtractingTasks = false
@@ -65,7 +67,21 @@ struct DashboardView: View {
         ZStack {
             Color.naviaBackground.ignoresSafeArea()
 
-            ScrollView(showsIndicators: false) {
+            if isLoadingTasks {
+                ProgressView("Loading your tasks...")
+                    .font(.naviaBody)
+                    .foregroundColor(.clay600)
+            } else {
+                mainContent
+            }
+        }
+        .onAppear {
+            loadData()
+        }
+    }
+
+    private var mainContent: some View {
+        ScrollView(showsIndicators: false) {
                 VStack(spacing: Spacing.lg) {
                     // Greeting Header
                     VStack(spacing: Spacing.xs) {
@@ -166,6 +182,7 @@ struct DashboardView: View {
             completingTaskId = task.id
 
             let newStatus: TaskStatus = task.status == .completed ? .notStarted : .completed
+            let oldStatus = task.status
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 tasks[index].status = newStatus
@@ -180,17 +197,53 @@ struct DashboardView: View {
             }
 
             _Concurrency.Task {
-                try? await TaskService.shared.updateTask(id: task.id, status: newStatus)
+                do {
+                    _ = try await TaskService.shared.updateTask(id: task.id, status: newStatus)
+                } catch {
+                    // Revert on error
+                    await MainActor.run {
+                        if let revertIndex = tasks.firstIndex(where: { $0.id == task.id }) {
+                            tasks[revertIndex].status = oldStatus
+                        }
+                        naviaMessage = "Oops, couldn't update that task. Try again? 💛"
+                        showNaviaModal = true
+
+                        if Environment.isDebug {
+                            print("❌ Failed to update task: \(error)")
+                        }
+                    }
+                }
             }
         }
     }
 
     private func deleteTask(_ taskId: String) {
         deletingTaskId = taskId
+        let taskToDelete = tasks.first { $0.id == taskId }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             tasks.removeAll { $0.id == taskId }
             deletingTaskId = nil
+
+            // Delete from backend
+            _Concurrency.Task {
+                do {
+                    try await TaskService.shared.deleteTask(id: taskId)
+                } catch {
+                    // Restore on error
+                    await MainActor.run {
+                        if let restoredTask = taskToDelete {
+                            tasks.append(restoredTask)
+                        }
+                        naviaMessage = "Couldn't delete that task. Try again? 💛"
+                        showNaviaModal = true
+
+                        if Environment.isDebug {
+                            print("❌ Failed to delete task: \(error)")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -204,35 +257,56 @@ struct DashboardView: View {
         guard !newTaskInput.isEmpty else { return }
 
         isExtractingTasks = true
-        extractionMessage = "Extracting tasks..."
+        extractionMessage = "Extracting tasks with AI..."
 
         _Concurrency.Task {
             do {
-                // Simulate AI extraction (would call API in real app)
-                try await _Concurrency.Task.sleep(nanoseconds: 1_500_000_000)
-
-                // Simple extraction: split by commas, periods, or "and"
-                let extracted = newTaskInput
-                    .components(separatedBy: CharacterSet(charactersIn: ",.;"))
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
+                // Call real task extraction API
+                let response: ExtractTasksResponse = try await APIClient.shared.request(
+                    "/api/features/extract-tasks",
+                    method: .post,
+                    body: ["text": newTaskInput]
+                )
 
                 await MainActor.run {
-                    for title in extracted {
+                    // Add extracted tasks to the list
+                    for extractedTask in response.tasks {
                         let newTask = Task(
                             id: UUID().uuidString,
                             userId: "current_user",
-                            title: title,
+                            title: extractedTask.title,
                             status: .notStarted,
-                            priority: .medium,
-                            category: .dailyLife,
+                            priority: extractedTask.priority ?? .medium,
+                            timeEstimate: extractedTask.timeEstimate,
+                            category: extractedTask.category ?? .dailyLife,
+                            description: extractedTask.reasoning,
                             createdAt: Date(),
                             createdBy: "current_user"
                         )
+
+                        // Save to backend
+                        _Concurrency.Task {
+                            do {
+                                let saved = try await TaskService.shared.createTask(
+                                    title: newTask.title,
+                                    category: newTask.category,
+                                    priority: newTask.priority
+                                )
+                                // Update with server-generated ID
+                                await MainActor.run {
+                                    if let idx = tasks.firstIndex(where: { $0.id == newTask.id }) {
+                                        tasks[idx] = saved
+                                    }
+                                }
+                            } catch {
+                                print("Failed to save task to backend: \(error)")
+                            }
+                        }
+
                         tasks.insert(newTask, at: 0)
                     }
 
-                    extractionMessage = "Added \(extracted.count) task(s)! 💛"
+                    extractionMessage = "Added \(response.tasks.count) task(s)! 💛"
                     newTaskInput = ""
                     isExtractingTasks = false
 
@@ -244,6 +318,10 @@ struct DashboardView: View {
                 await MainActor.run {
                     extractionMessage = "Oops, try again? 💛"
                     isExtractingTasks = false
+
+                    if Environment.isDebug {
+                        print("❌ Task extraction failed: \(error)")
+                    }
                 }
             }
         }
@@ -257,6 +335,59 @@ struct DashboardView: View {
             naviaMessage = message
         }
         previousEnergyLevel = finalLevel
+
+        // Save energy level
+        saveUserState()
+    }
+
+    // MARK: - API Integration
+    private func loadData() {
+        _Concurrency.Task {
+            do {
+                // Load user state
+                await loadUserState()
+
+                // Load tasks
+                isLoadingTasks = true
+                let fetchedTasks = try await TaskService.shared.fetchTasks(status: nil)
+                await MainActor.run {
+                    tasks = fetchedTasks
+                    isLoadingTasks = false
+                    loadError = nil
+                }
+            } catch {
+                await MainActor.run {
+                    // Fall back to mock data on error (for dev/testing)
+                    if Environment.isDebug {
+                        tasks = Task.mockList
+                        print("⚠️ Failed to load tasks, using mock data: \(error)")
+                    } else {
+                        loadError = "Couldn't load tasks. Please try again."
+                    }
+                    isLoadingTasks = false
+                }
+            }
+        }
+    }
+
+    private func loadUserState() async {
+        // TODO: Implement user state API when backend endpoint is ready
+        // For now, use local storage
+        await MainActor.run {
+            energyLevel = UserDefaults.standard.double(forKey: "energyLevel")
+            if energyLevel == 0 { energyLevel = 6 } // Default
+            previousEnergyLevel = energyLevel
+        }
+    }
+
+    private func saveUserState() {
+        // Save locally
+        UserDefaults.standard.set(energyLevel, forKey: "energyLevel")
+
+        // TODO: Sync to backend via /api/user-state
+        _Concurrency.Task {
+            // Will implement when auth is ready
+        }
     }
 
     private func getEnergyMessage(_ level: Int) -> String {
@@ -719,6 +850,24 @@ struct NaviaModalView: View {
             .shadow(radius: 20)
             .padding(Spacing.xl)
         }
+    }
+}
+
+// MARK: - Supporting Models for API
+struct ExtractTasksResponse: Codable {
+    let tasks: [ExtractedTask]
+}
+
+struct ExtractedTask: Codable {
+    let title: String
+    let category: TaskCategory?
+    let priority: TaskPriority?
+    let timeEstimate: Int?
+    let reasoning: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, category, priority, reasoning
+        case timeEstimate = "time_estimate"
     }
 }
 

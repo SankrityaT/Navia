@@ -10,10 +10,14 @@ import Foundation
 class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "https://navia.app"
+    private let baseURL = Environment.apiBaseURL
     private var authToken: String?
 
-    private init() {}
+    private init() {
+        if Environment.isDebug {
+            print("🌐 APIClient initialized with base URL: \(baseURL)")
+        }
+    }
 
     func setAuthToken(_ token: String) {
         self.authToken = token
