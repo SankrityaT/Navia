@@ -90,7 +90,7 @@ struct TasksView: View {
             let newStatus: TaskStatus = task.status == .completed ? .notStarted : .completed
             tasks[index].status = newStatus
 
-            Task {
+            _Concurrency.Task {
                 try? await TaskService.shared.updateTask(id: task.id, status: newStatus)
             }
         }
@@ -197,7 +197,7 @@ struct AddTaskView: View {
 
         onAdd(newTask)
 
-        Task {
+        _Concurrency.Task {
             try? await TaskService.shared.createTask(
                 title: title,
                 category: category,

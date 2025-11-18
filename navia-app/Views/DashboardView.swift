@@ -51,7 +51,7 @@ struct DashboardView: View {
                         // Energy Check-in (full width)
                         BentoGridCell(columnSpan: 2) {
                             EnergySlider(energyLevel: $energyLevel) { level in
-                                Task {
+                                _Concurrency.Task {
                                     try? await UserService.shared.updateEnergyLevel(level)
                                 }
                             }
@@ -207,7 +207,7 @@ struct DashboardView: View {
             let newStatus: TaskStatus = task.status == .completed ? .notStarted : .completed
             tasks[index].status = newStatus
 
-            Task {
+            _Concurrency.Task {
                 try? await TaskService.shared.updateTask(id: task.id, status: newStatus)
             }
         }

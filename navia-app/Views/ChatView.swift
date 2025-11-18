@@ -112,7 +112,7 @@ struct ChatView: View {
         isStreaming = true
         currentStreamingMessage = ""
 
-        Task {
+        _Concurrency.Task {
             do {
                 try await ChatService.shared.sendMessage(
                     message: userMessage,
