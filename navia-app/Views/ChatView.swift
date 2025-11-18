@@ -112,7 +112,7 @@ struct ChatView: View {
         isStreaming = true
         currentStreamingMessage = ""
 
-        Task {
+        Task.detached { @MainActor in
             do {
                 try await ChatService.shared.sendMessage(
                     message: userMessage,

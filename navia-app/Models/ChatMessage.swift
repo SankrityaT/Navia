@@ -69,6 +69,14 @@ struct DisplayMessage: Identifiable {
     let timestamp: Date
     let category: MessageCategory?
 
+    init(id: String, content: String, isUser: Bool, timestamp: Date, category: MessageCategory?) {
+        self.id = id
+        self.content = content
+        self.isUser = isUser
+        self.timestamp = timestamp
+        self.category = category
+    }
+
     init(from chatMessage: ChatMessage, isUserMessage: Bool) {
         self.id = chatMessage.id + (isUserMessage ? "_user" : "_ai")
         self.content = isUserMessage ? chatMessage.message : chatMessage.response
