@@ -45,13 +45,13 @@ struct DashboardView: View {
 
                     // Bento Grid
                     LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
+                        SwiftUI.GridItem(.flexible()),
+                        SwiftUI.GridItem(.flexible())
                     ], spacing: Spacing.md) {
                         // Energy Check-in (full width)
-                        GridItem(columnSpan: 2) {
+                        BentoGridCell(columnSpan: 2) {
                             EnergySlider(energyLevel: $energyLevel) { level in
-                                Task.detached {
+                                Task {
                                     try? await UserService.shared.updateEnergyLevel(level)
                                 }
                             }
@@ -207,21 +207,15 @@ struct DashboardView: View {
             let newStatus: TaskStatus = task.status == .completed ? .notStarted : .completed
             tasks[index].status = newStatus
 
-            Task.detached {
+            Task {
                 try? await TaskService.shared.updateTask(id: task.id, status: newStatus)
             }
         }
     }
 }
 
-// MARK: - Grid Item Helper
-extension GridItem {
-    init(columnSpan: Int) {
-        self = GridItem(.flexible())
-    }
-}
-
-struct GridItem<Content: View>: View {
+// MARK: - Bento Grid Cell Helper
+struct BentoGridCell<Content: View>: View {
     let columnSpan: Int
     let content: Content
 
