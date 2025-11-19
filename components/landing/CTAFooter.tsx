@@ -68,7 +68,7 @@ export default function CTAFooter() {
 
           {/* Copyright */}
           <div className="mt-8 pt-8 border-t border-gray-100 text-center text-sm text-gray-500">
-            <p>© 2024 Navia. Built with care for neurodivergent minds.</p>
+            <p>© 2025 Navia. Built with care for neurodivergent minds.</p>
           </div>
         </div>
       </footer>

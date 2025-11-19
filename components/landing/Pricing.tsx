@@ -26,19 +26,20 @@ export default function Pricing() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-7xl mx-auto">
-          {/* Student Plan */}
+        <div className="grid md:grid-cols-3 gap-8 lg:gap-10 max-w-6xl mx-auto">
+          {/* Students/Basic Plan */}
           <div className="group bg-white p-8 lg:p-10 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl flex flex-col">
-            <div className="text-sm font-semibold text-[var(--clay-600)] mb-3 uppercase tracking-wider">Student Plan</div>
+            <div className="text-sm font-semibold text-[var(--clay-600)] mb-3 uppercase tracking-wider">Students</div>
+            <div className="text-xs text-[var(--charcoal)]/60 mb-3 leading-relaxed">from Partnered Colleges</div>
             <div className="mb-4">
-              <span className="text-4xl lg:text-5xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>$6.99</span>
-              <span className="text-[var(--charcoal)]/60 text-lg">/month</span>
+              <span className="text-4xl lg:text-5xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Free</span>
+              <span className="text-[var(--charcoal)]/60 text-lg"> forever</span>
             </div>
             <p className="text-sm text-[var(--charcoal)]/60 mb-4 leading-relaxed min-h-[40px]">
-              Requires valid .edu email • Re-verify each semester
+              <span className="font-semibold text-[var(--charcoal)] text-lg">$4.99</span>/month if not from partnered college
             </p>
             <p className="text-[var(--charcoal)]/70 mb-6 leading-relaxed font-medium min-h-[48px]">
-              Perfect for current students preparing for post-college transition.
+              * 7 day free trial
             </p>
             <ul className="space-y-3 mb-auto flex-grow">
               <li className="flex items-start gap-2">
@@ -47,27 +48,11 @@ export default function Pricing() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Career roadmap & task breakdown</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Financial budgeting & goal tracking</span>
+                <span className="text-sm text-[var(--charcoal)]/80">Task breakdown</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
                 <span className="text-sm text-[var(--charcoal)]/80">Focus mode with adaptive reminders</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Peer mentor community access</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Progress tracking & analytics</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Priority customer support</span>
               </li>
             </ul>
             <button className="w-full bg-[var(--sand)] hover:bg-[var(--stone)] text-[var(--charcoal)] py-4 rounded-full font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 mt-8">
@@ -75,23 +60,23 @@ export default function Pricing() {
             </button>
           </div>
 
-          {/* Professional Plan - Highlighted */}
+          {/* Pro Plan - Highlighted */}
           <div className="group relative bg-gradient-to-br from-[var(--clay-100)] via-[var(--sand)] to-[var(--clay-200)] p-8 lg:p-10 rounded-[2rem] border-2 border-[var(--clay-400)]/60 hover:border-[var(--clay-500)]/80 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl flex flex-col">
             {/* Popular Badge */}
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[var(--clay-500)] to-[var(--clay-600)] text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg">
               Most Popular
             </div>
             
-            <div className="text-sm font-semibold text-[var(--clay-600)] mb-3 uppercase tracking-wider">Professional Plan</div>
+            <div className="text-sm font-semibold text-[var(--clay-600)] mb-3 uppercase tracking-wider">Pro</div>
             <div className="mb-4">
-              <span className="text-4xl lg:text-5xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>$19.99</span>
+              <span className="text-4xl lg:text-5xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>$9.99</span>
               <span className="text-[var(--charcoal)]/60 text-lg">/month</span>
             </div>
             <p className="text-sm text-[var(--charcoal)]/60 mb-4 leading-relaxed min-h-[40px]">
-              Open to all neurodivergent young adults
+              * 7 day free trial
             </p>
             <p className="text-[var(--charcoal)]/70 mb-6 leading-relaxed font-medium min-h-[48px]">
-              For post-college professionals, career changers, and anyone seeking support.
+              
             </p>
             <ul className="space-y-3 mb-auto flex-grow">
               <li className="flex items-start gap-2">
@@ -104,10 +89,6 @@ export default function Pricing() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Financial budgeting & goal tracking</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
                 <span className="text-sm text-[var(--charcoal)]/80">Focus mode with adaptive reminders</span>
               </li>
               <li className="flex items-start gap-2">
@@ -116,15 +97,7 @@ export default function Pricing() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Burnout prevention monitoring</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Progress tracking & analytics</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80">Priority customer support</span>
+                <span className="text-sm text-[var(--charcoal)]/80">Energy level tracking</span>
               </li>
             </ul>
             <button className="w-full bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white py-4 rounded-full font-semibold transition-all duration-300 shadow-lg hover:shadow-xl mt-8">
@@ -134,20 +107,20 @@ export default function Pricing() {
 
           {/* Enterprise Plan */}
           <div className="group bg-white p-8 lg:p-10 rounded-[2rem] border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl flex flex-col">
-            <div className="text-sm font-semibold text-[var(--clay-600)] mb-3 uppercase tracking-wider">Enterprise Plan</div>
+            <div className="text-sm font-semibold text-[var(--clay-600)] mb-3 uppercase tracking-wider">Enterprise</div>
             <div className="mb-4">
               <span className="text-4xl lg:text-5xl font-serif font-bold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Custom</span>
             </div>
             <p className="text-sm text-[var(--charcoal)]/60 mb-4 leading-relaxed min-h-[40px]">
-              For universities, employers, and organizations
+              
             </p>
             <p className="text-[var(--charcoal)]/70 mb-6 leading-relaxed font-medium min-h-[48px]">
-              Supporting 50+ neurodivergent individuals with dedicated enterprise features.
+              
             </p>
             <ul className="space-y-3 mb-auto flex-grow">
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <span className="text-sm text-[var(--charcoal)]/80 font-medium">Everything in Professional, plus:</span>
+                <span className="text-sm text-[var(--charcoal)]/80 font-medium">Everything in Pro, plus:</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-[var(--sage-600)] flex-shrink-0 mt-0.5" strokeWidth={2.5} />

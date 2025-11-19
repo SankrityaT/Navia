@@ -4,7 +4,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Shield, Sparkles, Leaf } from 'lucide-react';
+import { ArrowRight, Brain, Users, Leaf } from 'lucide-react';
 
 export default function Hero() {
   return (
@@ -30,16 +30,10 @@ export default function Hero() {
               <a href="#how-it-works" className="hover:text-[var(--clay-600)] transition-colors duration-300">How It Works</a>
               <a href="#pricing" className="hover:text-[var(--clay-600)] transition-colors duration-300">Pricing</a>
               <Link 
-                href="/sign-in"
-                className="text-[var(--charcoal)] hover:text-[var(--clay-600)] transition-colors duration-300"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/sign-up"
+                href="/waitlist"
                 className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-6 py-2.5 rounded-full transition-all duration-300 font-semibold shadow-md hover:shadow-lg"
               >
-                Sign Up
+                Join Waitlist
               </Link>
             </div>
           </div>
@@ -53,36 +47,32 @@ export default function Hero() {
               <div className="relative w-4 h-4 rounded-full bg-gradient-to-br from-[#c4a574] via-[#9ca986] to-[#6b8e6f] overflow-hidden flex-shrink-0">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
               </div>
-              <span className="text-sm text-[var(--charcoal)] font-medium">Built with care for neurodivergent minds</span>
+              <span className="text-sm text-[var(--charcoal)] font-medium">I'm built with care for neurodivergent minds</span>
             </div>
 
             {/* Main Headline - Addressing the Support Cliff */}
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-[var(--charcoal)] mb-8 leading-[1.1] tracking-tight animate-fade-in-up delay-400" style={{fontFamily: 'var(--font-fraunces)'}}>
-              You're Not Alone in
+              I'm Here for You in
               <span className="block mt-4 text-[var(--clay-600)] italic font-light">The Unknown</span>
             </h1>
 
             {/* Empathetic Subheadline */}
             <p className="text-xl md:text-2xl text-[var(--charcoal)]/80 mb-5 max-w-3xl mx-auto leading-relaxed font-light animate-fade-in-up delay-500">
-              Loosing campus support and navigating life without it can be tough.  Navia is here.
+              Losing campus support and navigating life without it is tough. I'm Navia, and I'm here.
             </p>
             <p className="text-base md:text-lg text-[var(--charcoal)]/60 mb-14 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-600">
-              AI-powered task management, focus sessions, and daily support designed for your neurodivergent mind—with peer connections who truly understand.
+              I offer AI-powered task management, focus sessions, and daily support designed for your neurodivergent mind—plus peer connections who truly understand.
             </p>
 
             {/* Primary CTA */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20 animate-scale-in delay-700">
               <Link
-                href="/sign-up"
+                href="/waitlist"
                 className="group inline-flex items-center gap-3 bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-[var(--cream)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 hover:-translate-y-0.5"
               >
-                Get Started
+                Join Waitlist
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
               </Link>
-              <button className="inline-flex items-center gap-3 bg-[var(--sand)] hover:bg-[var(--stone)] text-[var(--charcoal)] px-10 py-5 rounded-full text-lg font-semibold transition-all duration-300 border-2 border-[var(--clay-300)]/40 hover:border-[var(--clay-400)]/60">
-                <Shield className="w-5 h-5" strokeWidth={2.5} />
-                Privacy First
-              </button>
             </div>
 
             {/* Trust Indicators */}
@@ -96,17 +86,17 @@ export default function Hero() {
               </div>
               <div className="bg-[var(--sand)]/60 backdrop-blur-sm p-10 rounded-3xl border border-[var(--clay-300)]/20 hover:border-[var(--clay-400)]/40 transition-all duration-500 hover:-translate-y-1 animate-fade-in-up delay-[900ms]">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--clay-400)] to-[var(--clay-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
-                  <Shield className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
+                  <Brain className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
                 </div>
-                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Privacy First</div>
-                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Your Safe Space</div>
+                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">AI-Powered</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Smart Support</div>
               </div>
               <div className="bg-[var(--sand)]/60 backdrop-blur-sm p-10 rounded-3xl border border-[var(--clay-300)]/20 hover:border-[var(--clay-400)]/40 transition-all duration-500 hover:-translate-y-1 animate-fade-in-up delay-[1000ms]">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--moss-500)] to-[var(--moss-600)] flex items-center justify-center mb-5 mx-auto shadow-md">
-                  <Sparkles className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
+                  <Users className="w-7 h-7 text-[var(--cream)]" strokeWidth={2.5} />
                 </div>
-                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Personalized</div>
-                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Adapts to You</div>
+                <div className="text-sm text-[var(--charcoal)]/60 mb-2 font-medium uppercase tracking-wider">Community</div>
+                <div className="text-2xl font-serif font-semibold text-[var(--charcoal)]" style={{fontFamily: 'var(--font-fraunces)'}}>Connect & Share</div>
               </div>
             </div>
           </div>

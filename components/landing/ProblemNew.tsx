@@ -16,7 +16,7 @@ export default function Problem() {
       <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
         <div className="text-center mb-24">
           <h2 className="text-4xl md:text-6xl font-serif font-bold text-[var(--charcoal)] mb-7 leading-tight tracking-tight" style={{fontFamily: 'var(--font-fraunces)'}}>
-            We Understand What
+            I Understand What
             <span className="block text-[var(--clay-600)] italic font-light mt-2">You're Going Through</span>
           </h2>
           <p className="text-xl md:text-2xl text-[var(--charcoal)]/70 max-w-2xl mx-auto leading-relaxed font-light">
@@ -34,7 +34,7 @@ export default function Problem() {
               The Support Cliff
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              All the accommodations and structure that helped you succeed suddenly disappear at graduation.
+              I know all the accommodations and structure that helped you succeed suddenly disappeared at graduation.
             </p>
           </div>
 
@@ -46,7 +46,7 @@ export default function Problem() {
               Navigating Expectations
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              Managing job interviews and workplace demands while handling executive function challenges takes a toll on your energy and well-being.
+              I see how managing job interviews and workplace demands while handling executive function challenges takes a toll on your energy.
             </p>
           </div>
 
@@ -58,7 +58,7 @@ export default function Problem() {
               Burnout & Overwhelm
             </h3>
             <p className="text-[var(--charcoal)]/70 leading-relaxed text-lg">
-              Without the right support, even simple tasks can feel impossible, leading to cycles of burnout.
+              I understand that without the right support, even simple tasks can feel impossible, leading to cycles of burnout.
             </p>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function Problem() {
               "You've worked so hard to get here."
             </p>
             <p className="text-lg md:text-xl text-[var(--charcoal)]/70 max-w-3xl mx-auto leading-relaxed font-light">
-              You deserve support that doesn't end with a diploma. Navia is here to help you navigate what comes next—at your own pace, in your own way.
+              You deserve support that doesn't end with a diploma. I'm here to help you navigate what comes next—at your own pace, in your own way.
             </p>
           </div>
         </div>

@@ -29,6 +29,8 @@ const isPublicRoute = createRouteMatcher([
   '/',              // Landing page
   '/sign-in(.*)',   // Sign-in pages
   '/sign-up(.*)',   // Sign-up pages
+  '/waitlist',      // Waitlist page
+  '/invite-only',   // Invite-only page
 ]);
 
 // Protected routes that require special handling
