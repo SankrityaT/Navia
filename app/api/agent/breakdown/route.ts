@@ -6,7 +6,6 @@ import { NextResponse } from 'next/server';
 import {
   analyzeTaskComplexity,
   generateBreakdown,
-  containsBreakdownKeywords,
   addEFSpecificTips,
 } from '@/lib/agents/breakdown';
 
@@ -29,12 +28,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Task is required' }, { status: 400 });
     }
 
-    // Step 1: Analyze complexity
+    // Step 1: Analyze complexity (LLM intelligently determines if breakdown is needed)
     const analysis = await analyzeTaskComplexity(task, context);
 
     // Step 2: Check if breakdown is explicitly requested or needed
-    const hasBreakdownKeywords = containsBreakdownKeywords(task);
-    const shouldBreakdown = autoBreakdown || hasBreakdownKeywords || analysis.needsBreakdown;
+    const shouldBreakdown = autoBreakdown || analysis.needsBreakdown;
 
     if (!shouldBreakdown) {
       return NextResponse.json({
@@ -93,13 +91,11 @@ export async function GET(request: Request) {
     }
 
     const analysis = await analyzeTaskComplexity(task);
-    const hasBreakdownKeywords = containsBreakdownKeywords(task);
 
     return NextResponse.json({
-      needsBreakdown: analysis.needsBreakdown || hasBreakdownKeywords,
+      needsBreakdown: analysis.needsBreakdown,
       complexity: analysis.complexity,
       reasoning: analysis.reasoning,
-      hasKeywords: hasBreakdownKeywords,
     });
 
   } catch (error) {

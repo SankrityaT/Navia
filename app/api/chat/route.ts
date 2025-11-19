@@ -57,6 +57,9 @@ export async function POST(request: Request) {
       );
 
       // Store in Supabase for persistence and easy retrieval
+      // Generate session_id based on date (groups conversations by day)
+      const sessionId = `session_${new Date().toISOString().split('T')[0]}_${userId.slice(-8)}`;
+      
       await storeSupabaseChatMessage({
         user_id: userId,
         message,
@@ -65,6 +68,7 @@ export async function POST(request: Request) {
         persona: 'chat_orchestrator',
         metadata: chatMetadata,
         pinecone_id: pineconeId,
+        session_id: sessionId,
       });
     } catch (storageError) {
       console.error('Failed to store chat:', storageError);
@@ -76,8 +80,8 @@ export async function POST(request: Request) {
       persona: primaryDomain,
       personaIcon: primaryDomain === 'finance' ? '💰' : primaryDomain === 'career' ? '💼' : '✅',
       breakdown: result.breakdown,
-      resources: result.allResources,
-      sources: result.allSources,
+      resources: result.resources || [],
+      sources: result.sources || [],
       functionCall: null,
     });
 

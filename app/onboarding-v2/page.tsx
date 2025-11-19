@@ -7,7 +7,12 @@ import { useUser } from '@clerk/nextjs';
 import NaviaAvatar from '@/components/ai/NaviaAvatar';
 import { MessageCircle, Mic, Send, Volume2, Loader2 } from 'lucide-react';
 
-type OnboardingMode = 'initial' | 'name' | 'choice' | 'chat' | 'voice';
+type OnboardingMode = 'initial' | 'name' | 'chat';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function OnboardingV2() {
   const router = useRouter();
@@ -22,6 +27,8 @@ export default function OnboardingV2() {
   const [questionCount, setQuestionCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [canFinish, setCanFinish] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
+  const [showSkipOption, setShowSkipOption] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -73,8 +80,19 @@ export default function OnboardingV2() {
     setTimeout(() => {
       typeText("Hi! I'm Navia 💛\n\nWhat should I call you?");
       setMode('name');
+      // Show skip option after 10 seconds if user hasn't engaged
+      setTimeout(() => setShowSkipOption(true), 10000);
     }, 1500);
   }, [checkingInvite]);
+
+  // Log canFinish state changes
+  useEffect(() => {
+    if (canFinish) {
+      console.log('🟢 Finish button is NOW VISIBLE (canFinish=true, questionCount=' + questionCount + ')');
+    } else {
+      console.log('⏳ Finish button hidden (canFinish=false, questionCount=' + questionCount + ')');
+    }
+  }, [canFinish, questionCount]);
 
   // Smooth typing effect
   const typeText = async (text: string) => {
@@ -93,25 +111,29 @@ export default function OnboardingV2() {
     e.preventDefault();
     if (!nameInput.trim()) return;
 
-    setUserName(nameInput.trim());
-    setUserResponses([nameInput.trim()]);
+    const name = nameInput.trim();
+    console.log('👤 Name submitted:', name);
+    setUserName(name);
+    setUserResponses([name]);
     
-    await typeText(`Nice to meet you, ${nameInput.trim()}! 😊\n\nHow would you like to continue?`);
-    setMode('choice');
-  };
-
-  const handleChatChoice = async () => {
+    // Go straight to chat mode with first question
     setMode('chat');
-    await typeText(`Great! Let's chat. What do you need most help with right now?`);
+    setQuestionCount(1); // Start at question 1
+    console.log('💬 Switching to chat mode, starting at question 1');
+    
+    const firstQuestion = `Thanks, ${name}! Just so I can support you better, do you identify as having ADHD, autism, both, or something else?`;
+    
+    // Initialize conversation history
+    setConversationHistory([
+      { role: 'user', content: name },
+      { role: 'assistant', content: firstQuestion }
+    ]);
+    console.log('📝 Conversation history initialized');
+    
+    await typeText(firstQuestion);
   };
 
-  const handleVoiceChoice = async () => {
-    setMode('voice');
-    await typeText(`Perfect! I'll speak to you. Click the microphone when you're ready to talk.`);
-    
-    // Play welcome audio
-    await playTTS(`Perfect! I'll speak to you. Click the microphone when you're ready to talk.`);
-  };
+  // Removed handleChatChoice and handleVoiceChoice - going straight to chat after name
 
   // Play text using Hume TTS
   const playTTS = async (text: string) => {
@@ -286,31 +308,15 @@ export default function OnboardingV2() {
         console.log('Emotion detection unavailable');
       }
 
-      // Build full conversation history
-      const conversationMessages = [];
-      
-      // Add all previous exchanges
-      for (let i = 0; i < newResponses.length - 1; i++) {
-        conversationMessages.push({ role: 'user', content: newResponses[i] });
-        // Add a placeholder for AI responses (we don't store them, but AI needs context)
-        if (i === 0) {
-          conversationMessages.push({ role: 'assistant', content: `Thanks, ${userName}! What do you need most help with right now?` });
-        } else if (i === 1) {
-          conversationMessages.push({ role: 'assistant', content: `I hear you. What time of day feels hardest for you?` });
-        } else if (i === 2) {
-          conversationMessages.push({ role: 'assistant', content: `That makes sense. What would help you feel most successful?` });
-        }
-      }
-      
-      // Add current response
-      conversationMessages.push({ role: 'user', content: transcript });
+      // Build proper conversation history with all previous exchanges
+      const messages = [...conversationHistory, { role: 'user', content: transcript }];
 
       // Get AI response
       const response = await fetch('/api/onboarding-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: conversationMessages,
+          messages: messages,
         }),
       });
 
@@ -348,41 +354,51 @@ export default function OnboardingV2() {
 
       setIsTyping(false);
 
-      // Enable finish button after 3 questions minimum
-      if (questionCount + 1 >= 3 && !canFinish) {
+      // Store conversation history
+      const newHistory = [...conversationHistory, 
+        { role: 'user' as const, content: transcript },
+        { role: 'assistant' as const, content: aiResponse }
+      ];
+      setConversationHistory(newHistory);
+
+      // Enable finish button after 4 questions minimum
+      if (questionCount + 1 >= 4 && !canFinish) {
+        console.log('✅ [VOICE] Enabling finish button (4+ questions answered)');
         setCanFinish(true);
-        // Add a message asking if they want to continue or go to dashboard
-        const finishPrompt = "\n\nI have a good sense of how I can help you now! Would you like to continue chatting with me, or are you ready to head to your dashboard?";
-        aiResponse += finishPrompt;
-        setCurrentText(aiResponse);
       }
 
       // Wait for COMPLETE response, then play audio
       console.log('📝 Full response received:', aiResponse);
       playTTS(aiResponse);
 
-      // Auto-complete after 6 questions to prevent infinite loop
-      if (questionCount + 1 >= 6) {
-        console.log('✅ Auto-completing onboarding after 6 questions');
-        await saveUserContext();
-        setTimeout(() => {
-          router.push('/dashboard-new');
-        }, 3000);
-        return;
+      // Check if AI is asking if user wants to continue or go to dashboard
+      const lowerResponse = aiResponse.toLowerCase();
+      const offeringChoice = 
+        lowerResponse.includes('dashboard') && 
+        (lowerResponse.includes('continue') || lowerResponse.includes('ready') || lowerResponse.includes('dive in'));
+      
+      if (offeringChoice) {
+        setCanFinish(true);
       }
 
-      // Check if AI is explicitly finishing
-      const lowerResponse = aiResponse.toLowerCase();
+      // Check if AI is explicitly finishing (VOICE MODE)
+      console.log('🔍 [VOICE] Checking completion. Response:', lowerResponse.substring(0, 100));
       const wantsToFinish = 
         lowerResponse.includes('setting up your dashboard') ||
         lowerResponse.includes("let's do this together") ||
-        lowerResponse.includes('perfect! i\'m setting up');
+        lowerResponse.includes('perfect! i\'m setting up') ||
+        lowerResponse.includes('see you in your dashboard') ||
+        lowerResponse.includes('perfect! see you');
+      
+      console.log('🔍 [VOICE] wantsToFinish:', wantsToFinish);
       
       if (wantsToFinish) {
+        console.log('✅ [VOICE] AI indicated completion, saving and redirecting...');
         await saveUserContext();
         setTimeout(() => {
+          console.log('🚀 [VOICE] Redirecting to dashboard...');
           router.push('/dashboard-new');
-        }, 3000);
+        }, 2000);
       }
     } catch (error) {
       console.error('❌ Voice processing error:', error);
@@ -400,11 +416,13 @@ export default function OnboardingV2() {
     if (!chatInput.trim() || isLoading) return;
 
     const userMessage = chatInput.trim();
+    console.log('💬 User message:', userMessage);
     setChatInput('');
     setUserResponses([...userResponses, userMessage]);
     setQuestionCount(prev => prev + 1);
     setIsLoading(true);
     console.log('📊 Question count:', questionCount + 1);
+    console.log('📝 Current conversation history length:', conversationHistory.length);
 
     // Detect emotions
     try {
@@ -424,14 +442,14 @@ export default function OnboardingV2() {
 
     // Get AI response
     try {
+      // Build proper conversation history with all previous exchanges
+      const messages = [...conversationHistory, { role: 'user', content: userMessage }];
+      
       const response = await fetch('/api/onboarding-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [
-            { role: 'user', content: `My name is ${userName}` },
-            { role: 'user', content: userMessage },
-          ],
+          messages: messages,
         }),
       });
 
@@ -469,37 +487,47 @@ export default function OnboardingV2() {
 
       setIsTyping(false);
 
-      // Enable finish button after 3 questions minimum
-      if (questionCount + 1 >= 3 && !canFinish) {
+      // Store conversation history
+      const newHistory = [...conversationHistory,
+        { role: 'user' as const, content: userMessage },
+        { role: 'assistant' as const, content: aiResponse }
+      ];
+      setConversationHistory(newHistory);
+
+      // Enable finish button after 4 questions minimum
+      if (questionCount + 1 >= 4 && !canFinish) {
+        console.log('✅ [CHAT] Enabling finish button (4+ questions answered)');
         setCanFinish(true);
-        // Add a message asking if they want to continue or go to dashboard
-        const finishPrompt = "\n\nI have a good sense of how I can help you now! 💛 Would you like to continue chatting with me, or are you ready to head to your dashboard?";
-        aiResponse += finishPrompt;
-        setCurrentText(aiResponse);
       }
 
-      // Auto-complete after 6 questions to prevent infinite loop
-      if (questionCount + 1 >= 6) {
-        console.log('✅ Auto-completing onboarding after 6 questions');
-        await saveUserContext();
-        setTimeout(() => {
-          router.push('/dashboard-new');
-        }, 3000);
-        return;
-      }
-
-      // Check if AI is explicitly finishing
+      // Check if AI is asking if user wants to continue or go to dashboard
       const lowerResponse = aiResponse.toLowerCase();
+      const offeringChoice = 
+        lowerResponse.includes('dashboard') && 
+        (lowerResponse.includes('continue') || lowerResponse.includes('ready') || lowerResponse.includes('dive in'));
+      
+      if (offeringChoice) {
+        setCanFinish(true);
+      }
+
+      // Check if AI is explicitly finishing (CHAT MODE)
+      console.log('🔍 [CHAT] Checking completion. Response:', lowerResponse.substring(0, 100));
       const wantsToFinish = 
         lowerResponse.includes('setting up your dashboard') ||
         lowerResponse.includes("let's do this together") ||
-        lowerResponse.includes('perfect! i\'m setting up');
+        lowerResponse.includes('perfect! i\'m setting up') ||
+        lowerResponse.includes('see you in your dashboard') ||
+        lowerResponse.includes('perfect! see you');
+      
+      console.log('🔍 [CHAT] wantsToFinish:', wantsToFinish);
       
       if (wantsToFinish) {
+        console.log('✅ [CHAT] AI indicated completion, saving and redirecting...');
         await saveUserContext();
         setTimeout(() => {
+          console.log('🚀 [CHAT] Redirecting to dashboard...');
           router.push('/dashboard-new');
-        }, 3000);
+        }, 2000);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -512,8 +540,7 @@ export default function OnboardingV2() {
   const saveUserContext = async () => {
     try {
       console.log('💾 Saving onboarding context...');
-      // Save to Supabase and Pinecone
-      await fetch('/api/save-onboarding', {
+      const response = await fetch('/api/save-onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -522,18 +549,31 @@ export default function OnboardingV2() {
           preferredMode: mode,
         }),
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save onboarding');
+      }
+      
       console.log('✅ Onboarding context saved');
+      return true;
     } catch (error) {
       console.error('Failed to save context:', error);
+      // Continue to dashboard anyway - don't block user
+      return false;
     }
   };
 
   const handleFinishOnboarding = async () => {
-    console.log('🎉 User manually finishing onboarding');
+    console.log('🎉 ========================================');
+    console.log('🎉 USER CLICKED FINISH BUTTON');
+    console.log('🎉 ========================================');
+    console.log('💾 Saving user context...');
     await saveUserContext();
-    // Set flag to trigger tutorial on dashboard
+    console.log('✅ Context saved, setting tutorial flag...');
     localStorage.setItem('navia-show-tutorial', 'true');
+    console.log('🚀 Pushing to /dashboard-new...');
     router.push('/dashboard-new');
+    console.log('✅ Router.push called');
   };
 
   // Show loading screen while checking invite
@@ -547,20 +587,51 @@ export default function OnboardingV2() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--cream)] flex flex-col items-center justify-center p-8">
-      <div className="w-full max-w-4xl flex flex-col items-center">
+    <div className="min-h-screen bg-[var(--cream)] flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden relative">
+      {/* Progress Indicator - Top of screen */}
+      {mode === 'chat' && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-40"
+        >
+          <div className="bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl border-2 border-[var(--sage-400)] shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className={`w-3 h-3 rounded-full transition-all duration-500 ${
+                      i <= questionCount
+                        ? 'bg-[var(--sage-600)] scale-110'
+                        : 'bg-[var(--sage-200)]'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-sm font-medium text-[var(--sage-700)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
+                Question {questionCount} of 4-5
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Skip option removed from top-right - only showing in chat input area */}
+
+      <div className="w-full max-w-4xl flex flex-col items-center space-y-6">
         {/* Large Avatar */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-8"
+          className="flex-shrink-0"
         >
           <NaviaAvatar isSpeaking={isTyping} isThinking={isLoading} size="lg" />
         </motion.div>
 
         {/* Title */}
         <h1 
-          className="text-6xl font-bold text-[var(--charcoal)] text-center mb-4" 
+          className="text-4xl sm:text-5xl md:text-6xl font-bold text-[var(--charcoal)] text-center" 
           style={{ fontFamily: 'var(--font-fraunces)' }}
         >
           Navia
@@ -571,7 +642,7 @@ export default function OnboardingV2() {
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-sm text-[var(--sage-600)] mb-6"
+            className="text-sm text-[var(--sage-600)]"
           >
             Sensing: {currentEmotion}
           </motion.div>
@@ -582,7 +653,7 @@ export default function OnboardingV2() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-[var(--sage-600)] text-sm mb-4 flex items-center gap-2 justify-center"
+            className="text-[var(--sage-600)] text-sm flex items-center gap-2 justify-center"
           >
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
@@ -593,58 +664,51 @@ export default function OnboardingV2() {
           </motion.div>
         )}
 
-        {/* Loading Popup - Shows while AI is thinking */}
+        {/* Navia Thinking - Shows while AI is processing */}
         <AnimatePresence>
           {isLoading && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center"
+              className="fixed inset-0 bg-gradient-to-b from-[var(--cream)] to-[var(--sand)]/50 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none"
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="bg-white/95 backdrop-blur-md px-12 py-10 rounded-3xl border-2 border-[var(--clay-300)]/40 shadow-2xl max-w-md mx-4"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex flex-col items-center"
               >
-                <div className="flex flex-col items-center">
-                  {/* Animated Navia Avatar */}
-                  <motion.div
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="mb-6"
-                  >
-                    <NaviaAvatar size="md" isThinking={true} />
-                  </motion.div>
-                  
-                  {/* Animated Dots */}
-                  <div className="flex gap-2 mb-4">
-                    <motion.div
-                      animate={{ y: [0, -12, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                      className="w-4 h-4 bg-[var(--clay-500)] rounded-full"
-                    />
-                    <motion.div
-                      animate={{ y: [0, -12, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                      className="w-4 h-4 bg-[var(--clay-500)] rounded-full"
-                    />
-                    <motion.div
-                      animate={{ y: [0, -12, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                      className="w-4 h-4 bg-[var(--clay-500)] rounded-full"
-                    />
-                  </div>
-                  
-                  {/* Text */}
-                  <p className="text-xl font-medium text-[var(--charcoal)] text-center" style={{ fontFamily: 'var(--font-dm-sans)' }}>
-                    Navia is thinking...
-                  </p>
-                  <p className="text-sm text-[var(--sage-600)] mt-2 text-center" style={{ fontFamily: 'var(--font-dm-sans)' }}>
-                    Crafting a thoughtful response 💛
-                  </p>
-                </div>
+                {/* Navia Avatar with Breathing Animation */}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.08, 1.08, 1],
+                  }}
+                  transition={{
+                    duration: 6, // Slower, calmer breathing
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                  className="mb-6"
+                >
+                  <NaviaAvatar size="xl" isThinking={true} />
+                </motion.div>
+                
+                {/* Simple Status Text */}
+                <motion.p 
+                  className="text-lg sm:text-xl text-[var(--sage-700)]" 
+                  style={{ fontFamily: 'var(--font-dm-sans)' }}
+                  animate={{
+                    opacity: [0.6, 1, 0.6],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  Thinking...
+                </motion.p>
               </motion.div>
             </motion.div>
           )}
@@ -656,9 +720,9 @@ export default function OnboardingV2() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="w-full max-w-2xl mb-8 min-h-[120px] flex flex-col items-center justify-center"
+            className="w-full max-w-2xl min-h-[100px] flex flex-col items-center justify-center px-4"
           >
-            <div className="bg-[var(--sand)]/80 backdrop-blur-sm px-8 py-6 rounded-3xl border border-[var(--clay-300)]/30 shadow-lg">
+            <div className="bg-[var(--sand)]/80 backdrop-blur-sm px-6 sm:px-8 py-5 sm:py-6 rounded-3xl border border-[var(--clay-300)]/30 shadow-lg">
               <div className="flex gap-2 items-center justify-center">
                 <motion.div
                   animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
@@ -687,12 +751,12 @@ export default function OnboardingV2() {
         {!isLoading && currentText && (
           <motion.div
             ref={textRef}
-            className="w-full max-w-2xl mb-8 min-h-[120px]"
+            className="w-full max-w-2xl min-h-[100px] px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
             <p 
-              className="text-2xl text-center text-[var(--charcoal)] leading-relaxed whitespace-pre-line"
+              className="text-lg sm:text-xl md:text-2xl text-center text-[var(--charcoal)] leading-relaxed whitespace-pre-line break-words"
               style={{ fontFamily: 'var(--font-dm-sans)' }}
             >
               {currentText}
@@ -700,7 +764,7 @@ export default function OnboardingV2() {
                 <motion.span
                   animate={{ opacity: [1, 0, 1] }}
                   transition={{ duration: 0.8, repeat: Infinity }}
-                  className="inline-block w-1 h-6 bg-[var(--clay-500)] ml-1"
+                  className="inline-block w-0.5 h-5 sm:h-6 bg-[var(--clay-500)] ml-1 align-middle"
                 />
               )}
             </p>
@@ -713,66 +777,39 @@ export default function OnboardingV2() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             onSubmit={handleNameSubmit}
-            className="w-full max-w-xl"
+            className="w-full max-w-xl px-4"
           >
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <input
                 type="text"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 placeholder="Your name..."
                 autoFocus
-                className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-8 py-4 text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm"
+                className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-4 sm:px-8 py-3 sm:py-4 text-base sm:text-xl text-center text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] shadow-sm"
                 style={{ fontFamily: 'var(--font-dm-sans)' }}
               />
               <button
                 type="submit"
                 disabled={!nameInput.trim()}
-                className="bg-[var(--clay-500)] text-white rounded-full px-8 py-4 hover:bg-[var(--clay-600)] transition-all disabled:opacity-50 shadow-md"
+                className="bg-[var(--clay-500)] text-white rounded-full px-4 sm:px-8 py-3 sm:py-4 hover:bg-[var(--clay-600)] transition-all disabled:opacity-50 shadow-md flex-shrink-0"
               >
-                <Send className="w-6 h-6" />
+                <Send className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
           </motion.form>
         )}
 
-        {/* Choice Buttons */}
-        {mode === 'choice' && !isTyping && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex gap-6"
-          >
-            <button
-              onClick={handleChatChoice}
-              className="flex flex-col items-center gap-4 bg-white hover:bg-[var(--sand)] border-2 border-[var(--clay-400)] rounded-3xl p-8 transition-all shadow-lg hover:shadow-xl"
-            >
-              <MessageCircle className="w-16 h-16 text-[var(--clay-500)]" />
-              <span className="text-xl font-semibold text-[var(--charcoal)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
-                Chat with me
-              </span>
-            </button>
-
-            <button
-              onClick={handleVoiceChoice}
-              className="flex flex-col items-center gap-4 bg-white hover:bg-[var(--sand)] border-2 border-[var(--sage-600)] rounded-3xl p-8 transition-all shadow-lg hover:shadow-xl"
-            >
-              <Volume2 className="w-16 h-16 text-[var(--sage-600)]" />
-              <span className="text-xl font-semibold text-[var(--charcoal)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
-                Talk with me
-              </span>
-            </button>
-          </motion.div>
-        )}
+        {/* Choice buttons removed - going straight to chat */}
 
         {/* Chat Input */}
         {mode === 'chat' && !isTyping && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-2xl space-y-3"
+            className="w-full max-w-2xl space-y-3 px-4"
           >
-            <form onSubmit={handleChatSubmit} className="flex gap-3">
+            <form onSubmit={handleChatSubmit} className="flex gap-2 sm:gap-3">
               <input
                 type="text"
                 value={chatInput}
@@ -780,77 +817,34 @@ export default function OnboardingV2() {
                 placeholder="Type your message..."
                 disabled={isLoading}
                 autoFocus
-                className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-8 py-4 text-lg text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] disabled:opacity-50 shadow-sm"
+                className="flex-1 bg-white border-2 border-[var(--clay-400)] rounded-full px-4 sm:px-8 py-3 sm:py-4 text-base sm:text-lg text-[var(--charcoal)] placeholder-[var(--sage-500)] focus:outline-none focus:ring-2 focus:ring-[var(--clay-500)] disabled:opacity-50 shadow-sm"
                 style={{ fontFamily: 'var(--font-dm-sans)' }}
               />
               <button
                 type="submit"
                 disabled={isLoading || !chatInput.trim()}
-                className="bg-[var(--clay-500)] text-white rounded-full p-4 hover:bg-[var(--clay-600)] transition-all disabled:opacity-50 shadow-md"
+                className="bg-[var(--clay-500)] text-white rounded-full p-3 sm:p-4 hover:bg-[var(--clay-600)] transition-all disabled:opacity-50 shadow-md flex-shrink-0"
               >
-                <Send className="w-6 h-6" />
+                <Send className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </form>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => setMode('voice')}
-                className="text-[var(--sage-600)] hover:text-[var(--sage-700)] text-sm flex items-center gap-2"
-              >
-                <Volume2 className="w-4 h-4" />
-                Switch to voice
-              </button>
-              {canFinish && (
+            {canFinish && (
+              <div className="flex items-center justify-center">
                 <button
-                  onClick={handleFinishOnboarding}
+                  onClick={() => {
+                    console.log('🔘 Finish button clicked!');
+                    handleFinishOnboarding();
+                  }}
                   className="bg-[var(--clay-500)] text-white px-6 py-2 rounded-full text-sm hover:bg-[var(--clay-600)] transition-all shadow-md"
                 >
-                  Finish & Go to Dashboard
+                  I'm ready → Go to Dashboard
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </motion.div>
         )}
 
-        {/* Voice Mode */}
-        {mode === 'voice' && !isTyping && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-6"
-          >
-            <button
-              onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
-              disabled={isLoading}
-              className={`${
-                isRecording 
-                  ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                  : 'bg-[var(--sage-600)] hover:bg-[var(--sage-700)]'
-              } text-white rounded-full p-12 shadow-2xl hover:shadow-3xl transition-all disabled:opacity-50`}
-            >
-              <Mic className="w-20 h-20" />
-            </button>
-            <p className="text-lg text-[var(--sage-600)]" style={{ fontFamily: 'var(--font-dm-sans)' }}>
-              {isRecording ? '🎤 Listening... Click to stop' : 'Click to start talking'}
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => setMode('chat')}
-                className="text-[var(--clay-600)] hover:text-[var(--clay-700)] text-sm flex items-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Switch to chat
-              </button>
-              {canFinish && (
-                <button
-                  onClick={handleFinishOnboarding}
-                  className="bg-[var(--clay-500)] text-white px-6 py-2 rounded-full text-sm hover:bg-[var(--clay-600)] transition-all shadow-md"
-                >
-                  Finish & Go to Dashboard
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
+        {/* Voice mode removed for simplicity - keeping it text-based */}
       </div>
     </div>
   );

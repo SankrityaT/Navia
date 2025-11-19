@@ -27,7 +27,7 @@ function detectFollowUp(
 ): { isFollowUp: boolean; recentQuestions: Array<{role: string, content: string}> } {
   const queryLower = query.toLowerCase().trim();
   const queryWordCount = queryLower.split(/\s+/).length;
-  const hasActiveSession = sessionMessageCount && sessionMessageCount > 0;
+  const hasActiveSession = Boolean(sessionMessageCount && sessionMessageCount > 0);
   
   // Check for pronouns that indicate follow-up
   const followUpPronouns = ['these', 'that', 'it', 'one', 'them', 'this', 'those'];
@@ -52,7 +52,7 @@ function detectFollowUp(
   
   // Follow-up detection: short query OR has pronoun/phrase + active session
   const isShortQuery = queryWordCount < 8;
-  const isFollowUp = hasActiveSession && (isShortQuery || hasPronoun || hasFollowUpPhrase);
+  const isFollowUp: boolean = hasActiveSession && (isShortQuery || hasPronoun || hasFollowUpPhrase);
   
   // Extract last 2-4 messages (last 1-2 question-answer pairs) when follow-up detected
   let recentQuestions: Array<{role: string, content: string}> = [];

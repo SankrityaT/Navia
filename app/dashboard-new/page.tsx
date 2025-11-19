@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@clerk/nextjs';
+import { usePreferredName } from '@/hooks/usePreferredName';
 import NaviaAvatar from '@/components/ai/NaviaAvatar';
 import VoiceInput from '@/components/ai/VoiceInput';
 import ImmersiveFocusMode from '@/components/focus/ImmersiveFocusMode';
@@ -58,6 +59,7 @@ interface Message {
 
 export default function DashboardNew() {
   const { user } = useUser();
+  const preferredName = usePreferredName();
   const { showTutorial, completeTutorial, closeTutorial, startTutorial } = useTutorial();
   const [tasks, setTasks] = useState<Task[]>([]);
   
@@ -854,7 +856,7 @@ export default function DashboardNew() {
       onEnergyChange={handleEnergyChange}
       supportLevel={supportLevel}
       onSupportChange={handleSupportChange}
-      userName={user?.firstName || 'friend'}
+      userName={preferredName}
       userId={user?.id || 'guest'}
       focusMode={focusMode}
       focusTime={focusTime}
@@ -1014,7 +1016,7 @@ export default function DashboardNew() {
           className="text-center mb-8"
         >
           <h1 className="text-4xl font-bold text-[var(--charcoal)] mb-2">
-            Welcome back, {user?.firstName || 'friend'}! 💛
+            Welcome back, {preferredName}! 💛
           </h1>
           <p className="text-lg text-[var(--clay-700)]">
             <span className="font-bold text-xl text-[var(--clay-600)]">You've got this.</span> One step at a time.
