@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import NaviaAvatar from '@/components/ai/NaviaAvatar';
-import { MessageCircle, Mic, Send, Volume2 } from 'lucide-react';
+import { MessageCircle, Mic, Send, Volume2, Loader2 } from 'lucide-react';
 
 type OnboardingMode = 'initial' | 'name' | 'choice' | 'chat' | 'voice';
 
@@ -26,18 +26,55 @@ export default function OnboardingV2() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isPreparingToSpeak, setIsPreparingToSpeak] = useState(false);
+  const [checkingInvite, setCheckingInvite] = useState(true);
   const textRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
+  // Check invite status before allowing onboarding
+  useEffect(() => {
+    const checkInviteStatus = async () => {
+      if (!user?.primaryEmailAddress?.emailAddress) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/check-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.primaryEmailAddress.emailAddress }),
+        });
+
+        const data = await response.json();
+
+        if (!data.allowed) {
+          // Not invited - redirect to invite-only page
+          router.push('/invite-only');
+          return;
+        }
+
+        // Invited - allow onboarding to proceed
+        setCheckingInvite(false);
+      } catch (error) {
+        console.error('Error checking invite status:', error);
+        // On error, redirect to invite-only to be safe
+        router.push('/invite-only');
+      }
+    };
+
+    checkInviteStatus();
+  }, [user, router]);
+
   // Start onboarding
   useEffect(() => {
+    if (checkingInvite) return;
+    
     setTimeout(() => {
       typeText("Hi! I'm Navia 💛\n\nWhat should I call you?");
       setMode('name');
     }, 1500);
-  }, []);
+  }, [checkingInvite]);
 
   // Smooth typing effect
   const typeText = async (text: string) => {
@@ -498,6 +535,16 @@ export default function OnboardingV2() {
     localStorage.setItem('navia-show-tutorial', 'true');
     router.push('/dashboard-new');
   };
+
+  // Show loading screen while checking invite
+  if (checkingInvite) {
+    return (
+      <div className="min-h-screen bg-[var(--cream)] flex flex-col items-center justify-center p-8">
+        <Loader2 className="w-12 h-12 animate-spin text-[var(--clay-500)] mb-4" />
+        <p className="text-[var(--charcoal)]/70 text-lg">Checking access...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--cream)] flex flex-col items-center justify-center p-8">

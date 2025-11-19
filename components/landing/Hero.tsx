@@ -27,8 +27,6 @@ export default function Hero() {
               <span className="text-2xl font-serif font-semibold text-[var(--charcoal)] tracking-tight" style={{fontFamily: 'var(--font-fraunces)'}}>Navia</span>
             </div>
             <div className="hidden md:flex items-center gap-10 text-[var(--charcoal)] font-medium animate-fade-in delay-200">
-              <a href="#how-it-works" className="hover:text-[var(--clay-600)] transition-colors duration-300">How It Works</a>
-              <a href="#pricing" className="hover:text-[var(--clay-600)] transition-colors duration-300">Pricing</a>
               <Link 
                 href="/waitlist"
                 className="bg-[var(--clay-500)] hover:bg-[var(--clay-600)] text-white px-6 py-2.5 rounded-full transition-all duration-300 font-semibold shadow-md hover:shadow-lg"
